@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright (C) 2011 United States Government as represented by the Administrator of the
+    National Aeronautics and Space Administration.
+    All Rights Reserved.
+
+    $Id: strings.xml 83 2011-10-06 15:37:57Z ccrick $
+-->
+<resources>
+    <string name="app_name">Tilogis 3D</string>
+    <string name="main_activity_name">Trilogis 3D</string>
+    <string name="dashboard">Dashboard</string>
+    <string name="latitude">Latitude:</string>
+    <string name="longitude">Longitude:</string>
+    <string name="offglobe">Off globe</string>
+    <string name="spacer"></string>
+    <string name="menu_action_text_trilogis">TRILOGIS</string>
+    <string name="menu_action_text_show_toc">TOC</string>
+    <string name="menu_action_text_wms">Add WMS</string>
+    <string name="label_wms_dialog_list_title">WMS Available Layers</string>
+    <string name="label_toc_title">Table of Contents (Layers)</string>
+    <string name="btn_get_capabilities">Get Capabilities</string>
+    <string name="toc_default_checkbox_text">&#8230;</string>
+    <string name="toc_drag_icon_content_description">Drag Item</string>
+    <string name="toc_view_delete_content_description">Delete Layer</string>
+</resources>

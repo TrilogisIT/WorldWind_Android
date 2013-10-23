@@ -1,0 +1,18 @@
+<resources>
+	<declare-styleable name="DragListView">
+		<attr name="normal_height" format="dimension" />
+		<attr name="expanded_height" format="dimension" />
+		<attr name="grabber" format="reference" />
+		<attr name="dragndrop_background" format="color" />
+    <attr name="remove_mode">
+			<enum name="none" value="-1" />
+			<enum name="fling" value="0" />
+			<enum name="slide" value="1" />
+			<enum name="trash" value="2" />
+		</attr>
+		<attr name="grabber_alignment">
+			<enum name="left" value="0" />
+			<enum name="right" value="1" />
+		</attr>
+	</declare-styleable>
+</resources>

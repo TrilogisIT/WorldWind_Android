@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- $Id: worldwind.layers.xml 733 2012-09-02 17:15:09Z dcollins $ -->
+<!-- This document specifies the initial layers to load in World Wind -->
+<!-- This list can be overridden by specifying an alternate list in worldwind.xml, or by specifying an -->
+<!-- alternate configuration document -->
+<!-- See the javadoc for the Configuration class for details -->
+<LayerList>
+    <Layer
+        className="gov.nasa.worldwind.layers.SkyGradientLayer"
+        title="Sky" />
+    <Layer className="gov.nasa.worldwind.layers.Earth.BMNGOneImage" >
+        <!-- Individual properties can be specified within Layer entries, like this: -->
+        <Property
+            name="MinActiveAltitude"
+            value="3e6" />
+    </Layer>
+    <Layer
+        actuate="onLoad"
+        href="config/Earth/BMNGWMSLayer.xml" />
+    <Layer
+        actuate="onLoad"
+        href="config/Earth/LandsatI3WMSLayer.xml" />
+    <!--
+           <Layer href="config/Earth/MSVirtualEarthAerialLayer.xml" actuate="onLoad"/> 
+	       <Layer href="config/Earth/Topomap.xml" actuate="onLoad"/>
+    -->
+    <Layer
+        className="gov.nasa.worldwind.layers.WorldMapLayer"
+        title="World Map" />
+    <Layer
+        className="gov.nasa.worldwind.layers.CompassLayer"
+        title="Compass" />
+    <Layer
+        className="gov.nasa.worldwind.layers.ScalebarLayer"
+        title="Scale Bar" />
+</LayerList>

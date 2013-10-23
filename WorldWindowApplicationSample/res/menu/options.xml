@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright (C) 2011 United States Government as represented by the Administrator of the
+    National Aeronautics and Space Administration.
+    All Rights Reserved.
+-->
+<!-- $Id: options.xml 59 2011-09-20 18:41:08Z dcollins $ -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+    <item
+        android:id="@+id/menu_show_wms"
+        android:icon="@drawable/ic_action_trilogis"
+        android:showAsAction="always"
+        android:title="@string/menu_action_text_trilogis"/>
+    <item
+        android:id="@+id/show_layers_toc"
+        android:icon="@drawable/ic_menu_toc"
+        android:showAsAction="ifRoom|withText"
+        android:title="@string/menu_action_text_show_toc"/>
+    <item
+        android:id="@+id/menu_add_wms"
+        android:icon="@android:drawable/ic_menu_gallery"
+        android:showAsAction="ifRoom|withText"
+        android:title="@string/menu_action_text_wms"/>
+</menu>

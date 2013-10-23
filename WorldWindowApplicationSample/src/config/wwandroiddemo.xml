@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    WWAndroid Demo configuration values.
+
+    $Id: wwandroiddemo.xml 59 2011-09-20 18:41:08Z dcollins $
+-->
+<WorldWindConfiguration version="1">
+    <Property name="gov.nasa.worldwind.avkey.EarthElevationModelConfigFile"
+              value="config/Earth/EarthElevationModelAsBil17.xml"/>
+               <LayerList href="config/worldwind.layers2.xml"/>
+</WorldWindConfiguration>

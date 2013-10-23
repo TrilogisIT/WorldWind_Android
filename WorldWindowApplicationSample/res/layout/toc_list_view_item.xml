@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:gravity="center_vertical"
+    android:padding="8dp" >
+
+    <ImageView
+        android:id="@+id/toc_item_grabber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_centerVertical="true"
+        android:contentDescription="@string/toc_drag_icon_content_description"
+        android:src="@drawable/ic_action_grabber" >
+    </ImageView>
+
+    <CheckBox
+        android:id="@+id/toc_item_checkbox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/toc_item_grabber"
+        android:layout_alignTop="@+id/toc_item_grabber"
+        android:layout_toLeftOf="@+id/toc_item_grabber"
+        android:text="@string/toc_default_checkbox_text" >
+    </CheckBox>
+
+</RelativeLayout>
