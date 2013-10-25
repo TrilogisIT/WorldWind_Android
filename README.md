@@ -12,11 +12,14 @@ The Library has updated with some bugfixing (XML parsing and other small issues)
 *  `WMSTiledImageLayer` to display an arbitrary WMS layer. See the application example.
 *  `WorldMapLayer` to display a WorldMap thumbnail in the upper left part of the view which shows where in the world the user is looking at.
 
+**Limited to tablets only, since phones are not able to read the DDS texture format. We are working hard to support both tablets and phones**
 **It requires API 15+**
+
 
 ## Examples
 
 The project `WorldWindowApplicationSample` contains a full and working example of how to use the new layers.
+The folder `WorldDroidDemoApp` contains a ready to install apk with the latest version of the application.
 
 ChangeLog
 -------

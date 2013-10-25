@@ -7,8 +7,8 @@
     $Id: strings.xml 83 2011-10-06 15:37:57Z ccrick $
 -->
 <resources>
-    <string name="app_name">Tilogis 3D</string>
-    <string name="main_activity_name">Trilogis 3D</string>
+    <string name="app_name">WorldDroid³</string>
+    <string name="main_activity_name">WorldDroid³</string>
     <string name="dashboard">Dashboard</string>
     <string name="latitude">Latitude:</string>
     <string name="longitude">Longitude:</string>
