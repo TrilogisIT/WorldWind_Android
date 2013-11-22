@@ -12,7 +12,7 @@
         <!-- Individual properties can be specified within Layer entries, like this: -->
         <Property
             name="MinActiveAltitude"
-            value="3e6" />
+            value="3e5" />
     </Layer>
     <Layer
         actuate="onLoad"
@@ -20,17 +20,17 @@
     <Layer
         actuate="onLoad"
         href="config/Earth/LandsatI3WMSLayer.xml" />
-    <!--
-           <Layer href="config/Earth/MSVirtualEarthAerialLayer.xml" actuate="onLoad"/> 
-	       <Layer href="config/Earth/Topomap.xml" actuate="onLoad"/>
-    -->
+    <!-- <Layer href="config/Earth/MSVirtualEarthAerialLayer.xml" actuate="onLoad"/> -->
     <Layer
+        actuate="onRequest"
         className="gov.nasa.worldwind.layers.WorldMapLayer"
         title="World Map" />
     <Layer
+        actuate="onRequest"
         className="gov.nasa.worldwind.layers.CompassLayer"
         title="Compass" />
     <Layer
+        actuate="onRequest"
         className="gov.nasa.worldwind.layers.ScalebarLayer"
         title="Scale Bar" />
 </LayerList>

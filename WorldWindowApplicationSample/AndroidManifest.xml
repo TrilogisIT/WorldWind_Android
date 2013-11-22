@@ -8,16 +8,18 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="it.trilogis.android.ww"
-    android:versionCode="2"
-    android:versionName="1.0.1" >
+    android:versionCode="3"
+    android:versionName="1.0.2" >
     <!-- Specify that World Wind applications require SDK Platform Android 4.0.3, API 15. -->
     <uses-sdk
         android:minSdkVersion="15"
-        android:targetSdkVersion="18" />
+        android:targetSdkVersion="19" />
     <!-- Specify all of the Android features that World Wind requires: OpenGL ES 2.0. -->
     <uses-feature android:glEsVersion="0x00020000" />
     <!-- Specify all of the Android permissions that World Wind requires: internet. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <!--
     Define the Android application that launches when the user selects the WWAndroidDemo's icon in the launch bar. Add
     the attribute android:debuggable="true" to this element in order to debug this application using an IDE or the
@@ -27,6 +29,12 @@
     Note: WWAndroidDemo icons are taken from www.androidicons.com. These icons are licensed under the Creative Commons
     Attribution 3.0 Unported License.
     -->
+    <supports-screens
+        android:largeScreens="true"
+        android:normalScreens="false"
+        android:requiresSmallestWidthDp="600"
+        android:smallScreens="false"
+        android:xlargeScreens="true" />
     <application
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
