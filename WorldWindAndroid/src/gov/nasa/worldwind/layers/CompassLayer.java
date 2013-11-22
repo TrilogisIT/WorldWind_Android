@@ -477,7 +477,7 @@ public class CompassLayer extends AbstractLayer {
 	protected double computeHeading(View view) {
 		if (view == null) return 0.0;
 
-		return view.getHeading().degrees;
+		return -view.getHeading().degrees;
 	}
 
 	protected double computeHeading(DrawContext dc, View view) {
@@ -486,7 +486,7 @@ public class CompassLayer extends AbstractLayer {
 		if (!(view instanceof BasicView)) return 0.0;
 
 		BasicView basicView = (BasicView) view;
-		return basicView.getLookAtHeading(dc.getGlobe()).degrees;
+		return -basicView.getLookAtHeading(dc.getGlobe()).degrees;
 	}
 
 	protected double computePitch(View view) {
