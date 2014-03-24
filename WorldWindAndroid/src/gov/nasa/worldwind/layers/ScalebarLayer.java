@@ -5,6 +5,7 @@
  */
 package gov.nasa.worldwind.layers;
 
+import gov.nasa.worldwind.R;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.geom.Angle;
@@ -34,8 +35,8 @@ import android.opengl.GLES20;
  * @version $Id: ScalebarLayer.java 508 2012-04-06 01:05:50Z tgaskins $
  */
 public class ScalebarLayer extends AbstractLayer {
-	protected static final String VERTEX_SHADER_PATH_COLOR = "shaders/ScalebarLayerColor.vert";
-	protected static final String FRAGMENT_SHADER_PATH_COLOR = "shaders/ScalebarLayerColor.frag";
+	protected static final int VERTEX_SHADER_PATH_COLOR = R.raw.scalebarlayercolorvert;
+	protected static final int FRAGMENT_SHADER_PATH_COLOR = R.raw.scalebarlayercolorfrag;
 	// Units constants
 	public final static String UNIT_METRIC = "gov.nasa.worldwind.ScalebarLayer.Metric";
 	public final static String UNIT_IMPERIAL = "gov.nasa.worldwind.ScalebarLayer.Imperial";
@@ -450,7 +451,7 @@ public class ScalebarLayer extends AbstractLayer {
 		}
 	}
 
-	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, String shaderPath, String fragmentPath) {
+	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, int shaderPath, int fragmentPath) {
 
 		GpuProgram program = cache.getProgram(programKey);
 

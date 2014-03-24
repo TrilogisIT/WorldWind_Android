@@ -6,6 +6,7 @@
 package gov.nasa.worldwind.render;
 
 import gov.nasa.worldwind.Disposable;
+import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.cache.Cacheable;
 import gov.nasa.worldwind.geom.Matrix;
 import gov.nasa.worldwind.util.Logging;

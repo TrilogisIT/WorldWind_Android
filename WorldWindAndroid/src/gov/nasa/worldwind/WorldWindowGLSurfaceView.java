@@ -38,6 +38,7 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
     protected int viewportHeight;
     protected TextView latitudeText;
     protected TextView longitudeText;
+    protected TextView rangeText;
 
     public WorldWindowGLSurfaceView(Context context)
     {
@@ -205,6 +206,14 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
         this.sendRenderingEvent(this.afterRenderingEvent);
     }
 
+	public static void checkGlError(String op) {
+		int error;
+		while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
+			Logging.error(op + ": glError " + GLUtils.getEGLErrorString(error));
+//			throw new RuntimeException(op + ": glError " + GLUtils.getEGLErrorString(error));
+		}
+	}
+
     /** {@inheritDoc} */
     public Model getModel()
     {
@@ -294,7 +303,18 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
         this.longitudeText = lonView;
     }
 
-    /** {@inheritDoc} */
+	public TextView getRangeText()
+	{
+		return this.rangeText;
+	}
+
+	public void setRangeText(TextView rangeView)
+	{
+		this.rangeText = rangeView;
+	}
+
+
+	/** {@inheritDoc} */
     public GpuResourceCache getGpuResourceCache()
     {
         return this.gpuResourceCache;

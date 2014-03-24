@@ -1,5 +1,6 @@
 package gov.nasa.worldwind.render;
 
+import gov.nasa.worldwind.R;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.geom.Matrix;
 import gov.nasa.worldwind.geom.Rect;
@@ -21,8 +22,8 @@ import android.opengl.GLES20;
  */
 public class TextRenderer {
 
-	protected static final String VERTEX_SHADER_PATH = "shaders/TextRenderer.vert";
-	protected static final String FRAGMENT_SHADER_PATH = "shaders/TextRenderer.frag";
+	protected static final int VERTEX_SHADER_PATH = R.raw.textrenderervert;
+	protected static final int FRAGMENT_SHADER_PATH = R.raw.textrendererfrag;
 	protected static final Object shaderKey = new Object();
 
 	private HashMap<String, Object> textKeys = new HashMap<String, Object>();
@@ -121,7 +122,7 @@ public class TextRenderer {
 		return texture;
 	}
 
-	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, String shaderPath, String fragmentPath) {
+	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, int shaderPath, int fragmentPath) {
 
 		GpuProgram program = cache.getProgram(programKey);
 

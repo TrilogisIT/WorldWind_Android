@@ -1,17 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="gov.nasa.worldwind"
-    android:versionCode="1"
-    android:versionName="1.0" >
-    <uses-sdk
-        android:minSdkVersion="15"
-        android:targetSdkVersion="18" />
-    <!-- Specify that World Wind Android applications require SDK Platform Android 4.0.3, API 15. -->
-    <uses-sdk android:minSdkVersion="15" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="1000000" android:versionName="1.0.0" package="gov.nasa.worldwind">
+    <uses-sdk android:minSdkVersion="15" android:targetSdkVersion="18"/>
     <!-- Specify all of the Android features that World Wind requires: OpenGL ES 2.0. -->
-    <uses-feature android:glEsVersion="0x00020000" />
+    <uses-feature android:glEsVersion="0x00020000"/>
     <!-- Specify all of the Android permissions that World Wind requires: internet. -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <application android:allowBackup="true" >
-    </application>
+    <uses-permission android:name="android.permission.INTERNET"/>
 </manifest>

@@ -5,6 +5,7 @@ All Rights Reserved.
 package gov.nasa.worldwind.render;
 
 import gov.nasa.worldwind.Movable;
+import gov.nasa.worldwind.R;
 import gov.nasa.worldwind.WWObjectImpl;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
@@ -50,9 +51,9 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/** The default geometry regeneration interval. */
 	protected static final int DEFAULT_GEOMETRY_GENERATION_INTERVAL = 3000;
 	/** The default vertex shader path. This specifies the location of a file within the World Wind archive. */
-	protected static final String DEFAULT_VERTEX_SHADER_PATH = "shaders/AbstractShape.vert";
+	protected static final int DEFAULT_VERTEX_SHADER_PATH = R.raw.abstractshapevert;
 	/** The default fragment shader path. This specifies the location of a file within the World Wind archive. */
-	protected static final String DEFAULT_FRAGMENT_SHADER_PATH = "shaders/AbstractShape.frag";
+	protected static final int DEFAULT_FRAGMENT_SHADER_PATH = R.raw.abstractshapefrag;
 
 	/** The attributes used if attributes are not specified. */
 	protected static ShapeAttributes defaultAttributes;

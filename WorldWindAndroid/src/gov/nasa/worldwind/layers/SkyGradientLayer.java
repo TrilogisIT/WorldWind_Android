@@ -5,7 +5,7 @@
  */
 package gov.nasa.worldwind.layers;
 
-import gov.nasa.worldwind.View;
+import gov.nasa.worldwind.*;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Matrix;
@@ -170,7 +170,7 @@ public class SkyGradientLayer extends AbstractLayer {
 
 		if (program == null) {
 			try {
-				GpuProgram.GpuProgramSource source = GpuProgram.readProgramSource(VERTEX_SHADER_PATH, FRAGMENT_SHADER_PATH);
+				GpuProgram.GpuProgramSource source = GpuProgram.readProgramSource(R.raw.skygradientlayervert, R.raw.skygradientlayerfrag);
 				program = new GpuProgram(source);
 				cache.put(this.programKey, program);
 			} catch (Exception e) {

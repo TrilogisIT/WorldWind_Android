@@ -6,6 +6,7 @@
 package gov.nasa.worldwind.render;
 
 import android.opengl.GLES20;
+import gov.nasa.worldwind.R;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.terrain.*;
@@ -19,8 +20,8 @@ import java.util.*;
  */
 public class SurfaceTileRenderer
 {
-    protected static final String VERTEX_SHADER_PATH = "shaders/SurfaceTileRenderer.vert";
-    protected static final String FRAGMENT_SHADER_PATH = "shaders/SurfaceTileRenderer.frag";
+    protected static final int VERTEX_SHADER_PATH = R.raw.surfacetilerenderervert;
+    protected static final int FRAGMENT_SHADER_PATH = R.raw.surfacetilerendererfrag;
 
     protected final Object programKey = new Object();
     protected boolean programCreationFailed;
@@ -263,8 +264,7 @@ public class SurfaceTileRenderer
         {
             try
             {
-                GpuProgram.GpuProgramSource source = GpuProgram.readProgramSource(VERTEX_SHADER_PATH,
-                    FRAGMENT_SHADER_PATH);
+                GpuProgram.GpuProgramSource source = GpuProgram.readProgramSource(VERTEX_SHADER_PATH, FRAGMENT_SHADER_PATH);
                 program = new GpuProgram(source);
                 cache.put(this.programKey, program);
             }

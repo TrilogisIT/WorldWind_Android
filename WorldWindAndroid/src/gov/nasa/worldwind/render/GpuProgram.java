@@ -4,19 +4,15 @@ All Rights Reserved.
  */
 package gov.nasa.worldwind.render;
 
+import android.opengl.GLES20;
 import gov.nasa.worldwind.Disposable;
 import gov.nasa.worldwind.cache.Cacheable;
 import gov.nasa.worldwind.exception.WWRuntimeException;
-import gov.nasa.worldwind.geom.Matrix;
-import gov.nasa.worldwind.geom.Vec4;
-import gov.nasa.worldwind.util.Logging;
-import gov.nasa.worldwind.util.WWIO;
-import gov.nasa.worldwind.util.WWUtil;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
-import android.opengl.GLES20;
+import gov.nasa.worldwind.geom.*;
+import gov.nasa.worldwind.util.*;
+
+import java.io.*;
+import java.util.*;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -161,6 +157,7 @@ public class GpuProgram implements Cacheable, Disposable {
 	}
 
 	public static GpuProgramSource readProgramSource(Object vertexSource, Object fragmentSource) throws IOException {
+        Logging.info(String.format("Loading Program source: %s, %s", vertexSource, fragmentSource));
 		if (WWUtil.isEmpty(vertexSource)) {
 			String msg = Logging.getMessage("nullValue.VertexSourceIsNull");
 			throw new IllegalArgumentException(msg);

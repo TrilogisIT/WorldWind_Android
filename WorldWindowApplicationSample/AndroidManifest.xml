@@ -29,12 +29,12 @@
     Note: WWAndroidDemo icons are taken from www.androidicons.com. These icons are licensed under the Creative Commons
     Attribution 3.0 Unported License.
     -->
-    <supports-screens
-        android:largeScreens="true"
-        android:normalScreens="false"
-        android:requiresSmallestWidthDp="600"
-        android:smallScreens="false"
-        android:xlargeScreens="true" />
+    <supports-gl-texture android:name="GL_OES_texture_compression_S3TC"/>
+    <supports-gl-texture android:name="GL_EXT_texture_compression_s3tc"/>
+    <supports-gl-texture android:name="GL_EXT_texture_compression_dxt1"/>
+    <supports-gl-texture android:name="GL_EXT_texture_compression_dxt3"/>
+    <supports-gl-texture android:name="GL_EXT_texture_compression_dxt5"/>
+
     <application
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"

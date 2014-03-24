@@ -6,6 +6,7 @@
 package gov.nasa.worldwind.layers;
 
 import gov.nasa.worldwind.BasicView;
+import gov.nasa.worldwind.R;
 import gov.nasa.worldwind.View;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
@@ -39,8 +40,8 @@ import android.opengl.GLES20;
  * @version $Id: CompassLayer.java 1 2013-08-08 $
  */
 public class CompassLayer extends AbstractLayer {
-	protected static final String VERTEX_SHADER_PATH_TEXTURE = "shaders/CompassLayerTexture.vert";
-	protected static final String FRAGMENT_SHADER_PATH_TEXTURE = "shaders/CompassLayerTexture.frag";
+	protected static final int VERTEX_SHADER_PATH_TEXTURE = R.raw.compasslayertexturevert;
+	protected static final int FRAGMENT_SHADER_PATH_TEXTURE = R.raw.compasslayertexturefrag;
 	protected final Object programTextureKey = new Object();
 	protected String iconFilePath = "images/notched-compass.png"; // TODO: make configurable
 	protected double compassToViewportScale = 0.2; // TODO: make configurable
@@ -512,7 +513,7 @@ public class CompassLayer extends AbstractLayer {
 		return basicView.getLookAtTilt(dc.getGlobe()).degrees;
 	}
 
-	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, String shaderPath, String fragmentPath) {
+	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, int shaderPath, int fragmentPath) {
 
 		GpuProgram program = cache.getProgram(programKey);
 

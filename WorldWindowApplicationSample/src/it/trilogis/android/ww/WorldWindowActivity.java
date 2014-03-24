@@ -15,22 +15,26 @@
  */
 package it.trilogis.android.ww;
 
-import gov.nasa.worldwind.BasicView;
-import gov.nasa.worldwind.Model;
-import gov.nasa.worldwind.WorldWind;
-import gov.nasa.worldwind.WorldWindowGLSurfaceView;
+import android.opengl.GLSurfaceView;
+import gov.nasa.worldwind.*;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.globes.Globe;
+import gov.nasa.worldwind.layers.CompassLayer;
 import gov.nasa.worldwind.layers.Layer;
 import gov.nasa.worldwind.layers.LayerList;
+import gov.nasa.worldwind.layers.RenderableLayer;
+import gov.nasa.worldwind.render.Path;
+import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.WWIO;
 import it.trilogis.android.ww.dialogs.AddWMSDialog;
 import it.trilogis.android.ww.dialogs.AddWMSDialog.OnAddWMSLayersListener;
 import it.trilogis.android.ww.dialogs.TocDialog;
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
+import java.util.*;
+
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
@@ -58,6 +62,9 @@ public class WorldWindowActivity extends Activity {
     private final static double BOLZANO_VIEW_TILT = 60d;
     private final static double BOLZANO_VIEW_DISTANCE_KM = 13000d;
 
+	public static final int INITIAL_LATITUDE = 40;
+	public static final int INITIAL_LONGITUDE = -120;
+
     protected WorldWindowGLSurfaceView wwd;
 
     // private CompassLayer cl;
@@ -73,67 +80,95 @@ public class WorldWindowActivity extends Activity {
         // Setting the location of the file store on Android as cache directory. Doing this, when user has no space left
         // on the device, if he asks to the system to free Cache of apps, all the MB/GB of WorldWindApplication will be cleared!
         File fileDir = getCacheDir();// getFilesDir();
-        if (null != fileDir && fileDir.exists() && fileDir.canWrite()) {
-            // create .nomedia file, so pictures will not be visible in the gallery (otherwise, it's really awful to see all of the tiles as images!)
+		Logging.info("Application cache directory: " + fileDir);
+		if (null != fileDir && fileDir.exists() && fileDir.canWrite()) {
             File output = new File(fileDir, ".nomedia");
-            if (output.exists()) {
-                Log.d(TAG, "No need to create .nomedia file, it's already there! : " + output.getAbsolutePath());
-            } else {
-                // lets create the file
-                boolean fileCreated = false;
+            if (!output.exists()) {
                 try {
-                    fileCreated = output.createNewFile();
+                    output.createNewFile();
                 } catch (IOException e) {
                     Log.e(TAG, "IOException while creating .nomedia: " + e.getMessage());
                 }
-                if (!fileCreated) {
-                    Log.e(TAG, ".nomedia file not created!");
-                } else {
-                    Log.d(TAG, ".nomedia file created!");
-                }
             }
         }
-        // Setup system property for the file store
         System.setProperty("gov.nasa.worldwind.platform.user.store", fileDir.getAbsolutePath());
 
-        // set the contentview
-        this.setContentView(R.layout.main);
-        // And initialize the WorldWindow Model and View
-        this.wwd = (WorldWindowGLSurfaceView) this.findViewById(R.id.wwd);
-        this.wwd.setModel((Model) WorldWind.createConfigurationComponent(AVKey.MODEL_CLASS_NAME));
-        this.setupView();
-        this.setupTextViews();
+        WWIO.setContext(this);
+
+        setContentView(R.layout.main);
+
+        wwd = (WorldWindowGLSurfaceView) findViewById(R.id.wwd);
+		wwd.setDebugFlags(GLSurfaceView.DEBUG_CHECK_GL_ERROR);
+
+		wwd.setModel((Model) WorldWind.createConfigurationComponent(AVKey.MODEL_CLASS_NAME));
+		wwd.setLatitudeText((TextView) findViewById(R.id.latvalue));
+		wwd.setLongitudeText((TextView) findViewById(R.id.lonvalue));
+
+		BasicView view = (BasicView) wwd.getView();
+		Globe globe = wwd.getModel().getGlobe();
+
+		view.setLookAtPosition(Position.fromDegrees(INITIAL_LATITUDE, INITIAL_LONGITUDE,
+				globe.getElevation(Angle.fromDegrees(INITIAL_LATITUDE), Angle.fromDegrees(INITIAL_LONGITUDE))));
+//		view.setHeading(Angle.fromDegrees(BOLZANO_VIEW_HEADING));
+		view.setTilt(Angle.fromDegrees(45));
+		view.setRange(7000);
+
+		RenderableLayer layer = new RenderableLayer();
+		layer.setName("Renderable");
+		CustomBox box = new CustomBox(Position.fromDegrees(INITIAL_LATITUDE, INITIAL_LONGITUDE,
+				globe.getElevation(Angle.fromDegrees(INITIAL_LATITUDE), Angle.fromDegrees(INITIAL_LONGITUDE))), 2000);
+		layer.addRenderable(box);
+
+		Path field = new Path();
+		ArrayList<Position> positions = new ArrayList<Position>();
+		positions.add(Position.fromDegrees(INITIAL_LATITUDE+1, INITIAL_LONGITUDE+1));
+		positions.add(Position.fromDegrees(INITIAL_LATITUDE+1, INITIAL_LONGITUDE-1));
+		positions.add(Position.fromDegrees(INITIAL_LATITUDE-1, INITIAL_LONGITUDE-1));
+		positions.add(Position.fromDegrees(INITIAL_LATITUDE-1, INITIAL_LONGITUDE+1));
+		field.setPositions(positions);
+		field.setExtrude(true);
+		field.setFollowTerrain(true);
+		field.setDrawVerticals(true);
+		field.setShowPositions(true);
+		layer.addRenderable(field);
+
+		insertBeforeCompass(wwd, layer);
     }
+
+	public static void insertBeforeCompass(WorldWindow wwd, Layer layer)
+	{
+		// Insert the layer into the layer list just before the compass.
+		int compassPosition = 0;
+		LayerList layers = wwd.getModel().getLayers();
+		for (Layer l : layers)
+		{
+			if (l instanceof CompassLayer)
+				compassPosition = layers.indexOf(l);
+		}
+		layers.add(compassPosition, layer);
+	}
 
     @Override
     protected void onPause() {
         super.onPause();
-        // Pause the OpenGL ES rendering thread.
-        this.wwd.onPause();
+        wwd.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-
-        // Resume the OpenGL ES rendering thread.
-        this.wwd.onResume();
+        wwd.onResume();
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Configure the application's options menu using the XML file res/menu/options.xml.
-        this.getMenuInflater().inflate(R.menu.options, menu);
+        getMenuInflater().inflate(R.menu.options, menu);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-
-            case R.id.menu_show_wms:
-                // TODO show webview with trilogis INFO! See walk&hike app
-                break;
             // case R.id.menu_toggle_compass:
             // if (null == cl) {
             // cl = searchSpecificLayer(CompassLayer.class);
@@ -212,77 +247,33 @@ public class WorldWindowActivity extends Activity {
             // }
             // break;
             case R.id.menu_add_wms:
-                openAddWMSDialog();
-                break;
+                AddWMSDialog wmsLayersDialog = new AddWMSDialog();
+                wmsLayersDialog.setOnAddWMSLayersListener(new OnAddWMSLayersListener() {
+
+                    public void onAddWMSLayers(List<Layer> layersToAdd) {
+                        for (Layer lyr : layersToAdd) {
+                            boolean added = WorldWindowActivity.this.wwd.getModel().getLayers().addIfAbsent(lyr);
+                            Log.d(TAG, "Layer '" + lyr.getName() + "' " + (added ? "correctly" : "not") + " added to WorldWind!");
+                        }
+                    }
+                });
+                wmsLayersDialog.show(getFragmentManager(), "addWmsLayers");
+                return true;
             case R.id.show_layers_toc:
-                // Toast.makeText(getApplicationContext(), "Showing TOC!", Toast.LENGTH_LONG).show();
-                showLayerManager();
-                break;
-            default:
-                return super.onOptionsItemSelected(item);
+                TocDialog tocDialog = new TocDialog();
+                tocDialog.setWorldWindData(wwd);
+                tocDialog.show(getFragmentManager(), "tocDialog");
+                return true;
         }
-        return true;
+        return super.onOptionsItemSelected(item);
     }
 
     @SuppressWarnings({ "unchecked", "unused" })
     private <T extends Layer> T searchSpecificLayer(Class<T> classToSearch) {
-        if (null == this.wwd || null == this.wwd.getModel() || null == this.wwd.getModel().getLayers()) {
-            Log.e(TAG, "No layers in model!");
-            return null;
-        }
-        LayerList layers = this.wwd.getModel().getLayers();
-        for (Layer lyr : layers) {
-            if (classToSearch.isInstance(lyr)) {
+        for (Layer lyr : wwd.getModel().getLayers()) {
+            if (classToSearch.isInstance(lyr))
                 return (T) lyr;
-            }
         }
         return null;
-    }
-
-    protected void setupView() {
-        BasicView view = (BasicView) this.wwd.getView();
-        Globe globe = this.wwd.getModel().getGlobe();
-        // set the initial position to "Bolzano", where you can see the WMS Layers
-        view.setLookAtPosition(Position.fromDegrees(BOLZANO_LATITUDE, BOLZANO_LONGITUDE,
-            globe.getElevation(Angle.fromDegrees(BOLZANO_LATITUDE), Angle.fromDegrees(BOLZANO_LONGITUDE))));
-        view.setHeading(Angle.fromDegrees(BOLZANO_VIEW_HEADING));
-        view.setTilt(Angle.fromDegrees(BOLZANO_VIEW_TILT));
-        view.setRange(BOLZANO_VIEW_DISTANCE_KM);
-    }
-
-    protected void setupTextViews() {
-        TextView latTextView = (TextView) findViewById(R.id.latvalue);
-        this.wwd.setLatitudeText(latTextView);
-        TextView lonTextView = (TextView) findViewById(R.id.lonvalue);
-        this.wwd.setLongitudeText(lonTextView);
-    }
-
-    // ============== Add WMS ======================= //
-    private void openAddWMSDialog() {
-        AddWMSDialog wmsLayersDialog = new AddWMSDialog();
-        wmsLayersDialog.setOnAddWMSLayersListener(mListener);
-        wmsLayersDialog.show(getFragmentManager(), "addWmsLayers");
-    }
-
-    private OnAddWMSLayersListener mListener = new OnAddWMSLayersListener() {
-
-        @Override
-        public void onAddWMSLayers(List<Layer> layersToAdd) {
-            if (null == layersToAdd || layersToAdd.isEmpty()) {
-                Log.w(TAG, "Null or empty layers to add!");
-                return;
-            }
-            for (Layer lyr : layersToAdd) {
-                boolean added = WorldWindowActivity.this.wwd.getModel().getLayers().addIfAbsent(lyr);
-                Log.d(TAG, "Layer '" + lyr.getName() + "' " + (added ? "correctly" : "not") + " added to WorldWind!");
-            }
-        }
-    };
-
-    // ============== Show Layer Manager ============ //
-    private void showLayerManager() {
-        TocDialog tocDialog = new TocDialog();
-        tocDialog.setWorldWindData(this.wwd);
-        tocDialog.show(getFragmentManager(), "tocDialog");
     }
 }

@@ -6,6 +6,7 @@
 package gov.nasa.worldwind.layers;
 
 import gov.nasa.worldwind.Configuration;
+import gov.nasa.worldwind.R;
 import gov.nasa.worldwind.View;
 import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.avlist.AVKey;
@@ -48,10 +49,10 @@ import android.opengl.GLES20;
  * @version $Id: WorldMapLayer.java 1 2011-07-16 23:22:47Z dcollins $
  */
 public class WorldMapLayer extends AbstractLayer {
-	protected static final String VERTEX_SHADER_PATH_COLOR = "shaders/WorldMapLayerColor.vert";
-	protected static final String FRAGMENT_SHADER_PATH_COLOR = "shaders/WorldMapLayerColor.frag";
-	protected static final String VERTEX_SHADER_PATH_TEXTURE = "shaders/WorldMapLayerTexture.vert";
-	protected static final String FRAGMENT_SHADER_PATH_TEXTURE = "shaders/WorldMapLayerTexture.frag";
+	protected static final int VERTEX_SHADER_PATH_COLOR = R.raw.worldmaplayercolorvert;
+	protected static final int FRAGMENT_SHADER_PATH_COLOR = R.raw.worldmaplayercolorfrag;
+	protected static final int VERTEX_SHADER_PATH_TEXTURE = R.raw.worldmaplayertexturevert;
+	protected static final int FRAGMENT_SHADER_PATH_TEXTURE = R.raw.worldmaplayertexturefrag;
 
 	protected String iconFilePath = "images/earth-map-512x256.png";;
 	protected double toViewportScale = 0.2;
@@ -555,7 +556,7 @@ public class WorldMapLayer extends AbstractLayer {
 		return retval;
 	}
 
-	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, String shaderPath, String fragmentPath) {
+	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, int shaderPath, int fragmentPath) {
 		GpuProgram program = cache.getProgram(programKey);
 
 		if (program == null) {

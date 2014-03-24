@@ -5,6 +5,7 @@
  */
 package gov.nasa.worldwind.util;
 
+import android.content.Context;
 import gov.nasa.worldwind.Configuration;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.exception.WWRuntimeException;
@@ -31,8 +32,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author dcollins
@@ -45,6 +45,7 @@ public class WWIO {
 	protected static final int DEFAULT_PAGE_SIZE = 2 << 15;
 	protected static final Map<String, String> mimeTypeToSuffixMap = new HashMap<String, String>();
 	protected static final Map<String, String> suffixToMimeTypeMap = new HashMap<String, String>();
+    protected static Context context;
 
 	static {
 		mimeTypeToSuffixMap.put("application/acad", "dwg");
@@ -141,6 +142,14 @@ public class WWIO {
 		suffixToMimeTypeMap.put("zip", "application/zip");
 	}
 
+    public static void setContext(Context c) {
+        context = c;
+    }
+
+    public static Context getContext() {
+        return context;
+    }
+
 	public static String formPath(String... pathParts) {
 		StringBuilder sb = new StringBuilder();
 
@@ -203,28 +212,20 @@ public class WWIO {
 		return new ByteArrayInputStream(byteArray);
 	}
 
-	public static Object getFileOrResourceAsStream(String path, Class<?> c) {
+	public static InputStream getFileOrResourceAsStream(String path, Class<?> c) {
 		if (path == null) {
 			String msg = Logging.getMessage("nullValue.PathIsNull");
 			Logging.error(msg);
 			throw new IllegalStateException(msg);
 		}
 
-		File file = new File(path);
-		if (file.exists()) {
-			try {
-				return new FileInputStream(file);
-			} catch (Exception e) {
-				return e;
-			}
-		}
-
-		if (c == null) c = WWIO.class;
-
 		try {
-			return c.getResourceAsStream("/" + path);
+			if (new File(path).exists())
+				return new FileInputStream(new File(path));
+
+			return (c==null ? WWIO.class : c).getResourceAsStream("/" + path);
 		} catch (Exception e) {
-			return e;
+			throw new WWRuntimeException(Logging.getMessage("generic.UnableToOpenPath", path), e);
 		}
 	}
 
@@ -443,7 +444,9 @@ public class WWIO {
 		} else if (source instanceof InputStream) {
 			return (InputStream) source;
 		} else if (source instanceof File) {
-			return openFileOrResourceStream(((File) source).getPath(), null);
+            return openFileOrResourceStream(((File) source).getPath(), null);
+        } else if (source instanceof Integer && context!=null) {
+            return getContext().getResources().openRawResource((Integer) source);
 		} else if (!(source instanceof String)) {
 			throw new IllegalArgumentException(Logging.getMessage("generic.SourceTypeUnrecognized", source));
 		}
@@ -477,14 +480,7 @@ public class WWIO {
 			throw new IllegalArgumentException(msg);
 		}
 
-		Object streamOrException = WWIO.getFileOrResourceAsStream(path, c);
-
-		if (streamOrException instanceof Exception) {
-			String msg = Logging.getMessage("generic.UnableToOpenPath", path);
-			throw new WWRuntimeException(msg, (Exception) streamOrException);
-		}
-
-		return (InputStream) streamOrException;
+		return WWIO.getFileOrResourceAsStream(path, c);
 	}
 
 	public static InputStream openURLStream(URL url) {
