@@ -27,6 +27,7 @@ import java.util.Arrays;
 public class Matrix
 {
     public final double[] m = new double[16];
+
     // This is a temporary vector used to prevent allocating a point in order to compute cartesian points from
     // geographic positions in the setter methods below.
     protected Vec4 point;
@@ -84,6 +85,16 @@ public class Matrix
         this.m[14] = m43;
         this.m[15] = m44;
     }
+
+	/**
+	 * Get element at row x column
+	 * @param row	row
+	 * @param column	column
+	 * @return element at [row,column]
+	 */
+	public double get(int row, int column) {
+		return this.m[(row-1)*4+(column-1)];
+	}
 
     public static Matrix fromIdentity()
     {

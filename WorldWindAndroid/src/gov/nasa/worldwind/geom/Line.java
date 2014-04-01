@@ -297,6 +297,42 @@ public class Line
         result.z = this.origin.z + this.direction.z * c;
     }
 
+	/**
+	 * Determine if a point is behind the <code>Line</code>'s origin.
+	 *
+	 * @param point The point to test.
+	 *
+	 * @return true if <code>point</code> is behind this <code>Line</code>'s origin, false otherwise.
+	 */
+	public boolean isPointBehindLineOrigin(Vec4 point)
+	{
+		double dot = point.subtract3(this.getOrigin()).dot3(this.getDirection());
+		return dot < 0.0;
+	}
+
+	public Vec4 nearestIntersectionPoint(Intersection[] intersections)
+	{
+		Vec4 intersectionPoint = null;
+
+		// Find the nearest intersection that's in front of the ray origin.
+		double nearestDistance = Double.MAX_VALUE;
+		for (Intersection intersection : intersections)
+		{
+			// Ignore any intersections behind the line origin.
+			if (!this.isPointBehindLineOrigin(intersection.getIntersectionPoint()))
+			{
+				double d = intersection.getIntersectionPoint().distanceTo3(this.getOrigin());
+				if (d < nearestDistance)
+				{
+					intersectionPoint = intersection.getIntersectionPoint();
+					nearestDistance = d;
+				}
+			}
+		}
+
+		return intersectionPoint;
+	}
+
     /**
      * Performs a comparison to test whether this Object is internally identical to the other Object <code>o</code>.
      * This method takes into account both direction and origin, so two lines which may be equivalent may not be

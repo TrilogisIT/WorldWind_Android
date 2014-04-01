@@ -15,6 +15,17 @@ import java.nio.FloatBuffer;
  */
 public class Vec4
 {
+	public static final Vec4 ZERO = new Vec4(0, 0, 0, 1);
+	public static final Vec4 ONE = new Vec4(1, 1, 1, 1);
+	public static final Vec4 UNIT_X = new Vec4(1, 0, 0, 0);
+	public static final Vec4 UNIT_NEGATIVE_X = new Vec4(-1, 0, 0, 0);
+	public static final Vec4 UNIT_Y = new Vec4(0, 1, 0, 0);
+	public static final Vec4 UNIT_NEGATIVE_Y = new Vec4(0, -1, 0, 0);
+	public static final Vec4 UNIT_Z = new Vec4(0, 0, 1, 0);
+	public static final Vec4 UNIT_NEGATIVE_Z = new Vec4(0, 0, -1, 0);
+	public static final Vec4 UNIT_W = new Vec4(0, 0, 0, 1);
+	public static final Vec4 UNIT_NEGATIVE_W = new Vec4(0, 0, 0, -1);
+
     public double x;
     public double y;
     public double z;

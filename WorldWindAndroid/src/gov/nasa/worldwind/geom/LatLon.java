@@ -38,6 +38,27 @@ public class LatLon {
 		this.longitude = longitude;
 	}
 
+	/**
+	 * Obtains the latitude of this <code>LatLon</code>.
+	 *
+	 * @return this <code>LatLon</code>'s latitude
+	 */
+	public final Angle getLatitude()
+	{
+		return this.latitude;
+	}
+
+	/**
+	 * Obtains the longitude of this <code>LatLon</code>.
+	 *
+	 * @return this <code>LatLon</code>'s longitude
+	 */
+	public final Angle getLongitude()
+	{
+		return this.longitude;
+	}
+
+
 	public static LatLon fromDegrees(double latitude, double longitude) {
 		return new LatLon(Angle.fromDegrees(latitude), Angle.fromDegrees(longitude));
 	}
