@@ -14,12 +14,15 @@ import android.widget.TextView;
 import gov.nasa.worldwind.*;
 import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.globes.Globe;
+import gov.nasa.worldwind.pick.PickedObject;
+import gov.nasa.worldwind.pick.PickedObjectList;
+import gov.nasa.worldwind.util.Logging;
 
 /**
  * @author ccrick
  * @version $Id: BasicInputHandler.java 852 2012-10-12 19:35:43Z dcollins $
  */
-public class BasicInputHandler extends WWObjectImpl implements InputHandler
+public class BasicInputHandler extends WWObjectImpl implements InputHandler, ScaleGestureDetector.OnScaleGestureListener
 {
     // TODO: put this value in a configuration file
     protected static final int SINGLE_TAP_INTERVAL = 300;
@@ -36,7 +39,6 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
 
     protected float mPreviousX2 = -1;
     protected float mPreviousY2 = -1;
-    protected double mPrevPinchWidth = -1;
 
     protected boolean mIsTap = false;
     protected long mLastTap = -1;       // system time in ms of last tap
@@ -44,10 +46,16 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
     // Temporary properties used to avoid constant allocation when responding to input events.
     protected Point screenPoint = new Point();
     protected Position position = new Position();
+	protected Position tmpPosition = new Position();
+    protected Position tmpPosition2 = new Position();
     protected Vec4 point1 = new Vec4();
     protected Vec4 point2 = new Vec4();
 
-    public BasicInputHandler()
+	protected ScaleGestureDetector scaleGestureDetector;
+	private GestureDetector gestureDetector;
+	private Position selectedPosition;
+
+	public BasicInputHandler()
     {
     }
 
@@ -58,11 +66,45 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
 
     public void setEventSource(WorldWindow eventSource)
     {
-        this.eventSource = eventSource;
+		this.eventSource = eventSource;
+		scaleGestureDetector = new ScaleGestureDetector(((WorldWindowGLSurfaceView)eventSource).getContext(), this);
+		gestureDetector = new GestureDetector(((WorldWindowGLSurfaceView)eventSource).getContext(), new GestureDetector.OnGestureListener() {
+			@Override
+			public boolean onDown(MotionEvent e) {
+				return false;
+			}
+
+			@Override
+			public void onShowPress(MotionEvent e) {
+
+			}
+
+			@Override
+			public boolean onSingleTapUp(MotionEvent e) {
+				return false;
+			}
+
+			@Override
+			public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+				return false;
+			}
+
+			@Override
+			public void onLongPress(MotionEvent e) {
+
+			}
+
+			@Override
+			public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+				return false;
+			}
+		});
     }
 
     public boolean onTouch(final View view, MotionEvent motionEvent)
     {
+		scaleGestureDetector.onTouchEvent(motionEvent);
+
         int pointerCount = motionEvent.getPointerCount();
 
         final float x = motionEvent.getX(0);
@@ -116,7 +158,6 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
                 mPreviousY = -1;
                 mPreviousX2 = -1;
                 mPreviousY2 = -1;
-                mPrevPinchWidth = -1;
                 mPrevPointerCount = 0;
 
                 break;
@@ -147,7 +188,6 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
                     // reset pinch variables
                     mPreviousX2 = -1;
                     mPreviousY2 = -1;
-                    mPrevPinchWidth = -1;
                 }
 
                 // interpret the motionEvent
@@ -157,6 +197,7 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
                     {
                         public void run()
                         {
+//                            handlePan(x, y, mPreviousX, mPreviousY);
                             handlePan(xVelocity, yVelocity);
                         }
                     });
@@ -184,25 +225,14 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
                         }
 
                         final double yVelocity2 = dy2 / height;
-                        double pinchWidth = Math.sqrt(Math.pow((x - x2), 2) + Math.pow((y - y2), 2));
 
                         // compute angle traversed
-                        final double deltaPinchWidth = pinchWidth - mPrevPinchWidth;
+//                        final double deltaPinchWidth = pinchWidth - mPrevPinchWidth;
                         final double deltaPinchAngle = computeRotationAngle(x, y, x2, y2,
                             mPreviousX, mPreviousY, mPreviousX2, mPreviousY2);
 
-                        if (mPrevPinchWidth > 0 && Math.abs(deltaPinchWidth) > PINCH_WIDTH_DELTA_THRESHOLD)
-                        {
-                            eventSource.invokeInRenderingThread(new Runnable()
-                            {
-                                public void run()
-                                {
-                                    handlePinchZoom(deltaPinchWidth);
-                                }
-                            });
-                        }
                         // TODO: prevent this from confusion with pinch-rotate
-                        else if ((upMove || downMove) && Math.abs(slope) > 1
+                        if ((upMove || downMove) && Math.abs(slope) > 1
                             && (yVelocity > 0 && yVelocity2 > 0) || (yVelocity < 0 && yVelocity2 < 0))
                         {
                             eventSource.invokeInRenderingThread(new Runnable()
@@ -226,7 +256,6 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
 
                         mPreviousX2 = x2;
                         mPreviousY2 = y2;
-                        mPrevPinchWidth = pinchWidth;
                     }
                     else if (pointerCount >= 3)
                     {
@@ -257,6 +286,10 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
         BasicView view = (BasicView) this.eventSource.getView();
         Globe globe = this.eventSource.getModel().getGlobe();
         this.screenPoint.set((int) x, (int) y);
+
+		for(PickedObject po :eventSource.getObjectsAtCurrentPosition()) {
+			Logging.info("Picked object: " + po);
+		}
 
         if (view.computePositionFromScreenPoint(globe, this.screenPoint, this.position))
         {
@@ -385,20 +418,77 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
         pos.setDegrees(newLat, newLon);
     }
 
-    protected void handlePinchZoom(double widthDelta)
-    {
-        BasicView view = (BasicView) this.eventSource.getView();
-        double value = view.getRange();
-        double zoomScalingFactor = 3E-3f;
-        double newValue = value - widthDelta * zoomScalingFactor * value;
+	protected Position getSelectedPosition()
+	{
+		return this.selectedPosition;
+	}
 
-        if (newValue < 0)
-            newValue = 0;
+	protected void setSelectedPosition(Position position)
+	{
+		this.selectedPosition = position;
+	}
 
-        view.setRange(newValue);
-    }
+	protected Position computeSelectedPosition()
+	{
+		PickedObjectList pickedObjects = this.eventSource.getObjectsAtCurrentPosition();
+		if (pickedObjects != null)
+		{
+			PickedObject top =  pickedObjects.getTopPickedObject();
+			if (top != null && top.isTerrain())
+			{
+				return top.getPosition();
+			}
+		}
+		return null;
+	}
+	protected Vec4 computeSelectedPointAt(Point point)
+	{
+		if (this.getSelectedPosition() == null)
+		{
+			return null;
+		}
 
-    protected void handlePinchRotate(double rotAngleDegrees)
+		BasicView view = (BasicView) this.eventSource.getView();
+		if (view == null)
+		{
+			return null;
+		}
+
+		// Reject a selected position if its elevation is above the eye elevation. When that happens, the user is
+		// essentially dragging along the inside of a sphere, and the effects of dragging are reversed. To the user
+		// this behavior appears unpredictable.
+		double elevation = this.getSelectedPosition().elevation;
+		if (view.getEyePosition(eventSource.getModel().getGlobe()).elevation <= elevation)
+		{
+			return null;
+		}
+
+		// Intersect with a somewhat larger or smaller Globe which will pass through the selected point, but has the
+		// same proportions as the actual Globe. This will simulate dragging the selected position more accurately.
+		Line ray = new Line();
+		view.computeRayFromScreenPoint(point, ray);
+		Intersection[] intersections = this.eventSource.getModel().getGlobe().intersect(ray);
+		if (intersections == null || intersections.length == 0)
+		{
+			return null;
+		}
+
+		return ray.nearestIntersectionPoint(intersections);
+	}
+
+	protected void handlePan(double x, double y, double xPrevious, double yPrevious)
+	{
+		BasicView view = (BasicView) this.eventSource.getView();
+
+		view.computePositionFromScreenPoint(eventSource.getModel().getGlobe(), new Point((int)xPrevious, (int)yPrevious), tmpPosition2);
+		view.computePositionFromScreenPoint(eventSource.getModel().getGlobe(), new Point((int)x, (int)y), tmpPosition);
+		tmpPosition.setDegrees(tmpPosition.latitude.degrees-tmpPosition2.latitude.degrees, tmpPosition.longitude.degrees-tmpPosition2.longitude.degrees);
+
+		view.getLookAtPosition().set(view.getLookAtPosition().add(tmpPosition));
+	}
+
+
+	protected void handlePinchRotate(double rotAngleDegrees)
     {
         BasicView view = (BasicView) this.eventSource.getView();
         Angle angle = view.getHeading();
@@ -443,4 +533,30 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
         heading.setDegrees(newHeading);
         tilt.setDegrees(newTilt);
     }
+
+	@Override
+	public boolean onScale(ScaleGestureDetector detector) {
+		BasicView view = (BasicView) this.eventSource.getView();
+		double range = view.getRange();
+		double newRange = range/detector.getScaleFactor();
+		Position lookAt = view.getLookAtPosition();
+		double elevation = eventSource.getModel().getGlobe().getElevation(lookAt.latitude, lookAt.longitude);
+		elevation = Math.max(elevation+20, newRange);
+
+		TextView rangeText = ((WorldWindowGLSurfaceView) this.eventSource).getRangeText();
+		if (rangeText != null)
+			rangeText.setText(String.format("%1$.2fm", elevation));
+
+		view.setRange(elevation);
+		return true;
+	}
+
+	@Override
+	public boolean onScaleBegin(ScaleGestureDetector detector) {
+		return true;
+	}
+
+	@Override
+	public void onScaleEnd(ScaleGestureDetector detector) {
+	}
 }

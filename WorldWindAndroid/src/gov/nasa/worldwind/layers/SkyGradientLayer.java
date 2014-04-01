@@ -141,12 +141,18 @@ public class SkyGradientLayer extends AbstractLayer {
 			if (program == null) return; // Exception logged in loadGpuProgram.
 			program.bind();
 			if (!this.isValid(dc)) vertexArrays = this.updateSkyDome(dc);
-			GLES20.glDisable(GLES20.GL_CULL_FACE);
-			GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
-			// GLES20.glDisable(GLES20.GL_DEPTH_TEST);
-			// GLES20.glDepthMask(false);
-			// GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
-			// GLES20.glEnable(GLES20.GL_BLEND);
+			GLES20.glDisable(GLES20.GL_CULL_FACE); 
+	WorldWindowGLSurfaceView.glCheckError("glDisable");
+			GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA); 
+	WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+			// GLES20.glDisable(GLES20.GL_DEPTH_TEST); 
+	WorldWindowGLSurfaceView.glCheckError("glDisable");
+			// GLES20.glDepthMask(false); 
+	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+			// GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA); 
+	WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+			// GLES20.glEnable(GLES20.GL_BLEND); 
+	WorldWindowGLSurfaceView.glCheckError("glEnable");
 
 			Matrix projection = this.createProjectionMatrix(dc);
 			// this.applyDrawProjection(dc);
@@ -157,9 +163,12 @@ public class SkyGradientLayer extends AbstractLayer {
 			// Draw sky
 			this.drawVertexArrays(dc, vertexArrays, program);
 		} finally {
-			GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA);
-			GLES20.glEnable(GLES20.GL_CULL_FACE);
-			// GLES20.glDisable(GLES20.GL_BLEND);
+			GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA); 
+	WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+			GLES20.glEnable(GLES20.GL_CULL_FACE); 
+	WorldWindowGLSurfaceView.glCheckError("glEnable");
+			// GLES20.glDisable(GLES20.GL_BLEND); 
+	WorldWindowGLSurfaceView.glCheckError("glDisable");
 		}
 	}
 
@@ -185,24 +194,31 @@ public class SkyGradientLayer extends AbstractLayer {
 
 	protected void drawVertexArrays(DrawContext dc, ArrayList<float[]> vertexArrays, GpuProgram program) {
 		int pointLocation = program.getAttribLocation("vertexPoint");
-		GLES20.glEnableVertexAttribArray(pointLocation);
+		GLES20.glEnableVertexAttribArray(pointLocation); 
+	WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 		int colorLocation = program.getAttribLocation("vertexColor");
-		GLES20.glEnableVertexAttribArray(colorLocation);
+		GLES20.glEnableVertexAttribArray(colorLocation); 
+	WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 		for (int i = 0; i < vertexArrays.size(); i = i + 2) {
 			float[] vertexArray = vertexArrays.get(i);
 			float[] colorArray = vertexArrays.get(i + 1);
 			FloatBuffer vertexBuf = ByteBuffer.allocateDirect(vertexArray.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 			vertexBuf.put(vertexArray);
 			vertexBuf.rewind();
-			GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertexBuf);
+			GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertexBuf); 
+	WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 			FloatBuffer colorBuf = ByteBuffer.allocateDirect(colorArray.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 			colorBuf.put(colorArray);
 			colorBuf.rewind();
-			GLES20.glVertexAttribPointer(colorLocation, 4, GLES20.GL_FLOAT, false, 0, colorBuf);
-			GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, vertexArray.length / 3);
+			GLES20.glVertexAttribPointer(colorLocation, 4, GLES20.GL_FLOAT, false, 0, colorBuf); 
+	WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+			GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, vertexArray.length / 3); 
+	WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
 		}
-		GLES20.glDisableVertexAttribArray(pointLocation);
-		GLES20.glDisableVertexAttribArray(colorLocation);
+		GLES20.glDisableVertexAttribArray(pointLocation); 
+	WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+		GLES20.glDisableVertexAttribArray(colorLocation); 
+	WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 	}
 
 	protected Matrix createModelViewMatrix(DrawContext dc) {

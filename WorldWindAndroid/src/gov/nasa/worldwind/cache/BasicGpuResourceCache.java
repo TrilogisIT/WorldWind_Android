@@ -7,6 +7,7 @@
 package gov.nasa.worldwind.cache;
 
 import gov.nasa.worldwind.Disposable;
+import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.render.GpuProgram;
 import gov.nasa.worldwind.render.GpuTexture;
 import gov.nasa.worldwind.util.Logging;
@@ -22,7 +23,7 @@ import android.opengl.GLES20;
  * etc. -- and there is a current Open GL context, the appropriate glDelete function is called to de-register the resource with the GPU. If there is no current
  * OpenGL context the resource is not deleted and will likely remain allocated on the GPU until the GL context is destroyed. Edited By: Nicola Dorigatti,
  * Trilogis
- * 
+ *
  * @author nicola.dorigatti Trilogis SRL
  * @version $Id: BasicGpuResourceCache.java 733 2012-09-02 17:15:09Z dcollins $
  */
@@ -71,7 +72,7 @@ public class BasicGpuResourceCache implements GpuResourceCache {
 		// case, the cache is emptied and the GL silently ignores deletion of resource names that it does not recognize.
 
 		if (!(clientObject instanceof CacheEntry)) // shouldn't be null or wrong type, but check anyway
-		return;
+			return;
 
 		CacheEntry entry = (CacheEntry) clientObject;
 
@@ -81,6 +82,7 @@ public class BasicGpuResourceCache implements GpuResourceCache {
 		} else if (entry.resourceType.equals(VBO_BUFFERS)) {
 			int[] ids = (int[]) entry.resource;
 			GLES20.glDeleteBuffers(ids.length, ids, 0);
+			WorldWindowGLSurfaceView.glCheckError("glDeleteBuffers");
 		}
 	}
 

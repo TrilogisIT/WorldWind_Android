@@ -7,6 +7,7 @@ package gov.nasa.worldwind.render;
 import gov.nasa.worldwind.Model;
 import gov.nasa.worldwind.View;
 import gov.nasa.worldwind.WWObjectImpl;
+import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.geom.Extent;
 import gov.nasa.worldwind.geom.Position;
@@ -493,7 +494,8 @@ public class DrawContext extends WWObjectImpl {
 		// support reading only the RGB values, so we read the RGBA value and ignore the alpha component. We convert the
 		// y coordinate from system screen coordinates to OpenGL screen coordinates.
 		int yInGLCoords = this.viewportHeight - point.y;
-		GLES20.glReadPixels(point.x, yInGLCoords, 1, 1, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, this.pickColor);
+		GLES20.glReadPixels(point.x, yInGLCoords, 1, 1, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, this.pickColor); 
+	WorldWindowGLSurfaceView.glCheckError("glReadPixels");
 
 		// OpenGL places the pixel's RGBA components in the first 4 bytes of the buffer, in that order. We ignore the
 		// alpha component and compose a packed 24-bit RGB color int equivalent to those returned by getUniquePickColor.
@@ -642,8 +644,10 @@ public class DrawContext extends WWObjectImpl {
 			// fill pixels contribute the depth values. When the interior is drawn, it draws on top of these colors, and
 			// the outline is be visible behind the potentially transparent interior.
 			if (renderer.isDrawOutline(this, shape) && renderer.isDrawInterior(this, shape)) {
-				GLES20.glColorMask(true, true, true, true);
-				GLES20.glDepthMask(false);
+				GLES20.glColorMask(true, true, true, true); 
+	WorldWindowGLSurfaceView.glCheckError("glColorMask");
+				GLES20.glDepthMask(false); 
+	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
 
 				renderer.drawOutline(this, shape);
 			}
@@ -660,23 +664,32 @@ public class DrawContext extends WWObjectImpl {
 					// Draw depth.
 					Double depthOffsetFactor = renderer.getDepthOffsetFactor(this, shape);
 					Double depthOffsetUnits = renderer.getDepthOffsetUnits(this, shape);
-					GLES20.glColorMask(false, false, false, false);
-					GLES20.glDepthMask(true);
-					GLES20.glEnable(GLES20.GL_POLYGON_OFFSET_FILL);
+					GLES20.glColorMask(false, false, false, false); 
+	WorldWindowGLSurfaceView.glCheckError("glColorMask");
+					GLES20.glDepthMask(true); 
+	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+					GLES20.glEnable(GLES20.GL_POLYGON_OFFSET_FILL); 
+	WorldWindowGLSurfaceView.glCheckError("glEnable");
 					GLES20.glPolygonOffset(depthOffsetFactor != null ? depthOffsetFactor.floatValue() : DEFAULT_DEPTH_OFFSET_FACTOR,
 							depthOffsetUnits != null ? depthOffsetUnits.floatValue() : DEFAULT_DEPTH_OFFSET_UNITS);
+					WorldWindowGLSurfaceView.glCheckError("glPolygonOffset");
 
 					renderer.drawInterior(this, shape);
 
 					// Draw color.
-					GLES20.glColorMask(true, true, true, true);
-					GLES20.glDepthMask(false);
-					GLES20.glDisable(GLES20.GL_POLYGON_OFFSET_FILL);
+					GLES20.glColorMask(true, true, true, true); 
+	WorldWindowGLSurfaceView.glCheckError("glColorMask");
+					GLES20.glDepthMask(false); 
+	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+					GLES20.glDisable(GLES20.GL_POLYGON_OFFSET_FILL); 
+	WorldWindowGLSurfaceView.glCheckError("glDisable");
 
 					renderer.drawInterior(this, shape);
 				} else {
-					GLES20.glColorMask(true, true, true, true);
-					GLES20.glDepthMask(true);
+					GLES20.glColorMask(true, true, true, true); 
+	WorldWindowGLSurfaceView.glCheckError("glColorMask");
+					GLES20.glDepthMask(true); 
+	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
 
 					renderer.drawInterior(this, shape);
 				}
@@ -685,17 +698,23 @@ public class DrawContext extends WWObjectImpl {
 			// If the outline is enabled, then draw the outline color and depth values. This blends outline colors with
 			// the interior colors.
 			if (renderer.isDrawOutline(this, shape)) {
-				GLES20.glColorMask(true, true, true, true);
-				GLES20.glDepthMask(true);
+				GLES20.glColorMask(true, true, true, true); 
+	WorldWindowGLSurfaceView.glCheckError("glColorMask");
+				GLES20.glDepthMask(true); 
+	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
 
 				renderer.drawOutline(this, shape);
 			}
 		} finally {
 			// Restore the default GL state values we modified above.
-			GLES20.glDisable(GLES20.GL_POLYGON_OFFSET_FILL);
-			GLES20.glColorMask(true, true, true, true);
-			GLES20.glDepthMask(true);
-			GLES20.glPolygonOffset(0f, 0f);
+			GLES20.glDisable(GLES20.GL_POLYGON_OFFSET_FILL); 
+	WorldWindowGLSurfaceView.glCheckError("glDisable");
+			GLES20.glColorMask(true, true, true, true); 
+	WorldWindowGLSurfaceView.glCheckError("glColorMask");
+			GLES20.glDepthMask(true); 
+	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+			GLES20.glPolygonOffset(0f, 0f); 
+	WorldWindowGLSurfaceView.glCheckError("glPolygonOffset");
 		}
 	}
 }

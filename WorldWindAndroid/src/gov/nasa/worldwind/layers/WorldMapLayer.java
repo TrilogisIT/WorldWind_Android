@@ -5,10 +5,7 @@
  */
 package gov.nasa.worldwind.layers;
 
-import gov.nasa.worldwind.Configuration;
-import gov.nasa.worldwind.R;
-import gov.nasa.worldwind.View;
-import gov.nasa.worldwind.WorldWindow;
+import gov.nasa.worldwind.*;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.exception.WWRuntimeException;
@@ -44,7 +41,7 @@ import android.opengl.GLES20;
  * location is clicked within the layer's map. Specify <code>WorldMapLayer.class</code> when constructing the <code>ClickAndGoSelectListener</code>.
  * <p/>
  * Note: This layer may not be shared among multiple {@link WorldWindow}s. Edited By: Nicola Dorigatti, Trilogis
- * 
+ *
  * @author Nicola Dorigatti
  * @version $Id: WorldMapLayer.java 1 2011-07-16 23:22:47Z dcollins $
  */
@@ -99,7 +96,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 	/**
 	 * Displays a world map overlay with a current position crosshair in a screen corner
-	 * 
+	 *
 	 * @param iconFilePath
 	 *            the world map image path and filename
 	 */
@@ -112,7 +109,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 	/**
 	 * Returns the layer's current icon file path.
-	 * 
+	 *
 	 * @return the icon file path
 	 */
 	public String getIconFilePath() {
@@ -123,7 +120,7 @@ public class WorldMapLayer extends AbstractLayer {
 	 * Sets the world map icon's image location. The layer first searches for this location in the current Java
 	 * classpath. If not found then the specified path is assumed to refer to the local file system. found there then
 	 * the
-	 * 
+	 *
 	 * @param iconFilePath
 	 *            the path to the icon's image file
 	 */
@@ -138,7 +135,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 	/**
 	 * Returns the layer's world map-to-viewport scale factor.
-	 * 
+	 *
 	 * @return the world map-to-viewport scale factor
 	 */
 	public double getToViewportScale() {
@@ -150,7 +147,7 @@ public class WorldMapLayer extends AbstractLayer {
 	 * scale factor is used only when the layer's resize behavior is AVKey.RESIZE_STRETCH or AVKey.RESIZE_SHRINK_ONLY.
 	 * The icon's width is adjusted to occupy the proportion of the viewport's width indicated by this factor. The
 	 * icon's height is adjusted to maintain the world map image's native aspect ratio.
-	 * 
+	 *
 	 * @param toViewportScale
 	 *            the world map to viewport scale factor
 	 */
@@ -160,7 +157,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 	/**
 	 * Returns the icon scale factor. See {@link #setIconScale(double)} for a description of the scale factor.
-	 * 
+	 *
 	 * @return the current icon scale
 	 */
 	public double getIconScale() {
@@ -172,7 +169,7 @@ public class WorldMapLayer extends AbstractLayer {
 	 * in its image file. Values greater than 1 magify the image, values less than one minify it. If the layer's resize
 	 * behavior is other than AVKey.RESIZE_KEEP_FIXED_SIZE, the icon's displayed sized is further affected by the value
 	 * specified by {@link #setToViewportScale(double)} and the current viewport size.
-	 * 
+	 *
 	 * @param iconScale
 	 *            the icon scale factor
 	 */
@@ -182,7 +179,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 	/**
 	 * Returns the world map icon's resize behavior.
-	 * 
+	 *
 	 * @return the icon's resize behavior
 	 */
 	public String getResizeBehavior() {
@@ -198,7 +195,7 @@ public class WorldMapLayer extends AbstractLayer {
 	 * map-to-viewport scale and by the icon's image file size scaled by the current icon scale. If the value is
 	 * AVKey.RESIZE_SHRINK_ONLY (the default), icon sizing behaves as for AVKey.RESIZE_STRETCH but the icon will not
 	 * grow larger than the size specified in its image file scaled by the current icon scale.
-	 * 
+	 *
 	 * @param resizeBehavior
 	 *            the desired resize behavior
 	 */
@@ -212,7 +209,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 	/**
 	 * Sets the world map icon offset from the viewport border.
-	 * 
+	 *
 	 * @param borderWidth
 	 *            the number of pixels to offset the world map icon from the borders indicated by {@link #setPosition(String)}.
 	 */
@@ -222,7 +219,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 	/**
 	 * Returns the current relative world map icon position.
-	 * 
+	 *
 	 * @return the current world map position
 	 */
 	public String getPosition() {
@@ -232,7 +229,7 @@ public class WorldMapLayer extends AbstractLayer {
 	/**
 	 * Sets the relative viewport location to display the world map icon. Can be one of AVKey.NORTHEAST, AVKey.NORTHWEST
 	 * (the default), AVKey.SOUTHEAST, or SOUTHWEST. These indicate the corner of the viewport to place the icon.
-	 * 
+	 *
 	 * @param position
 	 *            the desired world map position
 	 */
@@ -247,7 +244,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 	/**
 	 * Returns the current worldmap image location.
-	 * 
+	 *
 	 * @return the current location center. May be null.
 	 */
 	public Vec4 getLocationCenter() {
@@ -260,7 +257,7 @@ public class WorldMapLayer extends AbstractLayer {
 	 * is the window's lower left corner. Positive X values are to the right of the origin, positive Y values are
 	 * upwards from the origin. The final image location will be affected by the currently specified location offset if
 	 * a non-null location offset has been specified (see #setLocationOffset).
-	 * 
+	 *
 	 * @param locationCenter
 	 *            the location center. May be null.
 	 * @see #locationCenter the screen location at which to place the map.
@@ -271,7 +268,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 	/**
 	 * Returns the current location offset. See #setLocationOffset for a description of the offset and its values.
-	 * 
+	 *
 	 * @return the location offset. Will be null if no offset has been specified.
 	 */
 	public Vec4 getLocationOffset() {
@@ -280,7 +277,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 	/**
 	 * Specifies a placement offset from the worldmap's position on the screen.
-	 * 
+	 *
 	 * @param locationOffset
 	 *            the number of pixels to shift the worldmap image from its specified screen position. A
 	 *            positive X value shifts the image to the right. A positive Y value shifts the image up. If
@@ -316,7 +313,7 @@ public class WorldMapLayer extends AbstractLayer {
 	/**
 	 * Get the current view footprint position list. May be null if no footprint is displayed or none has been
 	 * computed.
-	 * 
+	 *
 	 * @return the current view footprint position list - may be null.
 	 */
 	public List<? extends LatLon> getFootPrintPositions() {
@@ -354,6 +351,8 @@ public class WorldMapLayer extends AbstractLayer {
 
 			GLES20.glDisable(GLES20.GL_DEPTH_TEST);
 
+			WorldWindowGLSurfaceView.glCheckError("glDisable");
+
 			// iconWidth = 512;
 			double width = this.getScaledIconWidth();
 			// iconHeight = 256;
@@ -378,7 +377,11 @@ public class WorldMapLayer extends AbstractLayer {
 
 			if (!dc.isPickingMode()) {
 				GLES20.glEnable(GLES20.GL_BLEND);
+
+				WorldWindowGLSurfaceView.glCheckError("glEnable");
 				GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+
+				WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
 				GpuProgram colorProgram = this.getGpuProgram(dc.getGpuResourceCache(), programColorKey, VERTEX_SHADER_PATH_COLOR, FRAGMENT_SHADER_PATH_COLOR);
 				// Draw background color behind the map
 				if (colorProgram != null) {
@@ -389,13 +392,23 @@ public class WorldMapLayer extends AbstractLayer {
 
 					int pointLocation = colorProgram.getAttribLocation("vertexPoint");
 					GLES20.glEnableVertexAttribArray(pointLocation);
+
+					WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 					FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 					vertexBuf.put(unitQuadVerts);
 					vertexBuf.rewind();
 					GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
+
+					WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 					GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
+
+					WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
 					GLES20.glDisableVertexAttribArray(pointLocation);
+
+					WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 					GLES20.glUseProgram(0);
+
+					WorldWindowGLSurfaceView.glCheckError("glUseProgram");
 				}
 
 				// Draw world map icon
@@ -404,29 +417,51 @@ public class WorldMapLayer extends AbstractLayer {
 					textureProgram.bind();
 					textureProgram.loadUniformMatrix("mvpMatrix", mvp);
 					GLES20.glEnable(GLES20.GL_TEXTURE_2D);
+
+					WorldWindowGLSurfaceView.glCheckError("glEnable");
 					GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+
+					WorldWindowGLSurfaceView.glCheckError("glActiveTexture");
 					iconTexture.bind();
 					textureProgram.loadUniformSampler("sTexture", 0);
 
 					float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
 					int pointLocation = textureProgram.getAttribLocation("vertexPoint");
 					GLES20.glEnableVertexAttribArray(pointLocation);
+
+					WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 					FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 					vertexBuf.put(unitQuadVerts);
 					vertexBuf.rewind();
 					GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
+
+					WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 					float[] textureVerts = new float[] { 0, 1, 1, 1, 1, 0, 0, 0 };
 					int textureLocation = textureProgram.getAttribLocation("aTextureCoord");
 					GLES20.glEnableVertexAttribArray(textureLocation);
+
+					WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 					FloatBuffer textureBuf = ByteBuffer.allocateDirect(textureVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 					textureBuf.put(textureVerts);
 					textureBuf.rewind();
 					GLES20.glVertexAttribPointer(textureLocation, 2, GLES20.GL_FLOAT, false, 0, textureBuf);
+
+					WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 					GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
+
+					WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
 					GLES20.glDisableVertexAttribArray(pointLocation);
+
+					WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 					GLES20.glDisableVertexAttribArray(textureLocation);
+
+					WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 					GLES20.glUseProgram(0);
+
+					WorldWindowGLSurfaceView.glCheckError("glUseProgram");
 					GLES20.glDisable(GLES20.GL_TEXTURE_2D);
+
+					WorldWindowGLSurfaceView.glCheckError("glDisable");
 				}
 				// Draw crosshair for current location
 				modelview = Matrix.fromIdentity();
@@ -448,15 +483,27 @@ public class WorldMapLayer extends AbstractLayer {
 						// Draw
 						int pointLocation = colorProgram.getAttribLocation("vertexPoint");
 						GLES20.glEnableVertexAttribArray(pointLocation);
+
+						WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 						float[] verts = new float[] { x - w, y, 0, x + w + 1, y, 0 };
 						FloatBuffer vertBuf = createBuffer(verts);
 						GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertBuf);
+
+						WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 						GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, verts.length / 3);
+
+						WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
 						verts = new float[] { x, y - w, 0, x, y + w + 1, 0 };
 						vertBuf = createBuffer(verts);
 						GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertBuf);
+
+						WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 						GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, verts.length / 3);
+
+						WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
 						GLES20.glDisableVertexAttribArray(pointLocation);
+
+						WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 					}
 				}
 				// Draw view footprint in map icon space
@@ -489,24 +536,40 @@ public class WorldMapLayer extends AbstractLayer {
 						}
 						int pointLocation = colorProgram.getAttribLocation("vertexPoint");
 						GLES20.glEnableVertexAttribArray(pointLocation);
+
+						WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 						for (ArrayList<Float> lineStrip : lineStrips) {
 							float[] verts = convertToArray(lineStrip);
 							FloatBuffer vertBuf = createBuffer(verts);
 							GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertBuf);
+
+							WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 							GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, verts.length / 3);
+
+							WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
 						}
 						GLES20.glDisableVertexAttribArray(pointLocation);
+
+						WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 					}
 				}
 				// Draw 1px border around and inside the map
 				if (colorProgram != null) {
 					int pointLocation = colorProgram.getAttribLocation("vertexPoint");
 					GLES20.glEnableVertexAttribArray(pointLocation);
+
+					WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 					float[] vertices = new float[] { 0, 0, 0, (float) width, 0, 0, (float) width, (float) (height - 1), 0, 0, (float) (height - 1), 0, 0, 0, 0 };
 					FloatBuffer vertBuf = createBuffer(vertices);
 					GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertBuf);
+
+					WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 					GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, vertices.length / 3);
+
+					WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
 					GLES20.glDisableVertexAttribArray(pointLocation);
+
+					WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 				}
 			} else {
 				// Picking TODO Copied from compass layer and not tested
@@ -524,10 +587,20 @@ public class WorldMapLayer extends AbstractLayer {
 				vertexBuf.rewind();
 				int pointLocation = textureProgram.getAttribLocation("vertexPoint");
 				GLES20.glEnableVertexAttribArray(pointLocation);
+
+				WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 				GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
+
+				WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 				GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
+
+				WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
 				GLES20.glDisableVertexAttribArray(pointLocation);
+
+				WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 				GLES20.glUseProgram(0);
+
+				WorldWindowGLSurfaceView.glCheckError("glUseProgram");
 				this.pickSupport.endPicking(dc);
 				this.pickSupport.resolvePick(dc, dc.getPickPoint(), this);
 			}
@@ -536,6 +609,8 @@ public class WorldMapLayer extends AbstractLayer {
 			Logging.error("Exception drawing WorldMapLayer: " + t.getMessage());
 		} finally {
 			GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+
+			WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
 		}
 	}
 
@@ -659,7 +734,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 	/**
 	 * Compute the lat/lon position of the view center
-	 * 
+	 *
 	 * @param dc
 	 *            the current DrawContext
 	 * @param view
@@ -680,7 +755,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 	/**
 	 * Computes the lat/lon of the pickPoint over the world map
-	 * 
+	 *
 	 * @param dc
 	 *            the current <code>DrawContext</code>
 	 * @param locationSW
@@ -708,7 +783,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 	/**
 	 * Compute the view range footprint on the globe.
-	 * 
+	 *
 	 * @param dc
 	 *            the current <code>DrawContext</code>
 	 * @param steps

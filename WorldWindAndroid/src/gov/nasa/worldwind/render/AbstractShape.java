@@ -7,6 +7,7 @@ package gov.nasa.worldwind.render;
 import gov.nasa.worldwind.Movable;
 import gov.nasa.worldwind.R;
 import gov.nasa.worldwind.WWObjectImpl;
+import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.cache.ShapeDataCache;
@@ -948,10 +949,12 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 		// Enable the gpu program's vertexPoint attribute, if one exists. The data for this attribute is specified by
 		// each shape.
 		int attribLocation = program.getAttribLocation("vertexPoint");
-		if (attribLocation >= 0) GLES20.glEnableVertexAttribArray(attribLocation);
+		if (attribLocation >= 0) GLES20.glEnableVertexAttribArray(attribLocation); 
+	WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 
 		// Set the OpenGL state that this shape depends on.
-		GLES20.glDisable(GLES20.GL_CULL_FACE);
+		GLES20.glDisable(GLES20.GL_CULL_FACE); 
+	WorldWindowGLSurfaceView.glCheckError("glDisable");
 	}
 
 	/**
@@ -970,20 +973,27 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 		// beginRendering. This must be done while the program is still bound, because getAttribLocation depends on
 		// the current OpenGL program state.
 		int location = program.getAttribLocation("vertexPoint");
-		if (location >= 0) GLES20.glDisableVertexAttribArray(location);
+		if (location >= 0) GLES20.glDisableVertexAttribArray(location); 
+	WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 
 		// Restore the previous OpenGL program state.
 		dc.setCurrentProgram(null);
-		GLES20.glUseProgram(0);
+		GLES20.glUseProgram(0); 
+	WorldWindowGLSurfaceView.glCheckError("glUseProgram");
 
 		// Restore the OpenGL array and element array buffer bindings to 0.
-		GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
-		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
+		GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0); 
+	WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0); 
+	WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 
 		// Restore the remaining OpenGL state values to their defaults.
-		GLES20.glEnable(GLES20.GL_CULL_FACE);
-		GLES20.glDepthMask(true);
-		GLES20.glLineWidth(1f);
+		GLES20.glEnable(GLES20.GL_CULL_FACE); 
+	WorldWindowGLSurfaceView.glCheckError("glEnable");
+		GLES20.glDepthMask(true); 
+	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+		GLES20.glLineWidth(1f); 
+	WorldWindowGLSurfaceView.glCheckError("glLineWidth");
 	}
 
 	protected GpuProgram getDefaultGpuProgram(GpuResourceCache cache) {
@@ -1126,7 +1136,8 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 			// Disable writing the shape's interior fragments to the OpenGL depth buffer when the interior is
 			// semi-transparent.
-			if (color.a < 1) GLES20.glDepthMask(false);
+			if (color.a < 1) GLES20.glDepthMask(false); 
+	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
 
 			// Load the current interior color into the gpu program's color uniform variable. We first copy the outline
 			// color into the current color so we can premultiply it. The SceneController configures the OpenGL blending
@@ -1179,6 +1190,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 		if (dc.isPickingMode() && activeAttrs.getOutlineWidth() < this.getOutlinePickWidth()) GLES20.glLineWidth(this.getOutlinePickWidth());
 		else GLES20.glLineWidth((float) activeAttrs.getOutlineWidth());
+		WorldWindowGLSurfaceView.glCheckError("glLineWidth");
 	}
 
 	/**
@@ -1268,15 +1280,18 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 		for (int i = 0; i < prims.size(); i++) {
 			switch (primTypes.get(i)) {
-				case GLES20.GL_TRIANGLES:
+				case GLES20.GL_TRIANGLES: 
+	WorldWindowGLSurfaceView.glCheckError("GL_TRIANGLES");
 					numVertices += prims.get(i).size();
 					break;
 
-				case GLES20.GL_TRIANGLE_FAN:
+				case GLES20.GL_TRIANGLE_FAN: 
+	WorldWindowGLSurfaceView.glCheckError("GL_TRIANGLE_FAN");
 					numVertices += (prims.get(i).size() - 2) * 3; // N tris from N + 2 vertices
 					break;
 
-				case GLES20.GL_TRIANGLE_STRIP:
+				case GLES20.GL_TRIANGLE_STRIP: 
+	WorldWindowGLSurfaceView.glCheckError("GL_TRIANGLE_STRIP");
 					numVertices += (prims.get(i).size() - 2) * 3; // N tris from N + 2 vertices
 					break;
 			}

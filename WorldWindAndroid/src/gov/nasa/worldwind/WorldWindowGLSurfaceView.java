@@ -29,6 +29,7 @@ import java.util.*;
  */
 public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurfaceView.Renderer, WorldWindow, WWObject
 {
+	private static boolean DEBUG = true;
     protected WWObjectImpl wwo = new WWObjectImpl(this);
     protected SceneController sceneController;
     protected InputHandler inputHandler;
@@ -146,7 +147,8 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
 
         // Set the viewport each time the surface size changes. The SceneController and View automatically adapt to the
         // current viewport dimensions each frame.
-        GLES20.glViewport(0, 0, width, height);
+        GLES20.glViewport(0, 0, width, height); 
+		WorldWindowGLSurfaceView.glCheckError("glViewport");
         this.viewportWidth = width;
         this.viewportHeight = height;
     }
@@ -206,9 +208,10 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
         this.sendRenderingEvent(this.afterRenderingEvent);
     }
 
-	public static void checkGlError(String op) {
+	public static void glCheckError(String op) {
+		if(!DEBUG) return;
 		int error;
-		while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
+		while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) { 
 			Logging.error(op + ": glError " + GLUtils.getEGLErrorString(error));
 //			throw new RuntimeException(op + ": glError " + GLUtils.getEGLErrorString(error));
 		}

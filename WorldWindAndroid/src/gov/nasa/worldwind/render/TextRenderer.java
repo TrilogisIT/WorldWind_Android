@@ -1,6 +1,7 @@
 package gov.nasa.worldwind.render;
 
 import gov.nasa.worldwind.R;
+import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.geom.Matrix;
 import gov.nasa.worldwind.geom.Rect;
@@ -16,7 +17,7 @@ import android.opengl.GLES20;
 
 /**
  * Class used to render text on view
- * 
+ *
  * @author Nicola Dorigatti Trilogis SRL
  * @version 1
  */
@@ -59,7 +60,11 @@ public class TextRenderer {
 		program.bind();
 		program.loadUniformMatrix("mvpMatrix", mvp);
 		GLES20.glEnable(GLES20.GL_TEXTURE_2D);
+
+		WorldWindowGLSurfaceView.glCheckError("glEnable");
 		GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+
+		WorldWindowGLSurfaceView.glCheckError("glActiveTexture");
 		GpuTexture texture = getGpuTexture(text);
 		texture.bind();
 		program.loadUniform4f("uTextureColor", color[0], color[1], color[2], color[3]);
@@ -68,22 +73,40 @@ public class TextRenderer {
 		float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
 		int pointLocation = program.getAttribLocation("vertexPoint");
 		GLES20.glEnableVertexAttribArray(pointLocation);
+
+		WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 		FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 		vertexBuf.put(unitQuadVerts);
 		vertexBuf.rewind();
 		GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
+
+		WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 		float[] textureVerts = new float[] { 0, 1, 1, 1, 1, 0, 0, 0 };
 		int textureLocation = program.getAttribLocation("aTextureCoord");
 		GLES20.glEnableVertexAttribArray(textureLocation);
+
+		WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 		FloatBuffer textureBuf = ByteBuffer.allocateDirect(textureVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 		textureBuf.put(textureVerts);
 		textureBuf.rewind();
 		GLES20.glVertexAttribPointer(textureLocation, 2, GLES20.GL_FLOAT, false, 0, textureBuf);
+
+		WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 		GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
+
+		WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
 		GLES20.glDisableVertexAttribArray(pointLocation);
+
+		WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 		GLES20.glDisableVertexAttribArray(textureLocation);
+
+		WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 		GLES20.glUseProgram(0);
+
+		WorldWindowGLSurfaceView.glCheckError("glUseProgram");
 		GLES20.glDisable(GLES20.GL_TEXTURE_2D);
+
+		WorldWindowGLSurfaceView.glCheckError("glDisable");
 	}
 
 	protected GpuTexture getGpuTexture(String text) {
@@ -98,8 +121,8 @@ public class TextRenderer {
 			// TODO: load the texture on a non-rendering thread.
 			texture = this.loadTextTexture(text);
 			if (texture != null) // Don't add the texture to the cache if
-									// texture creation failed.
-			cache.put(key, texture);
+				// texture creation failed.
+				cache.put(key, texture);
 		}
 
 		return texture;

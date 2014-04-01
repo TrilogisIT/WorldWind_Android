@@ -235,25 +235,25 @@ public class GpuTextureData implements Cacheable
     {
         int internalFormat = GLUtils.getInternalFormat(bitmap);
 
-        if (internalFormat == GLES20.GL_ALPHA || internalFormat == GLES20.GL_LUMINANCE)
+        if (internalFormat == GLES20.GL_ALPHA || internalFormat == GLES20.GL_LUMINANCE) 
         {
             // Alpha and luminance pixel data is always stored as 1 byte per pixel. See OpenGL ES Specification, version 2.0.25,
             // section 3.6.2, table 3.4.
             return bitmap.getWidth() * bitmap.getHeight();
         }
-        else if (internalFormat == GLES20.GL_LUMINANCE_ALPHA)
+        else if (internalFormat == GLES20.GL_LUMINANCE_ALPHA) 
         {
             // Luminance-alpha pixel data is always stored as 2 bytes per pixel. See OpenGL ES Specification,
             // version 2.0.25, section 3.6.2, table 3.4.
             return 2 * bitmap.getWidth() * bitmap.getHeight(); // Type must be GL_UNSIGNED_BYTE.
         }
-        else if (internalFormat == GLES20.GL_RGB)
+        else if (internalFormat == GLES20.GL_RGB) 
         {
             // RGB pixel data is stored as either 2 or 3 bytes per pixel, depending on the type used during texture
             // image specification. See OpenGL ES Specification, version 2.0.25, section 3.6.2, table 3.4.
             int type = GLUtils.getType(bitmap);
             // Default to type GL_UNSIGNED_BYTE.
-            int bpp = (type == GLES20.GL_UNSIGNED_SHORT_5_6_5 ? 2 : 3);
+            int bpp = (type == GLES20.GL_UNSIGNED_SHORT_5_6_5 ? 2 : 3); 
             return bpp * bitmap.getWidth() * bitmap.getHeight();
         }
         else // Default to internal format GL_RGBA.
@@ -262,7 +262,7 @@ public class GpuTextureData implements Cacheable
             // image specification. See OpenGL ES Specification, version 2.0.25, section 3.6.2, table 3.4.
             int type = GLUtils.getType(bitmap);
             // Default to type GL_UNSIGNED_BYTE.
-            int bpp = (type == GLES20.GL_UNSIGNED_SHORT_4_4_4_4 || type == GLES20.GL_UNSIGNED_SHORT_5_5_5_1) ? 2 : 4;
+            int bpp = (type == GLES20.GL_UNSIGNED_SHORT_4_4_4_4 || type == GLES20.GL_UNSIGNED_SHORT_5_5_5_1) ? 2 : 4; 
             return bpp * bitmap.getWidth() * bitmap.getHeight();
         }
     }

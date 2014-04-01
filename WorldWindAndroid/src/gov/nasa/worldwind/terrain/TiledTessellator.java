@@ -7,6 +7,7 @@ package gov.nasa.worldwind.terrain;
 import gov.nasa.worldwind.Configuration;
 import gov.nasa.worldwind.WWObjectImpl;
 import gov.nasa.worldwind.WorldWind;
+import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.avlist.AVList;
 import gov.nasa.worldwind.cache.BasicMemoryCache;
@@ -48,7 +49,7 @@ import android.util.Pair;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
- * 
+ *
  * @author dcollins
  * @version $Id: TiledTessellator.java 842 2012-10-09 23:46:47Z tgaskins $
  */
@@ -192,7 +193,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 	protected static class TerrainTileList extends ArrayList<SectorGeometry> implements SectorGeometryList {
 		/**
-		 * 
+		 *
 		 */
 		private static final long serialVersionUID = 7740545209150322934L;
 		protected Sector sector;
@@ -416,7 +417,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	protected boolean getSurfacePoint(Angle latitude, Angle longitude, Vec4 result) {
 		for (SectorGeometry tile : this.currentTiles) {
 			if (tile.getSurfacePoint(latitude, longitude, result)) // Each tile tests the location against its sector.
-			return true;
+				return true;
 		}
 
 		return false;
@@ -633,7 +634,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 	/**
 	 * Returns the memory cache used to cache terrain tiles, initializing the cache if it doesn't yet exist.
-	 * 
+	 *
 	 * @return the memory cache associated with terrain tiles.
 	 */
 	protected MemoryCache getTerrainTileCache() {
@@ -649,7 +650,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 	/**
 	 * Returns the memory cache used to cache terrain geometry, initializing the cache if it doesn't yet exist.
-	 * 
+	 *
 	 * @return the memory cache associated with terrain geometry.
 	 */
 	protected MemoryCache getTerrainGeometryCache() {
@@ -868,16 +869,16 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 		for (int j = 0; j < numLat; j++) {
 			if (j <= 1) // First two columns repeat the min T-coordinate to provide a column for the skirt.
-			t = minT;
+				t = minT;
 			else if (j >= numLat - 2) // Last two columns repeat the max T-coordinate to provide a column for the skirt.
-			t = maxT;
+				t = maxT;
 			else t += deltaT; // Non-boundary latitudes are separated by the cell latitude delta.
 
 			for (int i = 0; i < numLon; i++) {
 				if (i <= 1) // First two rows repeat the min S-coordinate to provide a row for the skirt.
-				s = minS;
+					s = minS;
 				else if (i >= numLon - 2) // Last two rows repeat the max S-coordinate to provide a row for the skirt.
-				s = maxS;
+					s = maxS;
 				else s += deltaS; // Non-boundary longitudes are separated by the cell longitude delta.
 
 				texCoords.put((float) s).put((float) t);
@@ -1030,17 +1031,21 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		// beginRendering is called for each tile.
 		int location = program.getAttribLocation("vertexPoint");
 		if (location >= 0) GLES20.glEnableVertexAttribArray(location);
+		WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 
 		// Enable the program's vertexTexCoord attribute, if one exists. The data for this attribute is specified when
 		// beginRendering is called for each tile.
 		location = program.getAttribLocation("vertexTexCoord");
 		if (location >= 0) GLES20.glEnableVertexAttribArray(location);
+		WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 	}
 
 	protected void endRendering(DrawContext dc) {
 		// Restore the array and element array buffer bindings to 0.
 		GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+		WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
+		WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 
 		GpuProgram program = dc.getCurrentProgram();
 		if (program == null) return; // Message logged in beginRendering(DrawContext).
@@ -1049,11 +1054,13 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		// beginRendering.
 		int location = program.getAttribLocation("vertexPoint");
 		if (location >= 0) GLES20.glDisableVertexAttribArray(location);
+		WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 
 		// Disable the program's vertexTexCoord attribute, if one exists. This restores the program state modified in
 		// beginRendering.
 		location = program.getAttribLocation("vertexTexCoord");
 		if (location >= 0) GLES20.glDisableVertexAttribArray(location);
+		WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 	}
 
 	protected void beginRendering(DrawContext dc, TerrainTile tile) {
@@ -1082,7 +1089,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 			int[] vboIds = (int[]) gpuCache.get(geom.vboCacheKey);
 			if (vboIds != null) {
 				GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
+				WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 				GLES20.glVertexAttribPointer(location, 3, GLES20.GL_FLOAT, false, 0, 0);
+				WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 			} else {
 				String msg = Logging.getMessage("Tessellator.SurfaceGeometryVBONotInGpuCache", tile, gpuCache.getUsedCapacity());
 				Logging.warning(msg);
@@ -1096,7 +1105,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 			int[] sharedVboIds = (int[]) gpuCache.get(geom.sharedGeom.vboCacheKey);
 			if (sharedVboIds != null) {
 				GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, sharedVboIds[0]);
+				WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 				GLES20.glVertexAttribPointer(location, 2, GLES20.GL_FLOAT, false, 0, 0);
+				WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 			} else {
 				String msg = Logging.getMessage("Tessellator.SharedGeometryVBONotInGpuCache", tile, gpuCache.getUsedCapacity());
 				Logging.warning(msg);
@@ -1130,7 +1141,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		}
 
 		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, sharedVboIds[1]);
+		WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 		GLES20.glDrawElements(GLES20.GL_TRIANGLE_STRIP, geom.sharedGeom.indices.remaining(), GLES20.GL_UNSIGNED_SHORT, 0);
+		WorldWindowGLSurfaceView.glCheckError("glDrawElements");
 	}
 
 	protected void renderWireframe(DrawContext dc, TerrainTile tile) {
@@ -1148,7 +1161,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		}
 
 		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, sharedVboIds[2]);
+		WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 		GLES20.glDrawElements(GLES20.GL_LINES, geom.sharedGeom.wireframeIndices.remaining(), GLES20.GL_UNSIGNED_SHORT, 0);
+		WorldWindowGLSurfaceView.glCheckError("glDrawElements");
 	}
 
 	protected void renderOutline(DrawContext dc, TerrainTile tile) {
@@ -1166,7 +1181,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		}
 
 		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, sharedVboIds[3]);
+		WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 		GLES20.glDrawElements(GLES20.GL_LINE_STRIP, geom.sharedGeom.outlineIndices.remaining(), GLES20.GL_UNSIGNED_SHORT, 0);
+		WorldWindowGLSurfaceView.glCheckError("glDrawElements");
 	}
 
 	protected void loadGeometryVbos(DrawContext dc, TerrainGeometry geom) {
@@ -1178,12 +1195,15 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		if (vboIds == null) {
 			vboIds = new int[1];
 			GLES20.glGenBuffers(1, vboIds, 0);
+			WorldWindowGLSurfaceView.glCheckError("glGenBuffers");
 		}
 
 		try {
 			int sizeInBytes = 4 * geom.points.remaining();
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
+			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 			GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, sizeInBytes, geom.points, GLES20.GL_STREAM_DRAW);
+			WorldWindowGLSurfaceView.glCheckError("glBufferData");
 
 			// Don't overwrite these VBOs if they're already in the cache. Doing so would cause the cache to delete
 			// the existing VBO objects. Since we're reusing the same VBO ids, this would delete the VBO ids we're
@@ -1194,6 +1214,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		} finally {
 			// Restore the array buffer binding to 0.
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 		}
 	}
 
@@ -1204,34 +1225,45 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 		vboIds = new int[4];
 		GLES20.glGenBuffers(4, vboIds, 0);
+		WorldWindowGLSurfaceView.glCheckError("glGenBuffers");
 
 		try {
 			long totalSizeInBytes = 0;
 			int sizeInBytes = 4 * geom.texCoords.remaining();
 			totalSizeInBytes += sizeInBytes;
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
+			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 			GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, sizeInBytes, geom.texCoords, GLES20.GL_STREAM_DRAW);
+			WorldWindowGLSurfaceView.glCheckError("glBufferData");
 
 			sizeInBytes = 2 * geom.indices.remaining();
 			totalSizeInBytes += sizeInBytes;
 			GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[1]);
+			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 			GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, sizeInBytes, geom.indices, GLES20.GL_STREAM_DRAW);
+			WorldWindowGLSurfaceView.glCheckError("glBufferData");
 
 			sizeInBytes = 2 * geom.wireframeIndices.remaining();
 			totalSizeInBytes += sizeInBytes;
 			GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[2]);
+			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 			GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, sizeInBytes, geom.wireframeIndices, GLES20.GL_STREAM_DRAW);
+			WorldWindowGLSurfaceView.glCheckError("glBufferData");
 
 			sizeInBytes = 2 * geom.outlineIndices.remaining();
 			totalSizeInBytes += sizeInBytes;
 			GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[3]);
+			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 			GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, sizeInBytes, geom.outlineIndices, GLES20.GL_STREAM_DRAW);
+			WorldWindowGLSurfaceView.glCheckError("glBufferData");
 
 			cache.put(geom.vboCacheKey, vboIds, GpuResourceCache.VBO_BUFFERS, totalSizeInBytes);
 		} finally {
 			// Restore the array and element array buffer bindings to 0.
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 			GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
+			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 		}
 	}
 
@@ -1247,6 +1279,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 			if (sg != null) sg.pick(dc, pickPoint);
 		} finally {
 			GLES20.glUseProgram(0);
+			WorldWindowGLSurfaceView.glCheckError("glUseProgram");
 			dc.setCurrentProgram(null);
 		}
 	}
@@ -1306,6 +1339,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 					// the "vertexColor" attrib array is not enabled, this constant value is used instead. OpenGL
 					// expands this 3-component RGB color to a 4-component RGBA color, where the alpha component is 1.0.
 					GLES20.glVertexAttrib3f(location, (float) this.pickColor.r, (float) this.pickColor.g, (float) this.pickColor.b);
+					WorldWindowGLSurfaceView.glCheckError("glVertexAttrib3f");
 					sg.render(dc);
 				} finally {
 					sg.endRendering(dc);
@@ -1430,7 +1464,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 				pickGeom.points.put(corners, 9, 3); // Upper-right vertex.
 
 				if (i != 0 || j != 0) // The first triangle's color is allocated before this loop.
-				color = dc.getUniquePickColor();
+					color = dc.getUniquePickColor();
 				colors[0] = colors[3] = colors[6] = (byte) Color.getColorIntRed(color);
 				colors[1] = colors[4] = colors[7] = (byte) Color.getColorIntGreen(color);
 				colors[2] = colors[5] = colors[8] = (byte) Color.getColorIntBlue(color);
@@ -1482,7 +1516,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		int pointLocation = program.getAttribLocation("vertexPoint");
 		if (pointLocation >= 0) {
 			GLES20.glEnableVertexAttribArray(pointLocation);
+			WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 			GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, geom.points);
+			WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 		}
 
 		// Enable and specify the data for the program's vertexPoint attribute, if one exists. We specify a 3-element
@@ -1491,7 +1527,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		int colorLocation = program.getAttribLocation("vertexColor");
 		if (colorLocation >= 0) {
 			GLES20.glEnableVertexAttribArray(colorLocation);
+			WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 			GLES20.glVertexAttribPointer(colorLocation, 3, GLES20.GL_UNSIGNED_BYTE, true, 0, geom.colors);
+			WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 		}
 
 		// Multiply the View's modelview-projection matrix by the tile's transform matrix to correctly transform tile
@@ -1502,9 +1540,12 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		program.loadUniformMatrix("mvpMatrix", this.mvpMatrix);
 
 		GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, geom.vertexCount);
+		WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
 
 		if (pointLocation >= 0) GLES20.glDisableVertexAttribArray(pointLocation);
+		WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 		if (colorLocation >= 0) GLES20.glDisableVertexAttribArray(colorLocation);
+		WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 	}
 
 	protected PickedObject resolvePick(DrawContext dc, TerrainPickGeometry geom, Point pickPoint) {
@@ -1611,7 +1652,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	/**
 	 * Computes the model coordinate intersection of a specified line with a triangle specified by individual
 	 * coordinates.
-	 * 
+	 *
 	 * @param line
 	 *            the line to test.
 	 * @param vax
@@ -1665,7 +1706,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		// Compute dot product of N and ray direction.
 		double b = nx * dir.x + ny * dir.y + nz * dir.z;
 		if (b > -EPSILON && b < EPSILON) // ray is parallel to triangle plane
-		return false;
+			return false;
 
 		double t = -(nx * tvecx + ny * tvecy + nz * tvecz) / b;
 		line.getPointAt(t, result);
@@ -1676,7 +1717,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	/**
 	 * Computes the point in tile local coordinates of a location within a tile's cell specified by individual
 	 * coordinates.
-	 * 
+	 *
 	 * @param s
 	 *            a parameterized horizontal coordinate within the tile's 2D grid of points as a floating-point value
 	 *            in the range [0, tileWidth].
@@ -1711,7 +1752,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	 *            contains the tile local coordinates of the point in the cell after this method returns.
 	 */
 	protected void computePointInCell(double s, double t, double llx, double lly, double llz, double lrx, double lry, double lrz, double ulx, double uly, double ulz, double urx,
-			double ury, double urz, Vec4 result) {
+									  double ury, double urz, Vec4 result) {
 		if (s < t) // The point is in the lower-right triangle.
 		{
 			double oneMinusS = 1 - s;

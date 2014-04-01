@@ -246,22 +246,33 @@ public class SceneController extends WWObjectImpl {
 	}
 
 	protected void initializeFrame(DrawContext dc) {
-		GLES20.glEnable(GLES20.GL_BLEND);
-		GLES20.glEnable(GLES20.GL_CULL_FACE);
-		GLES20.glEnable(GLES20.GL_DEPTH_TEST);
-		GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA); // Blend in premultiplied alpha mode.
-		GLES20.glDepthFunc(GLES20.GL_LEQUAL);
+		GLES20.glEnable(GLES20.GL_BLEND); 
+	WorldWindowGLSurfaceView.glCheckError("glEnable");
+		GLES20.glEnable(GLES20.GL_CULL_FACE); 
+	WorldWindowGLSurfaceView.glCheckError("glEnable");
+		GLES20.glEnable(GLES20.GL_DEPTH_TEST); 
+	WorldWindowGLSurfaceView.glCheckError("glEnable");
+		GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA); // Blend in premultiplied alpha mode. 
+	WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+		GLES20.glDepthFunc(GLES20.GL_LEQUAL); 
+	WorldWindowGLSurfaceView.glCheckError("glDepthFunc");
 		// We do not specify glCullFace, because the default cull face state GL_BACK is appropriate for our needs.
 	}
 
 	protected void finalizeFrame(DrawContext dc) {
 		// Restore the default GL state values we modified in initializeFrame.
-		GLES20.glDisable(GLES20.GL_BLEND);
-		GLES20.glDisable(GLES20.GL_CULL_FACE);
-		GLES20.glDisable(GLES20.GL_DEPTH_TEST);
-		GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ZERO);
-		GLES20.glDepthFunc(GLES20.GL_LESS);
-		GLES20.glClearColor(0f, 0f, 0f, 0f);
+		GLES20.glDisable(GLES20.GL_BLEND); 
+	WorldWindowGLSurfaceView.glCheckError("glDisable");
+		GLES20.glDisable(GLES20.GL_CULL_FACE); 
+	WorldWindowGLSurfaceView.glCheckError("glDisable");
+		GLES20.glDisable(GLES20.GL_DEPTH_TEST); 
+	WorldWindowGLSurfaceView.glCheckError("glDisable");
+		GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ZERO); 
+	WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+		GLES20.glDepthFunc(GLES20.GL_LESS); 
+	WorldWindowGLSurfaceView.glCheckError("glDepthFunc");
+		GLES20.glClearColor(0f, 0f, 0f, 0f); 
+	WorldWindowGLSurfaceView.glCheckError("glClearColor");
 	}
 
 	protected void clearFrame(DrawContext dc) {
@@ -269,8 +280,10 @@ public class SceneController extends WWObjectImpl {
 		this.clearColor.set(dc.getClearColor());
 		// Set the DrawContext's clear color, then clear the framebuffer's color buffer and depth buffer. This fills
 		// the color buffer with the background color, and fills the depth buffer with 1 (the default).
-		GLES20.glClearColor((float) this.clearColor.r, (float) this.clearColor.g, (float) this.clearColor.b, (float) this.clearColor.a);
-		GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+		GLES20.glClearColor((float) this.clearColor.r, (float) this.clearColor.g, (float) this.clearColor.b, (float) this.clearColor.a); 
+	WorldWindowGLSurfaceView.glCheckError("glClearColor");
+		GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT); 
+	WorldWindowGLSurfaceView.glCheckError("glClear");
 	}
 
 	protected void applyView(DrawContext dc) {
@@ -358,8 +371,10 @@ public class SceneController extends WWObjectImpl {
 	 */
 	protected void beginPicking(DrawContext dc) {
 		dc.setPickingMode(true);
-		GLES20.glDisable(GLES20.GL_BLEND); // Blending is disabled by default, but is enabled in initializeFrame.
-		GLES20.glDisable(GLES20.GL_DITHER); // Dithering is enabled by default.
+		GLES20.glDisable(GLES20.GL_BLEND); // Blending is disabled by default, but is enabled in initializeFrame. 
+	WorldWindowGLSurfaceView.glCheckError("glDisable");
+		GLES20.glDisable(GLES20.GL_DITHER); // Dithering is enabled by default. 
+	WorldWindowGLSurfaceView.glCheckError("glDisable");
 	}
 
 	/**
@@ -374,8 +389,10 @@ public class SceneController extends WWObjectImpl {
 	 */
 	protected void endPicking(DrawContext dc) {
 		dc.setPickingMode(false);
-		GLES20.glEnable(GLES20.GL_BLEND); // Blending is disabled by default, but is enabled in initializeFrame.
-		GLES20.glEnable(GLES20.GL_DITHER); // Dithering is enabled by default.
+		GLES20.glEnable(GLES20.GL_BLEND); // Blending is disabled by default, but is enabled in initializeFrame. 
+	WorldWindowGLSurfaceView.glCheckError("glEnable");
+		GLES20.glEnable(GLES20.GL_DITHER); // Dithering is enabled by default. 
+	WorldWindowGLSurfaceView.glCheckError("glEnable");
 	}
 
 	protected void doPick(DrawContext dc) {
@@ -481,7 +498,8 @@ public class SceneController extends WWObjectImpl {
 	 */
 	protected void beginDeepPicking(DrawContext dc) {
 		dc.setDeepPickingEnabled(true);
-		GLES20.glDisable(GLES20.GL_DEPTH_TEST); // Depth test is disabled by default, but enabled in initializeFrame.
+		GLES20.glDisable(GLES20.GL_DEPTH_TEST); // Depth test is disabled by default, but enabled in initializeFrame. 
+	WorldWindowGLSurfaceView.glCheckError("glDisable");
 	}
 
 	/**
@@ -496,7 +514,8 @@ public class SceneController extends WWObjectImpl {
 	 */
 	protected void endDeepPicking(DrawContext dc) {
 		dc.setDeepPickingEnabled(false);
-		GLES20.glEnable(GLES20.GL_DEPTH_TEST); // Depth test is disabled by default, but enabled in initializeFrame.
+		GLES20.glEnable(GLES20.GL_DEPTH_TEST); // Depth test is disabled by default, but enabled in initializeFrame. 
+	WorldWindowGLSurfaceView.glCheckError("glEnable");
 	}
 
 	protected PickedObjectList mergePickedObjectLists(PickedObjectList listA, PickedObjectList listB) {

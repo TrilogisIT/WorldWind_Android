@@ -4,6 +4,7 @@ All Rights Reserved.
  */
 package gov.nasa.worldwind.render;
 
+import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.cache.ShapeDataCache;
@@ -66,7 +67,7 @@ import android.opengl.GLES20;
  * Path picking includes information about which position dots are picked, in addition to the path itself. A position dot under the cursor is returned as an
  * Integer object in the PickedObject's AVList under they key AVKey.ORDINAL. Position dots intersecting the pick rectangle are returned as a List of Integer
  * objects in the PickedObject's AVList under the key AVKey.ORDINAL_LIST.
- * 
+ *
  * @author tag
  * @version $Id: Path.java 844 2012-10-11 00:35:07Z tgaskins $
  */
@@ -113,7 +114,7 @@ public class Path extends AbstractShape {
 		 * with 0 and increase by 1 for every originally specified position. For example, the first three path positions have ordinal values 0, 1, 2.
 		 * <p/>
 		 * The returned color's RGB components must <em>not</em> be premultiplied by its Alpha component.
-		 * 
+		 *
 		 * @param position
 		 *            the path position the color corresponds to.
 		 * @param ordinal
@@ -172,7 +173,7 @@ public class Path extends AbstractShape {
 		/**
 		 * The positions resulting from tessellating this path. If the path's attributes don't cause tessellation, then
 		 * the positions returned are those originally specified.
-		 * 
+		 *
 		 * @return the positions computed by path tessellation.
 		 */
 		public List<Position> getTessellatedPositions() {
@@ -186,7 +187,7 @@ public class Path extends AbstractShape {
 		/**
 		 * Indicates the colors corresponding to each position in <code>tessellatedPositions</code>, or <code>null</code> if the path does not have per-position
 		 * colors.
-		 * 
+		 *
 		 * @return the colors corresponding to each path position, or <code>null</code> if the path does not have
 		 *         per-position colors.
 		 */
@@ -198,7 +199,7 @@ public class Path extends AbstractShape {
 		 * Specifies the colors corresponding to each position in <code>tessellatedPositions</code>, or <code>null</code> to specify that the path does not have
 		 * per-position colors. The entries in the specified
 		 * list must have a one-to-one correspondence with the entries in <code>tessellatedPositions</code>.
-		 * 
+		 *
 		 * @param tessellatedColors
 		 *            the colors corresponding to each path position, or <code>null</code> if the path
 		 *            does not have per-position colors.
@@ -210,7 +211,7 @@ public class Path extends AbstractShape {
 		/**
 		 * The Cartesian coordinates of the tessellated positions. If path verticals are enabled, this path also
 		 * contains the ground points corresponding to the path positions.
-		 * 
+		 *
 		 * @return the Cartesian coordinates of the tessellated positions.
 		 */
 		public FloatBuffer getRenderedPath() {
@@ -256,7 +257,7 @@ public class Path extends AbstractShape {
 
 		/**
 		 * Indicates whether this path is extruded and the extrusion points have been computed.
-		 * 
+		 *
 		 * @return true if the path is extruded and the extrusion points are computed, otherwise false.
 		 */
 		public boolean hasExtrusionPoints() {
@@ -270,7 +271,7 @@ public class Path extends AbstractShape {
 		/**
 		 * Indicates the offset in number of floats to the first RGBA color tuple in <code>renderedPath</code>. This
 		 * returns <code>0</code> if <code>renderedPath</code> has no RGBA color tuples.
-		 * 
+		 *
 		 * @return the offset in number of floats to the first RGBA color tuple in <code>renderedPath</code>.
 		 */
 		public int getColorOffset() {
@@ -280,7 +281,7 @@ public class Path extends AbstractShape {
 		/**
 		 * Specifies the offset in number of floats to the first RGBA color tuple in <code>renderedPath</code>. Specify
 		 * 0 if <code>renderedPath</code> has no RGBA color tuples.
-		 * 
+		 *
 		 * @param offset
 		 *            the offset in number of floats to the first RGBA color tuple in <code>renderedPath</code>.
 		 */
@@ -290,7 +291,7 @@ public class Path extends AbstractShape {
 
 		/**
 		 * Indicates the stride in number of floats between the first element of consecutive vertices in <code>renderedPath</code>.
-		 * 
+		 *
 		 * @return the stride in number of floats between vertices in in <code>renderedPath</code>.
 		 */
 		public int getVertexStride() {
@@ -299,7 +300,7 @@ public class Path extends AbstractShape {
 
 		/**
 		 * Specifies the stride in number of floats between the first element of consecutive vertices in <code>renderedPath</code>.
-		 * 
+		 *
 		 * @param stride
 		 *            the stride in number of floats between vertices in in <code>renderedPath</code>.
 		 */
@@ -309,7 +310,7 @@ public class Path extends AbstractShape {
 
 		/**
 		 * Indicates the number of vertices in <code>renderedPath</code>.
-		 * 
+		 *
 		 * @return the the number of verices in <code>renderedPath</code>.
 		 */
 		public int getVertexCount() {
@@ -318,7 +319,7 @@ public class Path extends AbstractShape {
 
 		/**
 		 * Specifies the number of vertices in <code>renderedPath</code>. Specify 0 if <code>renderedPath</code> contains no vertices.
-		 * 
+		 *
 		 * @param count
 		 *            the the number of verices in <code>renderedPath</code>.
 		 */
@@ -621,7 +622,7 @@ public class Path extends AbstractShape {
 	 * Creates a path with specified positions.
 	 * <p/>
 	 * Note: If fewer than two positions is specified, no path is drawn.
-	 * 
+	 *
 	 * @param positions
 	 *            the path positions. This reference is retained by this shape; the positions are not copied. If
 	 *            any positions in the set change, {@link #setPositions(Iterable)} must be called to inform this
@@ -637,7 +638,7 @@ public class Path extends AbstractShape {
 	 * Creates a path with positions specified via a generic list.
 	 * <p/>
 	 * Note: If fewer than two positions is specified, the path is not drawn.
-	 * 
+	 *
 	 * @param positions
 	 *            the path positions. This reference is retained by this shape; the positions are not copied. If
 	 *            any positions in the set change, {@link #setPositions(Iterable)} must be called to inform this
@@ -657,7 +658,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Creates a path between two positions.
-	 * 
+	 *
 	 * @param posA
 	 *            the first position.
 	 * @param posB
@@ -700,7 +701,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Returns this path's positions.
-	 * 
+	 *
 	 * @return this path's positions. Will be null if no positions have been specified.
 	 */
 	public Iterable<? extends Position> getPositions() {
@@ -711,7 +712,7 @@ public class Path extends AbstractShape {
 	 * Specifies this path's positions, which replace this path's current positions, if any.
 	 * <p/>
 	 * Note: If fewer than two positions is specified, this path is not drawn.
-	 * 
+	 *
 	 * @param positions
 	 *            this path's positions.
 	 * @throws IllegalArgumentException
@@ -734,7 +735,7 @@ public class Path extends AbstractShape {
 	 * Indicates the PositionColors that defines the RGBA color for each of this path's positions. A return value of <code>null</code> is valid and indicates
 	 * that this path's positions are colored according to its
 	 * ShapeAttributes.
-	 * 
+	 *
 	 * @return this Path's PositionColors, or <code>null</code> if this path is colored according to its
 	 *         ShapeAttributes.
 	 * @see #setPositionColors(gov.nasa.worldwind.render.Path.PositionColors)
@@ -757,7 +758,7 @@ public class Path extends AbstractShape {
 	 * <p/>
 	 * Specify <code>null</code> to disable position colors and draw this path's line and optional position dots according to its ShapeAttributes. This path's
 	 * position colors reference is <code>null</code> by default.
-	 * 
+	 *
 	 * @param positionColors
 	 *            the PositionColors that defines an RGBA color for each of this path's positions, or <code>null</code> to color this path's positions according
 	 *            to its ShapeAttributes.
@@ -772,7 +773,7 @@ public class Path extends AbstractShape {
 	/**
 	 * Indicates whether to extrude this path. Extruding the path extends a filled interior from the path to the
 	 * terrain.
-	 * 
+	 *
 	 * @return true to extrude this path, otherwise false.
 	 * @see #setExtrude(boolean)
 	 */
@@ -783,7 +784,7 @@ public class Path extends AbstractShape {
 	/**
 	 * Specifies whether to extrude this path. Extruding the path extends a filled interior from the path to the
 	 * terrain.
-	 * 
+	 *
 	 * @param extrude
 	 *            true to extrude this path, otherwise false. The default value is false.
 	 */
@@ -794,7 +795,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Indicates whether this path is terrain following.
-	 * 
+	 *
 	 * @return true if terrain following, otherwise false.
 	 * @see #setFollowTerrain(boolean)
 	 */
@@ -804,7 +805,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Specifies whether this path is terrain following.
-	 * 
+	 *
 	 * @param followTerrain
 	 *            true if terrain following, otherwise false. The default value is false.
 	 */
@@ -820,7 +821,7 @@ public class Path extends AbstractShape {
 	 * cause the path to conform more closely to the path type but decrease performance.
 	 * <p/>
 	 * Note: The sub-segments number is ignored when the path follows terrain or when the path type is {@link AVKey#LINEAR}.
-	 * 
+	 *
 	 * @return the number of sub-segments.
 	 * @see #setNumSubsegments(int)
 	 */
@@ -833,7 +834,7 @@ public class Path extends AbstractShape {
 	 * cause the path to conform more closely to the path type but decrease performance.
 	 * <p/>
 	 * Note: The sub-segments number is ignored when the path follows terrain or when the path type is {@link AVKey#LINEAR}.
-	 * 
+	 *
 	 * @param numSubsegments
 	 *            the number of sub-segments. The default is 10.
 	 */
@@ -846,7 +847,7 @@ public class Path extends AbstractShape {
 	 * Indicates the terrain conformance target when this path follows the terrain. The value indicates the maximum
 	 * number of pixels between which intermediate positions of a path segment -- the path portion between two specified
 	 * positions -- are computed.
-	 * 
+	 *
 	 * @return the terrain conformance, in pixels.
 	 * @see #setTerrainConformance(double)
 	 */
@@ -858,7 +859,7 @@ public class Path extends AbstractShape {
 	 * Specifies how accurately this path must adhere to the terrain when the path is terrain following. The value
 	 * specifies the maximum number of pixels between tessellation points. Lower values increase accuracy but decrease
 	 * performance.
-	 * 
+	 *
 	 * @param terrainConformance
 	 *            the number of pixels between tessellation points.
 	 */
@@ -869,7 +870,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Indicates this paths path type.
-	 * 
+	 *
 	 * @return the path type.
 	 * @see #setPathType(String)
 	 */
@@ -879,7 +880,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Specifies this path's path type. Recognized values are {@link AVKey#GREAT_CIRCLE}, {@link AVKey#RHUMB_LINE} and {@link AVKey#LINEAR}.
-	 * 
+	 *
 	 * @param pathType
 	 *            the current path type. The default value is {@link AVKey#LINEAR}.
 	 */
@@ -890,7 +891,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Indicates whether to draw at each specified path position when this path is extruded.
-	 * 
+	 *
 	 * @return true to draw the lines, otherwise false.
 	 * @see #setDrawVerticals(boolean)
 	 */
@@ -900,7 +901,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Specifies whether to draw vertical lines at each specified path position when this path is extruded.
-	 * 
+	 *
 	 * @param drawVerticals
 	 *            true to draw the lines, otherwise false. The default value is true.
 	 */
@@ -911,7 +912,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Indicates whether dots are drawn at the Path's original positions.
-	 * 
+	 *
 	 * @return true if dots are drawn, otherwise false.
 	 */
 	public boolean isShowPositions() {
@@ -921,7 +922,7 @@ public class Path extends AbstractShape {
 	/**
 	 * Specifies whether to draw dots at the original positions of the Path. The dot color and size are controlled by
 	 * the Path's outline material and scale attributes.
-	 * 
+	 *
 	 * @param showPositions
 	 *            true if dots are drawn at each original (not tessellated) position, otherwise false.
 	 */
@@ -933,7 +934,7 @@ public class Path extends AbstractShape {
 	 * Indicates the scale factor controlling the size of dots drawn at this path's specified positions. The scale is
 	 * multiplied by the outline width given in this path's {@link ShapeAttributes} to determine the actual size of the
 	 * dots, in pixels. See {@link ShapeAttributes#setOutlineWidth(double)}.
-	 * 
+	 *
 	 * @return the shape's draw-position scale. The default scale is 10.
 	 */
 	public double getShowPositionsScale() {
@@ -944,7 +945,7 @@ public class Path extends AbstractShape {
 	 * Specifies the scale factor controlling the size of dots drawn at this path's specified positions. The scale is
 	 * multiplied by the outline width given in this path's {@link ShapeAttributes} to determine the actual size of the
 	 * dots, in pixels. See {@link ShapeAttributes#setOutlineWidth(double)}.
-	 * 
+	 *
 	 * @param showPositionsScale
 	 *            the new draw-position scale.
 	 */
@@ -954,7 +955,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Indicates the eye distance from this shape's center beyond which position dots are not drawn.
-	 * 
+	 *
 	 * @return the eye distance at which to enable or disable position dot drawing. The default is 1e6 meters, which
 	 *         typically causes the dots to always be drawn.
 	 */
@@ -964,7 +965,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Specifies the eye distance from this shape's center beyond which position dots are not drawn.
-	 * 
+	 *
 	 * @param showPositionsThreshold
 	 *            the eye distance at which to enable or disable position dot drawing.
 	 */
@@ -1007,7 +1008,7 @@ public class Path extends AbstractShape {
 	 * Indicates whether this Path's defining positions and the positions in between are located on the underlying
 	 * terrain. This returns <code>true</code> if this Path's altitude mode is <code>WorldWind.CLAMP_TO_GROUND</code> and the follow-terrain property is
 	 * <code>true</code>. Otherwise this returns <code>false</code>.
-	 * 
+	 *
 	 * @return <code>true</code> if this Path's positions and the positions in between are located on the underlying
 	 *         terrain, and <code>false</code> otherwise.
 	 */
@@ -1143,6 +1144,7 @@ public class Path extends AbstractShape {
 
 		try {
 			if (isSurfacePath) GLES20.glDepthMask(false);
+			WorldWindowGLSurfaceView.glCheckError("glDepthMask");
 
 			int[] vboIds = this.getVboIds(dc);
 			if (vboIds != null) this.doDrawOutlineVBO(dc, vboIds, this.getCurrentPathData());
@@ -1151,7 +1153,8 @@ public class Path extends AbstractShape {
 				Logging.warning(msg);
 			}
 		} finally {
-			if (isSurfacePath) GLES20.glDepthMask(true); // Restore the default depth mask.
+			if (isSurfacePath) GLES20.glDepthMask(true); // Restore the default depth mask. 
+			WorldWindowGLSurfaceView.glCheckError("glDepthMask");
 		}
 	}
 
@@ -1169,7 +1172,9 @@ public class Path extends AbstractShape {
 		// Specify the data for the program's vertexPoint attribute, if one exists. This attribute is enabled in
 		// beginRendering. Convert stride from number of elements to number of bytes.
 		GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
+		WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 		GLES20.glVertexAttribPointer(attribLocation, 3, GLES20.GL_FLOAT, false, 4 * stride, 0);
+		WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 
 		// Apply this path's per-position colors if we're in normal rendering mode (not picking) and this path's
 		// positionColors is non-null.
@@ -1181,6 +1186,7 @@ public class Path extends AbstractShape {
 		// }
 
 		GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, count);
+		WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
 
 		// if (useVertexColors)
 		// gl.glDisableClientState(GL.GL_COLOR_ARRAY);
@@ -1304,7 +1310,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Draws this path's interior when the path is extruded.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -1327,14 +1333,17 @@ public class Path extends AbstractShape {
 		// Specify the data for the program's vertexPoint attribute, if one exists. This attribute is enabled in
 		// beginRendering. Convert stride from number of elements to number of bytes.
 		GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
+		WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 		GLES20.glVertexAttribPointer(attribLocation, 3, GLES20.GL_FLOAT, false, 4 * pathData.vertexStride, 0);
+		WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
 		GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, pathData.vertexCount);
+		WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
 	}
 
 	/**
 	 * Computes the shape's model-coordinate path from a list of positions. Applies the path's terrain-conformance
 	 * settings. Adds extrusion points -- those on the ground -- when the path is extruded.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @param positions
@@ -1361,7 +1370,7 @@ public class Path extends AbstractShape {
 	 * Computes a terrain-conforming, model-coordinate path from a list of positions, using either a specified altitude
 	 * or the altitudes in the specified positions. Adds extrusion points -- those on the ground -- when the path is
 	 * extruded and the specified single altitude is not 0.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @param positions
@@ -1415,7 +1424,7 @@ public class Path extends AbstractShape {
 	/**
 	 * Computes a model-coordinate path from a list of positions, using the altitudes in the specified positions. Adds
 	 * extrusion points -- those on the ground -- when the path is extruded and the specified single altitude is not 0.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @param positions
@@ -1480,7 +1489,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Computes a point on a path and adds it to the renderable geometry. Used to generate extrusion vertices.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @param position
@@ -1585,7 +1594,7 @@ public class Path extends AbstractShape {
 	/**
 	 * Generates positions defining this path with path type and terrain-conforming properties applied. Builds the
 	 * path's <code>tessellatedPositions</code> and <code>polePositions</code> fields.
-	 * 
+	 *
 	 * @param pathData
 	 *            the current globe-specific path data.
 	 * @param dc
@@ -1673,7 +1682,7 @@ public class Path extends AbstractShape {
 	 * Adds a position to this path's <code>tessellatedPositions</code> list. If the specified color is not <code>null</code>, this adds the color to this
 	 * path's <code>tessellatedColors</code> list. If the specified
 	 * ordinal is not <code>null</code>, this adds the position's index to the <code>polePositions</code> and <code>positionPoints</code> index buffers.
-	 * 
+	 *
 	 * @param pos
 	 *            the position to add.
 	 * @param color
@@ -1740,7 +1749,7 @@ public class Path extends AbstractShape {
 	 * corresponding ordinal number by delegating the call to this path's positionColors. This returns <code>null</code> if this path's positionColors property
 	 * is <code>null</code>. This returns white if a color cannot be determined
 	 * for the specified position and ordinal.
-	 * 
+	 *
 	 * @param pos
 	 *            the path position the color corresponds to.
 	 * @param ordinal
@@ -1761,7 +1770,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Determines whether the segment between two path positions is visible.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @param posA
@@ -1795,7 +1804,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Creates the interior segment positions to adhere to the current path type and terrain-following settings.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @param posA
@@ -1876,7 +1885,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Computes the approximate model-coordinate, great-circle length between two positions.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @param posA
@@ -1899,7 +1908,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Computes this path's reference center.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @return the computed reference center, or null if it cannot be computed.
@@ -1917,7 +1926,7 @@ public class Path extends AbstractShape {
 	 * Computes the minimum distance between this Path and the eye point.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the draw context.
 	 * @param pathData
@@ -1948,7 +1957,7 @@ public class Path extends AbstractShape {
 
 	/**
 	 * Computes the path's bounding box from the current rendering path. Assumes the rendering path is up-to-date.
-	 * 
+	 *
 	 * @param current
 	 *            the current data for this shape.
 	 * @return the computed extent.
@@ -1983,7 +1992,7 @@ public class Path extends AbstractShape {
 	/**
 	 * Computes the path's reference position. The position returned is the center-most ordinal position in the path's
 	 * specified positions.
-	 * 
+	 *
 	 * @return the computed reference position.
 	 */
 	public Position getReferencePosition() {
@@ -2007,30 +2016,39 @@ public class Path extends AbstractShape {
 		if (vboIds == null) {
 			vboIds = new int[numIds];
 			GLES20.glGenBuffers(vboIds.length, vboIds, 0);
+			WorldWindowGLSurfaceView.glCheckError("glGenBuffers");
 			dc.getGpuResourceCache().put(pathData.getVboCacheKey(), vboIds, GpuResourceCache.VBO_BUFFERS, vSize + iSize);
 		}
 
 		try {
 			FloatBuffer vb = pathData.renderedPath;
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
+			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 			GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, vb.limit() * 4, vb.rewind(), GLES20.GL_STATIC_DRAW);
+			WorldWindowGLSurfaceView.glCheckError("glBufferData");
 
 			// if (pathData.hasExtrusionPoints && this.isDrawVerticals())
 			// {
 			// IntBuffer ib = pathData.polePositions;
-			// GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[1]);
-			// GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, ib.limit() * 4, ib.rewind(), GLES20.GL_STATIC_DRAW);
+			// GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[1]); 
+			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+			// GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, ib.limit() * 4, ib.rewind(), GLES20.GL_STATIC_DRAW); 
+			WorldWindowGLSurfaceView.glCheckError("glBufferData");
 			// }
 
 			// if (this.isShowPositions())
 			// {
 			// IntBuffer ib = pathData.positionPoints;
-			// GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[2]);
-			// GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, ib.limit() * 4, ib.rewind(), GLES20.GL_STATIC_DRAW);
+			// GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[2]); 
+			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+			// GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, ib.limit() * 4, ib.rewind(), GLES20.GL_STATIC_DRAW); 
+			WorldWindowGLSurfaceView.glCheckError("glBufferData");
 			// }
 		} finally {
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 			GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
+			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 		}
 	}
 

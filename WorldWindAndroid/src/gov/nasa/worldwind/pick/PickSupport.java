@@ -4,6 +4,7 @@ All Rights Reserved.
  */
 package gov.nasa.worldwind.pick;
 
+import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.layers.Layer;
 import gov.nasa.worldwind.render.DrawContext;
@@ -14,7 +15,7 @@ import android.opengl.GLES20;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
- * 
+ *
  * @author tag
  * @version $Id: PickSupport.java 805 2012-09-26 01:47:35Z dcollins $
  */
@@ -53,7 +54,7 @@ public class PickSupport {
 
 		int colorCode = dc.getPickColor(pickPoint);
 		if (colorCode == 0) // getPickColor returns 0 if the pick point selects the clear color.
-		return null;
+			return null;
 
 		PickedObject pickedObject = getPickableObjects().get(colorCode);
 		if (pickedObject == null) return null;
@@ -80,21 +81,41 @@ public class PickSupport {
 		// gl.glPushAttrib(GL.GL_ENABLE_BIT | GL.GL_CURRENT_BIT);
 
 		GLES20.glDisable(GLES20.GL_DITHER);
+
+		WorldWindowGLSurfaceView.glCheckError("glDisable");
 		// GLES20.glDisable(GLES20.GL_GL_LIGHTING);
+
+		WorldWindowGLSurfaceView.glCheckError("glDisable");
 		// GLES20.glDisable(GLES20.GL_FOG);
+
+		WorldWindowGLSurfaceView.glCheckError("glDisable");
 		GLES20.glDisable(GLES20.GL_BLEND);
+
+		WorldWindowGLSurfaceView.glCheckError("glDisable");
 		GLES20.glDisable(GLES20.GL_TEXTURE_2D);
 
+		WorldWindowGLSurfaceView.glCheckError("glDisable");
+
 		if (dc.isDeepPickingEnabled()) GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+
+		WorldWindowGLSurfaceView.glCheckError("glDisable");
 	}
 
 	public void endPicking(DrawContext dc) {
 		// dc.restoreDefaultBlending();
 		GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ZERO);
+
+		WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
 		GLES20.glDisable(GLES20.GL_BLEND);
+
+		WorldWindowGLSurfaceView.glCheckError("glDisable");
 		// dc.restoreDefaultDepthTesting();
 		GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+
+		WorldWindowGLSurfaceView.glCheckError("glEnable");
 		GLES20.glDepthMask(true);
+
+		WorldWindowGLSurfaceView.glCheckError("glDepthMask");
 		// ??dc.restoreDefaultCurrentColor();
 	}
 }
