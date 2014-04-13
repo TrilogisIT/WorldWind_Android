@@ -13,7 +13,7 @@
     <AvailableImageFormats>
         <ImageFormat>image/jpg</ImageFormat>
     </AvailableImageFormats>
-    <FormatSuffix>.dds</FormatSuffix>
+    <FormatSuffix>.jpg</FormatSuffix>
     <NumLevels count="16" numEmpty="4"/>
     <TileOrigin>
         <LatLon units="degrees" latitude="-90" longitude="-180"/>
