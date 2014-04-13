@@ -8,8 +8,8 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="nicastel.android.ww"
-    android:versionCode="4"
-    android:versionName="1.0.2" >
+    android:versionCode="5"
+    android:versionName="1.0" >
     <!-- Specify that World Wind applications require SDK Platform Android 4.0.3, API 15. -->
     <uses-sdk
         android:minSdkVersion="15"
