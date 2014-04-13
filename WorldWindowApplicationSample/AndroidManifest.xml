@@ -31,9 +31,9 @@
     -->
     <supports-screens
         android:largeScreens="true"
-        android:normalScreens="false"
-        android:requiresSmallestWidthDp="600"
-        android:smallScreens="false"
+        android:normalScreens="true"
+        android:requiresSmallestWidthDp="200"
+        android:smallScreens="true"
         android:xlargeScreens="true" />
     <application
         android:allowBackup="false"
