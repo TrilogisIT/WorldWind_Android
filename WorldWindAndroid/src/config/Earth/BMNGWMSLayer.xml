@@ -17,12 +17,12 @@
     <!-- day month year hours:minutes:seconds timezone -->
     <LastUpdate>26 03 2009 00:00:00 GMT</LastUpdate>
     <DataCacheName>Earth/BMNGWMS/BMNG(Shaded + Bathymetry) Tiled - Version 1.1 - 5.2004</DataCacheName>
-    <ImageFormat>image/dds</ImageFormat>
+    <ImageFormat>image/png</ImageFormat>
     <AvailableImageFormats>
         <ImageFormat>image/png</ImageFormat>
         <ImageFormat>image/dds</ImageFormat>
     </AvailableImageFormats>
-    <FormatSuffix>.dds</FormatSuffix>
+    <FormatSuffix>.png</FormatSuffix>
     <NumLevels count="6" numEmpty="0"/>
     <TileOrigin>
         <LatLon units="degrees" latitude="-90" longitude="-180"/>
