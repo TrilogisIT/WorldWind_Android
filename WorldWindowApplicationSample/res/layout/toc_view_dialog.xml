@@ -3,9 +3,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent" >
 
-    <it.trilogis.android.ww.view.DragListView
+    <nicastel.android.ww.view.DragListView
         xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:tlv="http://schemas.android.com/apk/res/it.trilogis.android.ww"
+        xmlns:tlv="http://schemas.android.com/apk/res/nicastel.android.ww"
         android:id="@android:id/list"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

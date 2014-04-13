@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package it.trilogis.android.ww.dialogs;
+package nicastel.android.ww.dialogs;
 
 import gov.nasa.worldwind.Factory;
 import gov.nasa.worldwind.WorldWind;
@@ -25,14 +25,16 @@ import gov.nasa.worldwind.ogc.wms.WMSCapabilities;
 import gov.nasa.worldwind.ogc.wms.WMSLayerCapabilities;
 import gov.nasa.worldwind.ogc.wms.WMSLayerStyle;
 import gov.nasa.worldwind.util.WWUtil;
-import it.trilogis.android.ww.R;
-import it.trilogis.android.ww.WorldWindowActivity;
+import nicastel.android.ww.R;
+
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+
+import nicastel.android.ww.WorldWindowActivity;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
