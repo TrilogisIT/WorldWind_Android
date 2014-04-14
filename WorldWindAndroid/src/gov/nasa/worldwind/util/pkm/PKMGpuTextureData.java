@@ -16,27 +16,23 @@ import gov.nasa.worldwind.render.GpuTextureData;
 import gov.nasa.worldwind.util.Logging;
 import gov.nasa.worldwind.util.WWIO;
 import gov.nasa.worldwind.util.WWUtil;
-import gov.nasa.worldwind.util.dds.DDSTextureReader;
 
 /**
- * @author dcollins
- * @version $Id: GpuTextureData.java 59 2011-09-20 18:41:08Z dcollins $
+ * @author nicastel
+ * @version $Id: PKMGpuTextureData.java 2014-14-04 ndorigatti $
  */
 public class PKMGpuTextureData extends GpuTextureData
 {
     protected ETC1Texture etcCompressedData;
     
-    public static PKMGpuTextureData fromETCCompressedData(ETC1Texture etctex, long estimatedMemorySize)
-    {
-        if (etctex == null || etctex.getHeight() == 0)
-        {
-            String msg = Logging.getMessage("nullValue."); // TODO
+    public static PKMGpuTextureData fromETCCompressedData(ETC1Texture etctex, long estimatedMemorySize) {
+        if (etctex == null || etctex.getHeight() == 0) {
+            String msg = Logging.getMessage("nullValue.ETCTextureNotValid"); 
             Logging.error(msg);
             throw new IllegalArgumentException(msg);
         }
 
-        if (estimatedMemorySize <= 0)
-        {
+        if (estimatedMemorySize <= 0) {
             String msg = Logging.getMessage("generic.SizeIsInvalid", estimatedMemorySize);
             Logging.error(msg);
             throw new IllegalArgumentException(msg);
@@ -49,8 +45,8 @@ public class PKMGpuTextureData extends GpuTextureData
         return textureData;
     }
 
-    protected PKMGpuTextureData()
-    {
+    protected PKMGpuTextureData() {
+        super();
     }
 
 	public ETC1Texture getEtcCompressedData() {
@@ -112,15 +108,6 @@ public class PKMGpuTextureData extends GpuTextureData
         GpuTextureData data = null;
         try
         {
-//            stream.mark(DEFAULT_MARK_LIMIT);
-//
-//            DDSTextureReader ddsReader = new DDSTextureReader();
-//            data = ddsReader.read(stream);
-//            if (data != null)
-//                return data;
-//
-//            stream.reset();
-            
             stream.mark(DEFAULT_MARK_LIMIT);
           	 
             PKMReader pkmReader = new PKMReader();
