@@ -67,6 +67,7 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 	protected boolean useTransparentTextures = false;
 	protected List<Tile> topLevelTiles = new ArrayList<Tile>();
 	protected String tileCountName;
+	protected String wmsLayerName;
 
 	// Stuff computed each frame
 	protected List<GpuTextureTile> currentTiles = new ArrayList<GpuTextureTile>();
@@ -89,6 +90,9 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 
 		String s = params.getStringValue(AVKey.DISPLAY_NAME);
 		if (s != null) this.setName(s);
+		
+		s = params.getStringValue(AVKey.LAYER_NAMES);
+        if (s != null) this.wmsLayerName = s;
 
 		Double d = (Double) params.getValue(AVKey.OPACITY);
 		if (d != null) this.setOpacity(d);
@@ -178,6 +182,13 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 		return value != null ? value : this.getLevels().getValue(key); // see if the level set has it
 	}
 
+	public String getWMSLayerName(){
+        if (null == wmsLayerName){
+            wmsLayerName = "";
+        }
+        return wmsLayerName;
+    }
+	
 	public boolean isForceLevelZeroLoads() {
 		return this.forceLevelZeroLoads;
 	}
