@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package it.trilogis.android.ww.view;
+package nicastel.android.ww.view;
 
-import it.trilogis.android.ww.R;
+import nicastel.android.ww.R;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;

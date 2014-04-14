@@ -18,8 +18,8 @@
         actuate="onLoad"
         href="config/Earth/BMNGWMSLayer.xml" />
     <Layer
-        actuate="onLoad"
-        href="config/Earth/LandsatI3WMSLayer.xml" />
+        actuate="onRequest"
+        href="config/Earth/LandsatI3WMSLayer.xml" /> -->
     <!-- <Layer href="config/Earth/MSVirtualEarthAerialLayer.xml" actuate="onLoad"/> -->
     <Layer
         actuate="onRequest"
@@ -32,5 +32,5 @@
     <Layer
         actuate="onRequest"
         className="gov.nasa.worldwind.layers.ScalebarLayer"
-        title="Scale Bar" />
+        title="Scale Bar" /> 
 </LayerList>

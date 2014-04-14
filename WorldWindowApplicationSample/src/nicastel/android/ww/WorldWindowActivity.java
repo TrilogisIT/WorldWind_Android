@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package it.trilogis.android.ww;
+package nicastel.android.ww;
 
 import gov.nasa.worldwind.BasicView;
 import gov.nasa.worldwind.Model;
@@ -25,12 +25,15 @@ import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.layers.Layer;
 import gov.nasa.worldwind.layers.LayerList;
-import it.trilogis.android.ww.dialogs.AddWMSDialog;
-import it.trilogis.android.ww.dialogs.AddWMSDialog.OnAddWMSLayersListener;
-import it.trilogis.android.ww.dialogs.TocDialog;
+import nicastel.android.ww.R;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+
+import nicastel.android.ww.dialogs.AddWMSDialog;
+import nicastel.android.ww.dialogs.TocDialog;
+import nicastel.android.ww.dialogs.AddWMSDialog.OnAddWMSLayersListener;
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
@@ -46,7 +49,7 @@ public class WorldWindowActivity extends Activity {
         System.setProperty("gov.nasa.worldwind.app.config.document", "config/wwandroiddemo.xml");
     }
 
-    private static final String TAG = "TrilogisWWExample";
+    private static final String TAG = "NicastelWWExample";
 
     // This parameters are useful for WMS Addition and view.
     // Thanks to the Autonomous Province of Bolzano (Italy) for the Open WMS Server.

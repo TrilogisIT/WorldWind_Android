@@ -13,15 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package it.trilogis.android.ww.dialogs;
+package nicastel.android.ww.dialogs;
 
 import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.layers.Layer;
 import gov.nasa.worldwind.layers.LayerList;
-import it.trilogis.android.ww.R;
-import it.trilogis.android.ww.dialogs.AddWMSDialog.OnAddWMSLayersListener;
-import it.trilogis.android.ww.view.DragListView;
+import nicastel.android.ww.R;
+
 import java.util.List;
+
+import nicastel.android.ww.dialogs.AddWMSDialog.OnAddWMSLayersListener;
+import nicastel.android.ww.view.DragListView;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
