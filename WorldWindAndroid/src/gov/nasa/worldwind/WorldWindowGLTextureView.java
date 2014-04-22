@@ -35,7 +35,7 @@ import java.util.*;
  * @author dcollins
  * @version $Id: WorldWindowGLSurfaceView.java 831 2012-10-08 20:51:39Z tgaskins $
  */
-public class WorldWindowGLTextureView extends GLTextureView implements GLTextureView.Renderer, WorldWindow, WWObject
+public class WorldWindowGLTextureView extends GLTextureView implements GLSurfaceView.Renderer, WorldWindow, WWObject
 {
 	public static boolean DEBUG = true;
 
@@ -44,12 +44,10 @@ public class WorldWindowGLTextureView extends GLTextureView implements GLTexture
     protected InputHandler inputHandler;
     protected GpuResourceCache gpuResourceCache;
     protected List<RenderingListener> renderingListeners = new ArrayList<RenderingListener>();
+    protected List<SelectListener> selectListeners = new ArrayList<SelectListener>();
+    protected List<PositionListener> positionListeners = new ArrayList<PositionListener>();
     protected int viewportWidth;
     protected int viewportHeight;
-
-    protected TextView latitudeText;
-    protected TextView longitudeText;
-    protected TextView rangeText;
 
     public WorldWindowGLTextureView(Context context)
     {
@@ -146,18 +144,13 @@ public class WorldWindowGLTextureView extends GLTextureView implements GLTexture
     /** {@inheritDoc} */
     public void onDrawFrame(GL10 glUnused)
     {
-        // Ignore the passed-in GL10 interface, and use the GLES20 class's static methods instead.
         this.drawFrame();
     }
 
     /** {@inheritDoc} */
     public void onSurfaceChanged(GL10 glUnused, int width, int height)
     {
-        // Ignore the passed-in GL10 interface, and use the GLES20 class's static methods instead.
-
-        // Set the viewport each time the surface size changes. The SceneController and View automatically adapt to the
-        // current viewport dimensions each frame.
-        GLES20.glViewport(0, 0, width, height); 
+        GLES20.glViewport(0, 0, width, height);
 		WorldWindowGLTextureView.glCheckError("glViewport");
         this.viewportWidth = width;
         this.viewportHeight = height;
@@ -166,8 +159,6 @@ public class WorldWindowGLTextureView extends GLTextureView implements GLTexture
     /** {@inheritDoc} */
     public void onSurfaceCreated(GL10 glUnused, EGLConfig config)
     {
-        // Ignore the passed-in GL10 interface, and use the GLES20 class's static methods instead.
-
         // Clear the GPU resource cache each time the surface is created or recreated. This happens when the rendering
         // thread starts or when the EGL context is lost. All GPU object names are invalid, and must be recreated. Since
         // the EGL context has changed, the currently active context is not the one used to create the Gpu resources in
@@ -200,6 +191,10 @@ public class WorldWindowGLTextureView extends GLTextureView implements GLTexture
             return;
         }
 
+		Position positionAtStart = this.getCurrentPosition();
+		PickedObject selectionAtStart = this.getCurrentSelection();
+//		PickedObjectList boxSelectionAtStart = this.getCurrentBoxSelection();
+
         // Calls to rendering listeners are wrapped in a try/catch block to prevent any exception thrown by a listener
         // from terminating this frame.
         this.sendRenderingEvent(this.beforeRenderingEvent);
@@ -224,6 +219,44 @@ public class WorldWindowGLTextureView extends GLTextureView implements GLTexture
         // Calls to rendering listeners are wrapped in a try/catch block to prevent any exception thrown by a listener
         // from terminating this frame.
         this.sendRenderingEvent(this.afterRenderingEvent);
+
+		// Position and selection notification occurs only on triggering conditions, not same-state conditions:
+		// start == null, end == null: nothing selected -- don't notify
+		// start == null, end != null: something now selected -- notify
+		// start != null, end == null: something was selected but no longer is -- notify
+		// start != null, end != null, start != end: something new was selected -- notify
+		// start != null, end != null, start == end: same thing is selected -- don't notify
+
+		Position positionAtEnd = this.getCurrentPosition();
+		if (positionAtStart != null || positionAtEnd != null)
+		{
+			// call the listener if both are not null or positions are the same
+			if (positionAtStart != null && positionAtEnd != null)
+			{
+				if (!positionAtStart.equals(positionAtEnd))
+					this.sendPositionEvent(new PositionEvent(this, sceneController.getPickPoint(),
+							positionAtStart, positionAtEnd));
+			}
+			else
+			{
+				this.sendPositionEvent(new PositionEvent(this, sceneController.getPickPoint(),
+						positionAtStart, positionAtEnd));
+			}
+		}
+
+		PickedObject selectionAtEnd = this.getCurrentSelection();
+		if (selectionAtStart != null || selectionAtEnd != null)
+		{
+			this.sendSelectEvent(new SelectEvent(this, SelectEvent.ROLLOVER,
+					sceneController.getPickPoint(), sceneController.getObjectsAtPickPoint()));
+		}
+
+//		PickedObjectList boxSelectionAtEnd = this.getCurrentBoxSelection();
+//		if (boxSelectionAtStart != null || boxSelectionAtEnd != null)
+//		{
+//			this.sendSelectEvent(new SelectEvent(this.drawable, SelectEvent.BOX_ROLLOVER,
+//					sc.getPickRectangle(), sc.getObjectsInPickRectangle()));
+//		}
     }
 
 	public static void glCheckError(String op) {
@@ -309,37 +342,6 @@ public class WorldWindowGLTextureView extends GLTextureView implements GLTexture
         this.inputHandler.setEventSource(this);
     }
 
-    public TextView getLatitudeText()
-    {
-        return this.latitudeText;
-    }
-
-    public void setLatitudeText(TextView latView)
-    {
-        this.latitudeText = latView;
-    }
-
-    public TextView getLongitudeText()
-    {
-        return this.longitudeText;
-    }
-
-    public void setLongitudeText(TextView lonView)
-    {
-        this.longitudeText = lonView;
-    }
-
-	public TextView getRangeText()
-	{
-		return this.rangeText;
-	}
-
-	public void setRangeText(TextView rangeView)
-	{
-		this.rangeText = rangeView;
-	}
-
-
 	/** {@inheritDoc} */
     public GpuResourceCache getGpuResourceCache()
     {
@@ -403,6 +405,68 @@ public class WorldWindowGLTextureView extends GLTextureView implements GLTexture
         }
     }
 
+	public void addSelectListener(SelectListener listener)
+	{
+		if (listener == null)
+		{
+			String msg = Logging.getMessage("nullValue.ListenerIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		this.selectListeners.add(listener);
+		this.getInputHandler().addSelectListener(listener);
+	}
+
+	public void removeSelectListener(SelectListener listener)
+	{
+		if (listener == null)
+		{
+			String msg = Logging.getMessage("nullValue.ListenerIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+		this.selectListeners.remove(listener);
+		this.getInputHandler().removeSelectListener(listener);
+	}
+
+	protected void sendSelectEvent(SelectEvent event)
+	{
+		for(SelectListener l : selectListeners) {
+			l.selected(event);
+		}
+	}
+
+	public void addPositionListener(PositionListener listener)
+	{
+		if (listener == null)
+		{
+			String msg = Logging.getMessage("nullValue.ListenerIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		this.positionListeners.add(listener);
+	}
+
+	public void removePositionListener(PositionListener listener)
+	{
+		if (listener == null)
+		{
+			String msg = Logging.getMessage("nullValue.ListenerIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+		this.positionListeners.remove(listener);
+	}
+
+	protected void sendPositionEvent(PositionEvent event)
+	{
+		for(PositionListener l : positionListeners) {
+			l.moved(event);
+		}
+	}
+
     /** {@inheritDoc} */
     public Position getCurrentPosition()
     {
@@ -426,6 +490,28 @@ public class WorldWindowGLTextureView extends GLTextureView implements GLTexture
     {
         return this.sceneController != null ? this.sceneController.getObjectsAtPickPoint() : null;
     }
+
+	protected PickedObject getCurrentSelection()
+	{
+		if (this.sceneController == null)
+			return null;
+
+		PickedObjectList pol = getObjectsAtCurrentPosition();
+		if (pol == null || pol.size() < 1)
+			return null;
+
+		PickedObject top = pol.getTopPickedObject();
+		return top.isTerrain() ? null : top;
+	}
+
+//	protected PickedObjectList getCurrentBoxSelection()
+//	{
+//		if (this.sceneController == null)
+//			return null;
+//
+//		PickedObjectList pol = this.sceneController.getObjectsInPickRectangle();
+//		return pol != null && pol.size() > 0 ? pol : null;
+//	}
 
     /** {@inheritDoc} */
     public void redraw()

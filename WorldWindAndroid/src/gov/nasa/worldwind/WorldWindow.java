@@ -115,6 +115,36 @@ public interface WorldWindow extends WWObject
     void removeRenderingListener(RenderingListener listener);
 
     /**
+	 * Adds a select listener to this world window. Select listeners are called when a selection is made by the user in
+	 * the world window. A selection is any operation that identifies a visible item.
+	 *
+	 * @param listener The select listener to add.
+	 */
+	void addSelectListener(SelectListener listener);
+
+	/**
+	 * Removes the specified select listener associated with this world window.
+	 *
+	 * @param listener The select listener to remove.
+	 */
+	void removeSelectListener(SelectListener listener);
+
+	/**
+	 * Adds a position listener to this world window. Position listeners are called when the cursor's position changes.
+	 * They identify the position of the cursor on the globe, or that the cursor is not on the globe.
+	 *
+	 * @param listener The position listener to add.
+	 */
+	void addPositionListener(PositionListener listener);
+
+	/**
+	 * Removes the specified position listener associated with this world window.
+	 *
+	 * @param listener The listener to remove.
+	 */
+	void removePositionListener(PositionListener listener);
+
+    /**
      * Returns the current latitude, longitude and altitude of the current cursor position, or <code>null</code> if the
      * cursor is not on the globe.
      *

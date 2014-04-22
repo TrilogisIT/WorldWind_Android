@@ -17,4 +17,8 @@ public interface InputHandler extends WWObject, View.OnTouchListener
     WorldWindow getEventSource();
 
     void setEventSource(WorldWindow eventSource);
+
+	void addSelectListener(SelectListener listener);
+
+	void removeSelectListener(SelectListener listener);
 }

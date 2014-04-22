@@ -5,18 +5,21 @@
  */
 package gov.nasa.worldwind.event;
 
-import android.app.Activity;
-import android.content.Context;
 import android.graphics.Point;
-import android.view.*;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
-import android.widget.TextView;
-import gov.nasa.worldwind.*;
+import gov.nasa.worldwind.BasicView;
+import gov.nasa.worldwind.WWObjectImpl;
+import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.geom.*;
-import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.pick.PickedObject;
 import gov.nasa.worldwind.pick.PickedObjectList;
 import gov.nasa.worldwind.util.Logging;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author ccrick
@@ -27,8 +30,10 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
     protected static final int JUMP_THRESHOLD = 100;
     protected static final double PINCH_WIDTH_DELTA_THRESHOLD = 5;
     protected static final double PINCH_ROTATE_DELTA_THRESHOLD = 1;
+	protected static final double DEFAULT_DRAG_SLOPE_FACTOR = 0.002;
 
     protected WorldWindow eventSource;
+	protected List<SelectListener> selectListeners = new ArrayList<SelectListener>();
 
     protected float mPreviousX = -1;
     protected float mPreviousY = -1;
@@ -36,12 +41,14 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 
     protected float mPreviousX2 = -1;
     protected float mPreviousY2 = -1;
+	protected float mInitialX=-1;
+	protected float mInitialY=-1;
+	protected double dragSlopeFactor = DEFAULT_DRAG_SLOPE_FACTOR;
 
     // Temporary properties used to avoid constant allocation when responding to input events.
-    protected Point screenPoint = new Point();
+    protected Point touchPoint = new Point();
+	protected Point previousTouchPoint = new Point();
     protected Position position = new Position();
-	protected Position tmpPosition = new Position();
-    protected Position tmpPosition2 = new Position();
     protected Vec4 point1 = new Vec4();
     protected Vec4 point2 = new Vec4();
 
@@ -52,6 +59,62 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 	public BasicInputHandler()
     {
     }
+
+	public void addSelectListener(SelectListener listener)
+	{
+		this.selectListeners.add(listener);
+	}
+
+	public void removeSelectListener(SelectListener listener)
+	{
+		this.selectListeners.remove(listener);
+	}
+
+	protected void callSelectListeners(SelectEvent event)
+	{
+		for (SelectListener listener : this.selectListeners)
+		{
+			listener.selected(event);
+		}
+	}
+
+	/**
+	 * Returns the <code>factor</code> that dampens view movement when the user pans drags the cursor in a way that could
+	 * cause an abrupt transition.
+	 *
+	 * @return factor dampening view movement when a mouse drag event would cause an abrupt transition.
+	 * @see #setDragSlopeFactor
+	 */
+	public double getDragSlopeFactor()
+	{
+		return this.dragSlopeFactor;
+	}
+
+	/**
+	 * Sets the <code>factor</code> that dampens view movement when a mouse drag event would cause an abrupt
+	 * transition. The drag slope is the ratio of screen pixels to Cartesian distance moved, measured by the previous
+	 * and current mouse points. As drag slope gets larger, it becomes more difficult to operate the view. This
+	 * typically happens while dragging over and around the horizon, where movement of a few pixels can cause the view
+	 * to move many kilometers. This <code>factor</code> is the amount of damping applied to the view movement in such
+	 * cases. Setting <code>factor</code> to zero will disable this behavior, while setting <code>factor</code> to a
+	 * positive value may dampen the effects of mouse dragging.
+	 *
+	 * @param factor dampening view movement when a mouse drag event would cause an abrupt transition. Must be greater
+	 * than or equal to zero.
+	 *
+	 * @throws IllegalArgumentException if <code>factor</code> is less than zero.
+	 */
+	public void setDragSlopeFactor(double factor)
+	{
+		if (factor < 0)
+		{
+			String message = Logging.getMessage("generic.ArgumentOutOfRange", "factor < 0");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		this.dragSlopeFactor = factor;
+	}
 
     public WorldWindow getEventSource()
     {
@@ -77,19 +140,12 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 		gestureDetector.setOnDoubleTapListener(new GestureDetector.OnDoubleTapListener() {
 			@Override
 			public boolean onSingleTapConfirmed(final MotionEvent e) {
-				getEventSource().invokeInRenderingThread(new Runnable()
-				{
-					public void run()
-					{
-						displayLatLonAtScreenPoint(((View)getEventSource()).getContext(), e.getX(), e.getY());
-					}
-				});
-				getEventSource().redraw();
 				return true;
 			}
 
 			@Override
 			public boolean onDoubleTap(MotionEvent e) {
+
 				return false;
 			}
 
@@ -105,17 +161,20 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 		scaleGestureDetector.onTouchEvent(motionEvent);
 		gestureDetector.onTouchEvent(motionEvent);
 
-        int pointerCount = motionEvent.getPointerCount();
+        final int pointerCount = motionEvent.getPointerCount();
 
         final float x = motionEvent.getX(0);
         final float y = motionEvent.getY(0);
+		updateTouchPoints(x, y);
 
         switch (motionEvent.getAction())
         {
             case MotionEvent.ACTION_DOWN:
             {
-//				eventSource.getSceneController().setPickPoint(new Point((int)x, (int)y));
-
+//				eventSource.getSceneController().setPickPoint(touchPoint);
+				mInitialX = x;
+				mInitialY = y;
+				this.setSelectedPosition(this.computeSelectedPosition());
                 break;
             }
 
@@ -123,7 +182,7 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
             case MotionEvent.ACTION_UP:
             {
 //				eventSource.getSceneController().setPickPoint(null);
-
+				this.setSelectedPosition(null);
                 // reset previous variables
                 mPreviousX = -1;
                 mPreviousY = -1;
@@ -135,8 +194,6 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
             }
 
             case MotionEvent.ACTION_MOVE:
-//				eventSource.getSceneController().setPickPoint(new Point((int)x, (int)y));
-
                 float dx = 0;
                 float dy = 0;
                 if (mPreviousX > -1 && mPreviousY > -1)
@@ -164,11 +221,16 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
                 // interpret the motionEvent
                 if (pointerCount == 1)
                 {
+//					eventSource.getSceneController().setPickPoint(touchPoint);
+					final float forwardInput = y-mPreviousY;
+					final float sideInput = -(x-mPreviousX);
+					final float totalForwardInput = y-mInitialY;
+					final float totalSideInput = -(x-mInitialX);
                     eventSource.invokeInRenderingThread(new Runnable()
                     {
                         public void run()
                         {
-//                            handlePan(x, y, mPreviousX, mPreviousY);
+//                            onHorizontalTranslateRel(forwardInput, sideInput, totalForwardInput, totalSideInput);
                             handlePan(xVelocity, yVelocity);
                         }
                     });
@@ -198,7 +260,6 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
                         final double yVelocity2 = dy2 / height;
 
                         // compute angle traversed
-//                        final double deltaPinchWidth = pinchWidth - mPrevPinchWidth;
                         final double deltaPinchAngle = computeRotationAngle(x, y, x2, y2,
                             mPreviousX, mPreviousY, mPreviousX2, mPreviousY2);
 
@@ -251,42 +312,9 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
         return true;
     }
 
-    protected void displayLatLonAtScreenPoint(Context context, float x, float y)
-    {
-        BasicView view = (BasicView) this.eventSource.getView();
-        Globe globe = this.eventSource.getModel().getGlobe();
-        this.screenPoint.set((int) x, (int) y);
-
-		for(PickedObject po :eventSource.getObjectsAtCurrentPosition()) {
-			Logging.info("Picked object: " + po);
-		}
-
-		if (view.computePositionFromScreenPoint(globe, this.screenPoint, this.position))
-		{
-			updateLatLonText(context, position.latitude.toString(), position.longitude.toString());
-		}
-        else
-		{
-			updateLatLonText(context, "off globe", "off globe");
-		}
-    }
-
-	private void updateLatLonText(Context context, final String lat, final String lon) {
-
-		final TextView latText = ((WorldWindowGLTextureView) getEventSource()).getLatitudeText();
-		final TextView lonText = ((WorldWindowGLTextureView) getEventSource()).getLongitudeText();
-
-		if (latText != null && lonText != null)
-		{
-			((Activity) context).runOnUiThread(new Runnable()
-			{
-				public void run()
-				{
-					latText.setText(lat);
-					lonText.setText(lon);
-				}
-			});
-		}
+	protected void updateTouchPoints(float x, float y) {
+		previousTouchPoint.set(touchPoint.x, touchPoint.y);
+		touchPoint.set((int)x, (int)y);
 	}
 
 	// given the current and previous locations of two points, compute the angle of the
@@ -399,66 +427,6 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 		this.selectedPosition = position;
 	}
 
-	protected Position computeSelectedPosition()
-	{
-		PickedObjectList pickedObjects = this.eventSource.getObjectsAtCurrentPosition();
-		if (pickedObjects != null)
-		{
-			PickedObject top =  pickedObjects.getTopPickedObject();
-			if (top != null && top.isTerrain())
-			{
-				return top.getPosition();
-			}
-		}
-		return null;
-	}
-	protected Vec4 computeSelectedPointAt(Point point)
-	{
-		if (this.getSelectedPosition() == null)
-		{
-			return null;
-		}
-
-		BasicView view = (BasicView) this.eventSource.getView();
-		if (view == null)
-		{
-			return null;
-		}
-		// Reject a selected position if its elevation is above the eye elevation. When that happens, the user is
-		// Reject a selected position if its elevation is above the eye elevation. When that happens, the user is
-		// essentially dragging along the inside of a sphere, and the effects of dragging are reversed. To the user
-		// this behavior appears unpredictable.
-		double elevation = this.getSelectedPosition().elevation;
-		if (view.getEyePosition(eventSource.getModel().getGlobe()).elevation <= elevation)
-		{
-			return null;
-		}
-
-		// Intersect with a somewhat larger or smaller Globe which will pass through the selected point, but has the
-		// same proportions as the actual Globe. This will simulate dragging the selected position more accurately.
-		Line ray = new Line();
-		view.computeRayFromScreenPoint(point, ray);
-		Intersection[] intersections = this.eventSource.getModel().getGlobe().intersect(ray);
-		if (intersections == null || intersections.length == 0)
-		{
-			return null;
-		}
-
-		return ray.nearestIntersectionPoint(intersections);
-	}
-
-	protected void handlePan(double x, double y, double xPrevious, double yPrevious)
-	{
-		BasicView view = (BasicView) this.eventSource.getView();
-
-		view.computePositionFromScreenPoint(eventSource.getModel().getGlobe(), new Point((int)xPrevious, (int)yPrevious), tmpPosition2);
-		view.computePositionFromScreenPoint(eventSource.getModel().getGlobe(), new Point((int)x, (int)y), tmpPosition);
-		tmpPosition.setDegrees(tmpPosition.latitude.degrees-tmpPosition2.latitude.degrees, tmpPosition.longitude.degrees-tmpPosition2.longitude.degrees);
-
-		view.getLookAtPosition().set(view.getLookAtPosition().add(tmpPosition));
-	}
-
-
 	protected void handlePinchRotate(double rotAngleDegrees)
     {
 		stopAnimations();
@@ -514,12 +482,6 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 		BasicView view = (BasicView) this.eventSource.getView();
 		double range = view.getRange();
 		double newRange = range/detector.getScaleFactor();
-//		Position lookAt = view.getLookAtPosition();
-
-		TextView rangeText = ((WorldWindowGLTextureView) this.eventSource).getRangeText();
-		if (rangeText != null)
-			rangeText.setText(String.format("%1$.2fm", newRange));
-
 		view.setRange(newRange);
 		return true;
 	}
@@ -533,4 +495,237 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 	@Override
 	public void onScaleEnd(ScaleGestureDetector detector) {
 	}
+
+	protected Position computeSelectedPosition() {
+		BasicView view = (BasicView) this.eventSource.getView();
+		if (view == null) // include this test to ensure any derived implementation performs it
+		{
+			return null;
+		}
+		selectedPosition = new Position();
+		view.computePositionFromScreenPoint(eventSource.getModel().getGlobe(), touchPoint, selectedPosition);
+		return selectedPosition;
+	}
+
+/*
+	protected Position computeSelectedPosition()
+	{
+		PickedObjectList pickedObjects = this.eventSource.getObjectsAtCurrentPosition();
+		if (pickedObjects != null)
+		{
+			PickedObject top =  pickedObjects.getTopPickedObject();
+			if (top != null && top.isTerrain())
+			{
+				return top.getPosition();
+			}
+		}
+		return null;
+	}
+*/
+	protected Vec4 computeSelectedPointAt(Point point)
+	{
+		if (this.getSelectedPosition() == null)
+		{
+			return null;
+		}
+
+		BasicView view = (BasicView) this.eventSource.getView();
+		if (view == null)
+		{
+			return null;
+		}
+		// Reject a selected position if its elevation is above the eye elevation. When that happens, the user is
+		// essentially dragging along the inside of a sphere, and the effects of dragging are reversed. To the user
+		// this behavior appears unpredictable.
+		double elevation = this.getSelectedPosition().elevation;
+		if (view.getEyePosition().elevation <= elevation)
+		{
+			return null;
+		}
+
+		// Intersect with a somewhat larger or smaller Globe which will pass through the selected point, but has the
+		// same proportions as the actual Globe. This will simulate dragging the selected position more accurately.
+		Line ray = new Line();
+		view.computeRayFromScreenPoint(point, ray);
+		Intersection[] intersections = this.eventSource.getModel().getGlobe().intersect(ray);
+		if (intersections == null || intersections.length == 0)
+		{
+			return null;
+		}
+
+		return ray.nearestIntersectionPoint(intersections);
+	}
+
+	protected LatLon getChangeInLocation(Point point1, Point point2, Vec4 vec1, Vec4 vec2)
+	{
+		// Modify the distance we'll actually travel based on the slope of world distance travelled to screen
+		// distance travelled . A large slope means the user made a small change in screen space which resulted
+		// in a large change in world space. We want to reduce the impact of that change to something reasonable.
+
+		double dragSlope = this.computeDragSlope(point1, point2, vec1, vec2);
+		double dragSlopeFactor = this.getDragSlopeFactor();
+		double scale = 1.0 / (1.0 + dragSlopeFactor * dragSlope * dragSlope);
+
+		Position pos1 = this.eventSource.getModel().getGlobe().computePositionFromPoint(vec1);
+		Position pos2 = this.eventSource.getModel().getGlobe().computePositionFromPoint(vec2);
+		LatLon adjustedLocation = LatLon.interpolateGreatCircle(scale, pos1, pos2);
+
+		// Return the distance to travel in angular degrees.
+		return pos1.subtract(adjustedLocation);
+	}
+
+	public double computeDragSlope(Point point1, Point point2, Vec4 vec1, Vec4 vec2)
+	{
+		BasicView view = (BasicView) eventSource.getView();
+		if (view == null)
+		{
+			return 0.0;
+		}
+
+		// Compute the screen space distance between point1 and point2.
+		double dx = point2.x - point1.x;
+		double dy = point2.y - point1.y;
+		double pixelDistance = Math.sqrt(dx * dx + dy * dy);
+
+		// Determine the distance from the eye to the point on the forward vector closest to vec1 and vec2
+		double d = view.getEyePoint().distanceTo3(vec1);
+		// Compute the size of a screen pixel at the nearest of the two distances.
+		double pixelSize = view.computePixelSizeAtDistance(d);
+
+		// Return the ratio of world distance to screen distance.
+		double slope = vec1.distanceTo3(vec2) / (pixelDistance * pixelSize);
+		if (slope < 1.0)
+			slope = 1.0;
+
+		return slope - 1.0;
+	}
+
+	protected void onHorizontalTranslateAbs(Angle latitudeChange, Angle longitudeChange)
+	{
+		stopAnimations();
+
+		BasicView view = (BasicView) this.eventSource.getView();
+		if (view == null) // include this test to ensure any derived implementation performs it
+		{
+			return;
+		}
+
+		if (latitudeChange.equals(Angle.ZERO) && longitudeChange.equals(Angle.ZERO))
+		{
+			return;
+		}
+
+		Position newPosition = view.getLookAtPosition().add(new Position(
+					latitudeChange, longitudeChange, 0.0));
+
+		view.setLookAtPosition(newPosition);
+	}
+
+	protected void onHorizontalTranslateRel(double forwardInput, double sideInput, double totalForwardInput, double totalSideInput)
+	{
+		stopAnimations();
+
+		// Normalize the forward and right magnitudes.
+		double length = Math.sqrt(forwardInput * forwardInput + sideInput * sideInput);
+		if (length > 0.0)
+		{
+			forwardInput /= length;
+			sideInput /= length;
+		}
+
+		Point point = touchPoint;
+		Point lastPoint = previousTouchPoint;
+		if (getSelectedPosition() == null)
+		{
+			// Compute the current selected position if none exists. This happens if the user starts dragging when
+			// the cursor is off the globe, then drags the cursor onto the globe.
+			setSelectedPosition(computeSelectedPosition());
+		}
+		else if (computeSelectedPosition() == null)
+		{
+			// User dragged the cursor off the globe. Clear the selected position to ensure a new one will be
+			// computed if the user drags the cursor back to the globe.
+			setSelectedPosition(null);
+		}
+		else if (computeSelectedPointAt(point) == null || computeSelectedPointAt(lastPoint) == null)
+		{
+			// User selected a position that is won't work for dragging. Probably the selected elevation is above the
+			// eye elevation, in which case dragging becomes unpredictable. Clear the selected position to ensure
+			// a new one will be computed if the user drags the cursor to a valid position.
+			setSelectedPosition(null);
+		}
+
+		Vec4 vec = computeSelectedPointAt(point);
+		Vec4 lastVec = computeSelectedPointAt(lastPoint);
+
+		// Cursor is on the globe, pan between the two positions.
+		if (vec != null && lastVec != null)
+		{
+			// Compute the change in view location given two screen points and corresponding world vectors.
+			LatLon latlon = getChangeInLocation(lastPoint, point, lastVec, vec);
+			onHorizontalTranslateAbs(latlon.getLatitude(), latlon.getLongitude());
+			return;
+		}
+
+		forwardInput = point.y - lastPoint.y;
+		sideInput = -(point.x-lastPoint.x);
+
+		// Cursor is off the globe, we potentially want to simulate globe dragging.
+		// or this is a keyboard event.
+		Angle forwardChange = Angle.fromDegrees(
+				forwardInput * getScaleValueHorizTransRel());
+		Angle sideChange = Angle.fromDegrees(
+				sideInput * getScaleValueHorizTransRel());
+		onHorizontalTranslateRel(forwardChange, sideChange);
+	}
+
+	protected void onHorizontalTranslateRel(Angle forwardChange, Angle sideChange)
+	{
+		BasicView view = (BasicView) this.eventSource.getView();
+		if (view == null) // include this test to ensure any derived implementation performs it
+		{
+			return;
+		}
+
+		if (forwardChange.equals(Angle.ZERO) && sideChange.equals(Angle.ZERO))
+		{
+			return;
+		}
+
+		double sinHeading = view.getHeading().sin();
+		double cosHeading = view.getHeading().cos();
+		double latChange = cosHeading * forwardChange.getDegrees() - sinHeading * sideChange.getDegrees();
+		double lonChange = sinHeading * forwardChange.getDegrees() + cosHeading * sideChange.getDegrees();
+		Position newPosition = view.getLookAtPosition().add(Position.fromDegrees(latChange, lonChange, 0.0));
+
+		view.setLookAtPosition(newPosition);
+	}
+
+	protected double getScaleValueHorizTransRel()
+	{
+		BasicView view = (BasicView) this.eventSource.getView();
+		if (view == null)
+		{
+			return 0.0;
+		}
+		double[] range = { 0.00001, 0.2};
+		// If this is an OrbitView, we use the zoom value to set the scale
+		double radius = this.eventSource.getModel().getGlobe().getRadius();
+		double t = getScaleValue(range[0], range[1],
+				view.getRange(), 3.0 * radius, true);
+		return (t);
+	}
+
+	protected double getScaleValue(double minValue, double maxValue,
+								   double value, double range, boolean isExp)
+	{
+		double t = value / range;
+		t = t < 0 ? 0 : (t > 1 ? 1 : t);
+		if (isExp)
+		{
+			t = Math.pow(2.0, t) - 1.0;
+		}
+		return(minValue * (1.0 - t) + maxValue * t);
+	}
+
 }
