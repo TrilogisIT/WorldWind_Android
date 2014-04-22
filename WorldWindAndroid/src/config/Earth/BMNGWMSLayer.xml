@@ -19,10 +19,11 @@
     <DataCacheName>Earth/BMNGWMS/BMNG(Shaded + Bathymetry) Tiled - Version 1.1 - 5.2004</DataCacheName>
     <ImageFormat>image/png</ImageFormat>
     <AvailableImageFormats>
+        <ImageFormat>image/jpeg</ImageFormat>
         <ImageFormat>image/png</ImageFormat>
         <ImageFormat>image/dds</ImageFormat>
     </AvailableImageFormats>
-    <FormatSuffix>.png</FormatSuffix>
+    <FormatSuffix>.jpg</FormatSuffix>
     <NumLevels count="6" numEmpty="0"/>
     <TileOrigin>
         <LatLon units="degrees" latitude="-90" longitude="-180"/>
