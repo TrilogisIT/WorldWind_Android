@@ -3,12 +3,13 @@
  * TODO.
  */
 attribute vec4 vertexPoint;
-attribute vec2 aTextureCoord;
+attribute vec4 aTextureCoord;
 /*
  * Input uniform matrix defining the current modelview-projection transform matrix. Maps model coordinates to eye
  * coordinates.
  */
 uniform mat4 mvpMatrix;
+uniform mat4 texMatrix;
 varying vec2 vTextureCoord;
 
 /*
@@ -18,5 +19,5 @@ void main()
 {
     /* Transform the surface vertex point from model coordinates to eye coordinates. */
     gl_Position = mvpMatrix * vertexPoint;
-    vTextureCoord = aTextureCoord;
+    vTextureCoord = (texMatrix * aTextureCoord).st;
 }

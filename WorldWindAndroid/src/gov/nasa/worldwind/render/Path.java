@@ -4,7 +4,6 @@ All Rights Reserved.
  */
 package gov.nasa.worldwind.render;
 
-import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.cache.ShapeDataCache;
@@ -28,6 +27,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import android.opengl.GLES20;
+
+import static gov.nasa.worldwind.WorldWindowGLSurfaceView.glCheckError;
 
 // TODO: Measurement (getLength), Texture, lighting
 
@@ -1060,10 +1061,13 @@ public class Path extends AbstractShape {
 
 		if (pathData.renderedPath.limit() > previousSize) this.clearCachedVbos(dc);
 
-		pathData.setExtent(this.computeExtent(pathData));
+//		pathData.setExtent(this.computeExtent(pathData));
 
 		// If the shape is less that a pixel in size, don't render it.
-		if (this.getExtent() == null || dc.isSmall(this.getExtent(), 1)) return false;
+		if (this.getExtent() != null && dc.isSmall(this.getExtent(), 1)) {
+
+			return false;
+		}
 
 		if (!this.intersectsFrustum(dc)) return false;
 
@@ -1143,8 +1147,6 @@ public class Path extends AbstractShape {
 		boolean isSurfacePath = this.isSurfacePath(); // Keep track for OpenGL state recovery.
 
 		try {
-			if (isSurfacePath) GLES20.glDepthMask(false);
-			WorldWindowGLSurfaceView.glCheckError("glDepthMask");
 
 			int[] vboIds = this.getVboIds(dc);
 			if (vboIds != null) this.doDrawOutlineVBO(dc, vboIds, this.getCurrentPathData());
@@ -1153,8 +1155,10 @@ public class Path extends AbstractShape {
 				Logging.warning(msg);
 			}
 		} finally {
-			if (isSurfacePath) GLES20.glDepthMask(true); // Restore the default depth mask. 
-			WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+			if (isSurfacePath) {
+				GLES20.glDepthMask(true); // Restore the default depth mask.
+				glCheckError("glDepthMask");
+			}
 		}
 	}
 
@@ -1172,9 +1176,9 @@ public class Path extends AbstractShape {
 		// Specify the data for the program's vertexPoint attribute, if one exists. This attribute is enabled in
 		// beginRendering. Convert stride from number of elements to number of bytes.
 		GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
-		WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+		glCheckError("glBindBuffer");
 		GLES20.glVertexAttribPointer(attribLocation, 3, GLES20.GL_FLOAT, false, 4 * stride, 0);
-		WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+		glCheckError("glVertexAttribPointer");
 
 		// Apply this path's per-position colors if we're in normal rendering mode (not picking) and this path's
 		// positionColors is non-null.
@@ -1186,7 +1190,7 @@ public class Path extends AbstractShape {
 		// }
 
 		GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, count);
-		WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+		glCheckError("glDrawArrays");
 
 		// if (useVertexColors)
 		// gl.glDisableClientState(GL.GL_COLOR_ARRAY);
@@ -1308,6 +1312,24 @@ public class Path extends AbstractShape {
 	// gl.glHint(GL.GL_POINT_SMOOTH_HINT, GL.GL_NICEST);
 	// }
 
+
+//	@Override
+//	protected void beginDrawing(DrawContext dc) {
+//		super.beginDrawing(dc);
+//		GLES20.glEnable(GLES20.GL_BLEND);
+//		glCheckError("glEnable(GL_BLEND)");
+//		GLES20.glBlendFunc(GLES20.GL_BLEND_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+//		GLES20.glDepthMask(false);
+//	}
+
+//	@Override
+//	protected void endDrawing(DrawContext dc) {
+//		GLES20.glDisable(GLES20.GL_BLEND);
+//		glCheckError("glDisable(GL_BLEND)");
+//		GLES20.glDepthMask(true);
+//		super.endDrawing(dc);
+//	}
+
 	/**
 	 * Draws this path's interior when the path is extruded.
 	 *
@@ -1333,11 +1355,11 @@ public class Path extends AbstractShape {
 		// Specify the data for the program's vertexPoint attribute, if one exists. This attribute is enabled in
 		// beginRendering. Convert stride from number of elements to number of bytes.
 		GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
-		WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+		glCheckError("glBindBuffer");
 		GLES20.glVertexAttribPointer(attribLocation, 3, GLES20.GL_FLOAT, false, 4 * pathData.vertexStride, 0);
-		WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+		glCheckError("glVertexAttribPointer");
 		GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, pathData.vertexCount);
-		WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+		glCheckError("glDrawArrays");
 	}
 
 	/**
@@ -2016,39 +2038,39 @@ public class Path extends AbstractShape {
 		if (vboIds == null) {
 			vboIds = new int[numIds];
 			GLES20.glGenBuffers(vboIds.length, vboIds, 0);
-			WorldWindowGLSurfaceView.glCheckError("glGenBuffers");
+			glCheckError("glGenBuffers");
 			dc.getGpuResourceCache().put(pathData.getVboCacheKey(), vboIds, GpuResourceCache.VBO_BUFFERS, vSize + iSize);
 		}
 
 		try {
 			FloatBuffer vb = pathData.renderedPath;
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
-			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+			glCheckError("glBindBuffer");
 			GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, vb.limit() * 4, vb.rewind(), GLES20.GL_STATIC_DRAW);
-			WorldWindowGLSurfaceView.glCheckError("glBufferData");
+			glCheckError("glBufferData");
 
 			// if (pathData.hasExtrusionPoints && this.isDrawVerticals())
 			// {
 			// IntBuffer ib = pathData.polePositions;
 			// GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[1]); 
-			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+//			glCheckError("glBindBuffer");
 			// GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, ib.limit() * 4, ib.rewind(), GLES20.GL_STATIC_DRAW); 
-			WorldWindowGLSurfaceView.glCheckError("glBufferData");
+//			glCheckError("glBufferData");
 			// }
 
 			// if (this.isShowPositions())
 			// {
 			// IntBuffer ib = pathData.positionPoints;
 			// GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[2]); 
-			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+//			glCheckError("glBindBuffer");
 			// GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, ib.limit() * 4, ib.rewind(), GLES20.GL_STATIC_DRAW); 
-			WorldWindowGLSurfaceView.glCheckError("glBufferData");
+//			glCheckError("glBufferData");
 			// }
 		} finally {
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
-			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+			glCheckError("glBindBuffer");
 			GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
-			WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+			glCheckError("glBindBuffer");
 		}
 	}
 

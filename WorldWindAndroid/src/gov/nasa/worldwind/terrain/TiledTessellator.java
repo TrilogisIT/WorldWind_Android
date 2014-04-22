@@ -4,28 +4,20 @@ All Rights Reserved.
  */
 package gov.nasa.worldwind.terrain;
 
-import gov.nasa.worldwind.Configuration;
-import gov.nasa.worldwind.WWObjectImpl;
-import gov.nasa.worldwind.WorldWind;
-import gov.nasa.worldwind.WorldWindowGLSurfaceView;
+import android.graphics.*;
+import gov.nasa.worldwind.*;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.avlist.AVList;
 import gov.nasa.worldwind.cache.BasicMemoryCache;
 import gov.nasa.worldwind.cache.Cacheable;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.cache.MemoryCache;
-import gov.nasa.worldwind.geom.Angle;
-import gov.nasa.worldwind.geom.Extent;
-import gov.nasa.worldwind.geom.Line;
+import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.geom.Matrix;
-import gov.nasa.worldwind.geom.Position;
-import gov.nasa.worldwind.geom.Sector;
-import gov.nasa.worldwind.geom.Vec4;
 import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.pick.PickedObject;
+import gov.nasa.worldwind.render.*;
 import gov.nasa.worldwind.render.Color;
-import gov.nasa.worldwind.render.DrawContext;
-import gov.nasa.worldwind.render.GpuProgram;
 import gov.nasa.worldwind.util.BufferUtil;
 import gov.nasa.worldwind.util.Level;
 import gov.nasa.worldwind.util.LevelSet;
@@ -43,7 +35,6 @@ import java.util.List;
 import java.util.Map;
 import javax.xml.xpath.XPath;
 import org.w3c.dom.Element;
-import android.graphics.Point;
 import android.opengl.GLES20;
 import android.util.Pair;
 
@@ -149,6 +140,27 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 			}
 
 			this.tessellator.renderOutline(dc, this);
+		}
+
+		public void renderBoundingVolume(DrawContext dc)
+		{
+			if (dc == null) {
+				String msg = Logging.getMessage("nullValue.DrawContextIsNull");
+				Logging.error(msg);
+				throw new IllegalArgumentException(msg);
+			}
+
+			this.tessellator.renderBoundingVolume(dc, this);
+		}
+
+		public void renderTileID(DrawContext dc)
+		{
+			if (dc == null) {
+				String msg = Logging.getMessage("nullValue.DrawContextIsNull");
+				Logging.error(msg);
+				throw new IllegalArgumentException(msg);
+			}
+			this.tessellator.renderTileID(dc, this);
 		}
 
 		/** {@inheritDoc} */
@@ -329,8 +341,8 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	protected static final double DEFAULT_DETAIL_HINT_ORIGIN = 1.3;
 	protected static Map<Object, TerrainSharedGeometry> sharedGeometry = new HashMap<Object, TerrainSharedGeometry>();
 	protected static Map<Object, TerrainPickGeometry> pickGeometry = new HashMap<Object, TerrainPickGeometry>();
-	protected static final String PICK_VERTEX_SHADER_PATH = "shaders/TiledTessellatorPick.vert";
-	protected static final String PICK_FRAGMENT_SHADER_PATH = "shaders/TiledTessellatorPick.frag";
+	protected static final int PICK_VERTEX_SHADER_PATH = R.raw.tiledtessellatorpickvert ;
+	protected static final int PICK_FRAGMENT_SHADER_PATH = R.raw.tiledtessellatorpickfrag;
 
 	protected double detailHintOrigin = DEFAULT_DETAIL_HINT_ORIGIN;
 	protected double detailHint;
@@ -356,6 +368,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	protected Line pickRay = new Line();
 	protected Vec4 pickedTriPoint = new Vec4();
 	protected Position pickedTriPos = new Position();
+	protected TextRenderer textRenderer;
 
 	public TiledTessellator(AVList params) {
 		if (params == null) {
@@ -1186,6 +1199,41 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		WorldWindowGLSurfaceView.glCheckError("glDrawElements");
 	}
 
+	protected void renderBoundingVolume(DrawContext dc, TerrainTile tile)
+	{
+		Extent extent = tile.getExtent();
+		if (extent == null)
+			return;
+
+		if (extent instanceof Renderable)
+			((Renderable) extent).render(dc);
+	}
+
+	protected void renderTileID(DrawContext dc, TerrainTile tile)
+	{
+		Paint paint = new Paint();
+		paint.setColor(android.graphics.Color.RED);
+		if(textRenderer==null) {
+			textRenderer = new TextRenderer(dc, paint);
+		}
+
+		GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+		GLES20.glDepthMask(false);
+
+		String tileLabel = Integer.toString(tile.getLevelNumber());
+		double[] elevs = dc.getGlobe().getMinAndMaxElevations(tile.getSector());
+		if (elevs != null)
+			tileLabel += ", " + (int) elevs[0] + "/" + (int) elevs[1];
+
+		LatLon ll = tile.getSector().getCentroid();
+		Vec4 pt = new Vec4();
+		dc.getView().project(dc.getGlobe().computePointFromPosition(ll.getLatitude(), ll.getLongitude(),
+				dc.getGlobe().getElevation(ll.getLatitude(), ll.getLongitude())), pt);
+		textRenderer.draw(tileLabel, (int) pt.x, (int) pt.y);
+		GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+		GLES20.glDepthMask(true);
+	}
+
 	protected void loadGeometryVbos(DrawContext dc, TerrainGeometry geom) {
 		// Load the terrain geometry into the GpuResourceCache.
 		GpuResourceCache cache = dc.getGpuResourceCache();
@@ -1328,8 +1376,12 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 				// ensure that the pick colors can be used to compute an index into the SectorGeometryList.
 				if (i > 0) color = dc.getUniquePickColor();
 
-				// TODO: Cull SectorGeometry against the pick frustum.
 				SectorGeometry sg = sgList.get(i);
+
+				// TODO: Cull SectorGeometry against the pick frustum.
+				if(!dc.getPickFrustums().intersectsAny(sg.getExtent()))
+					continue;
+
 				sg.beginRendering(dc);
 				try {
 					// Convert the pick color from a packed 32-bit RGB color int to a RGB color with separate components

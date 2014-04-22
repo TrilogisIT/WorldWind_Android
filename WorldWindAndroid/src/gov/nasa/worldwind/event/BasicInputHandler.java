@@ -24,9 +24,6 @@ import gov.nasa.worldwind.util.Logging;
  */
 public class BasicInputHandler extends WWObjectImpl implements InputHandler, ScaleGestureDetector.OnScaleGestureListener
 {
-    // TODO: put this value in a configuration file
-    protected static final int SINGLE_TAP_INTERVAL = 300;
-    protected static final int DOUBLE_TAP_INTERVAL = 300;
     protected static final int JUMP_THRESHOLD = 100;
     protected static final double PINCH_WIDTH_DELTA_THRESHOLD = 5;
     protected static final double PINCH_ROTATE_DELTA_THRESHOLD = 1;
@@ -39,9 +36,6 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 
     protected float mPreviousX2 = -1;
     protected float mPreviousY2 = -1;
-
-    protected boolean mIsTap = false;
-    protected long mLastTap = -1;       // system time in ms of last tap
 
     // Temporary properties used to avoid constant allocation when responding to input events.
     protected Point screenPoint = new Point();
@@ -67,27 +61,8 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
     public void setEventSource(WorldWindow eventSource)
     {
 		this.eventSource = eventSource;
-		scaleGestureDetector = new ScaleGestureDetector(((WorldWindowGLSurfaceView)eventSource).getContext(), this);
-		gestureDetector = new GestureDetector(((WorldWindowGLSurfaceView)eventSource).getContext(), new GestureDetector.OnGestureListener() {
-			@Override
-			public boolean onDown(MotionEvent e) {
-				return false;
-			}
-
-			@Override
-			public void onShowPress(MotionEvent e) {
-
-			}
-
-			@Override
-			public boolean onSingleTapUp(MotionEvent e) {
-				return false;
-			}
-
-			@Override
-			public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-				return false;
-			}
+		scaleGestureDetector = new ScaleGestureDetector(((View)eventSource).getContext(), this);
+		gestureDetector = new GestureDetector(((View)eventSource).getContext(), new GestureDetector.SimpleOnGestureListener() {
 
 			@Override
 			public void onLongPress(MotionEvent e) {
@@ -99,11 +74,36 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 				return false;
 			}
 		});
+		gestureDetector.setOnDoubleTapListener(new GestureDetector.OnDoubleTapListener() {
+			@Override
+			public boolean onSingleTapConfirmed(final MotionEvent e) {
+				getEventSource().invokeInRenderingThread(new Runnable()
+				{
+					public void run()
+					{
+						displayLatLonAtScreenPoint(((View)getEventSource()).getContext(), e.getX(), e.getY());
+					}
+				});
+				getEventSource().redraw();
+				return true;
+			}
+
+			@Override
+			public boolean onDoubleTap(MotionEvent e) {
+				return false;
+			}
+
+			@Override
+			public boolean onDoubleTapEvent(MotionEvent e) {
+				return false;
+			}
+		});
     }
 
     public boolean onTouch(final View view, MotionEvent motionEvent)
     {
 		scaleGestureDetector.onTouchEvent(motionEvent);
+		gestureDetector.onTouchEvent(motionEvent);
 
         int pointerCount = motionEvent.getPointerCount();
 
@@ -114,10 +114,7 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
         {
             case MotionEvent.ACTION_DOWN:
             {
-                if (pointerCount == 1)
-                    mIsTap = true;
-
-                // display lat-lon under first finger down
+//				eventSource.getSceneController().setPickPoint(new Point((int)x, (int)y));
 
                 break;
             }
@@ -125,33 +122,7 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
             // all fingers have left the tablet screen
             case MotionEvent.ACTION_UP:
             {
-                if (mIsTap && pointerCount == 1)
-                {
-                    long curTime = System.currentTimeMillis();
-                    long timeSinceLastTap = curTime - mLastTap;
-
-                    // double tap has occurred
-                    if (mLastTap > 0 && (timeSinceLastTap < DOUBLE_TAP_INTERVAL))
-                    {
-                        // handle double tap here
-                        mLastTap = 0;
-                    }
-                    // otherwise, single tap has occurred
-                    else if (mLastTap < 0 || timeSinceLastTap > SINGLE_TAP_INTERVAL)
-                    {
-                        // handle single tap here
-                        mLastTap = curTime;      // last tap is now this tap
-                    }
-
-                    eventSource.invokeInRenderingThread(new Runnable()
-                    {
-                        public void run()
-                        {
-                            displayLatLonAtScreenPoint(view.getContext(), x, y);
-                        }
-                    });
-                    eventSource.redraw();
-                }
+//				eventSource.getSceneController().setPickPoint(null);
 
                 // reset previous variables
                 mPreviousX = -1;
@@ -164,6 +135,7 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
             }
 
             case MotionEvent.ACTION_MOVE:
+//				eventSource.getSceneController().setPickPoint(new Point((int)x, (int)y));
 
                 float dx = 0;
                 float dy = 0;
@@ -171,7 +143,6 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
                 {
                     dx = x - mPreviousX;
                     dy = y - mPreviousY;
-                    mIsTap = false;
                 }
                 // return if detect a new gesture, as indicated by a large jump
                 if (Math.abs(dx) > JUMP_THRESHOLD || Math.abs(dy) > JUMP_THRESHOLD)
@@ -191,7 +162,7 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
                 }
 
                 // interpret the motionEvent
-                if (pointerCount == 1 && !mIsTap)
+                if (pointerCount == 1)
                 {
                     eventSource.invokeInRenderingThread(new Runnable()
                     {
@@ -274,7 +245,6 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
                 mPreviousX = x;
                 mPreviousY = y;
                 mPrevPointerCount = pointerCount;
-
                 break;
         }
 
@@ -291,45 +261,35 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 			Logging.info("Picked object: " + po);
 		}
 
-        if (view.computePositionFromScreenPoint(globe, this.screenPoint, this.position))
-        {
-            final String latText = this.position.latitude.toString();
-            final String lonText = this.position.longitude.toString();
-
-            ((Activity) context).runOnUiThread(new Runnable()
-            {
-                public void run()
-                {
-                    updateLatLonText(latText, lonText);
-                }
-            });
-        }
+		if (view.computePositionFromScreenPoint(globe, this.screenPoint, this.position))
+		{
+			updateLatLonText(context, position.latitude.toString(), position.longitude.toString());
+		}
         else
-        {
-            ((Activity) context).runOnUiThread(new Runnable()
-            {
-                public void run()
-                {
-                    updateLatLonText("off globe", "off globe");
-                }
-            });
-        }
+		{
+			updateLatLonText(context, "off globe", "off globe");
+		}
     }
 
-    protected void updateLatLonText(String latitudeText, String longitudeText)
-    {
-        // update displayed lat/lon
-        TextView latText = ((WorldWindowGLSurfaceView) this.eventSource).getLatitudeText();
-        TextView lonText = ((WorldWindowGLSurfaceView) this.eventSource).getLongitudeText();
+	private void updateLatLonText(Context context, final String lat, final String lon) {
 
-        if (latText != null && lonText != null)
-        {
-            latText.setText(latitudeText);
-            lonText.setText(longitudeText);
-        }
-    }
+		final TextView latText = ((WorldWindowGLTextureView) getEventSource()).getLatitudeText();
+		final TextView lonText = ((WorldWindowGLTextureView) getEventSource()).getLongitudeText();
 
-    // given the current and previous locations of two points, compute the angle of the
+		if (latText != null && lonText != null)
+		{
+			((Activity) context).runOnUiThread(new Runnable()
+			{
+				public void run()
+				{
+					latText.setText(lat);
+					lonText.setText(lon);
+				}
+			});
+		}
+	}
+
+	// given the current and previous locations of two points, compute the angle of the
     // rotation they trace out
     protected double computeRotationAngle(float x, float y, float x2, float y2,
         float xPrev, float yPrev, float xPrev2, float yPrev2)
@@ -401,8 +361,10 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
     // computes pan using velocity of swipe motion
     protected void handlePan(double xVelocity, double yVelocity)
     {
-        BasicView view = (BasicView) this.eventSource.getView();
-        Position pos = view.getLookAtPosition();
+		stopAnimations();
+		BasicView view = (BasicView) eventSource.getView();
+
+		Position pos = view.getLookAtPosition();
         Angle heading = view.getHeading();
         double range = view.getRange();
 
@@ -417,6 +379,15 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 
         pos.setDegrees(newLat, newLon);
     }
+
+	private void stopAnimations() {
+		((View)eventSource).post(new Runnable() {
+			@Override
+			public void run() {
+				((BasicView) eventSource.getView()).stopAnimations();
+			}
+		});
+	}
 
 	protected Position getSelectedPosition()
 	{
@@ -453,7 +424,7 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 		{
 			return null;
 		}
-
+		// Reject a selected position if its elevation is above the eye elevation. When that happens, the user is
 		// Reject a selected position if its elevation is above the eye elevation. When that happens, the user is
 		// essentially dragging along the inside of a sphere, and the effects of dragging are reversed. To the user
 		// this behavior appears unpredictable.
@@ -490,7 +461,9 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 
 	protected void handlePinchRotate(double rotAngleDegrees)
     {
-        BasicView view = (BasicView) this.eventSource.getView();
+		stopAnimations();
+
+		BasicView view = (BasicView) this.eventSource.getView();
         Angle angle = view.getHeading();
         double newAngle = (angle.degrees - rotAngleDegrees) % 360;
 
@@ -504,7 +477,9 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 
     protected void handleLookAtTilt(double yVelocity)
     {
-        BasicView view = (BasicView) this.eventSource.getView();
+		stopAnimations();
+
+		BasicView view = (BasicView) this.eventSource.getView();
         Angle angle = view.getTilt();
         double scalingFactor = 100;
         double newAngle = (angle.degrees + yVelocity * scalingFactor) % 360;
@@ -539,20 +514,19 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 		BasicView view = (BasicView) this.eventSource.getView();
 		double range = view.getRange();
 		double newRange = range/detector.getScaleFactor();
-		Position lookAt = view.getLookAtPosition();
-		double elevation = eventSource.getModel().getGlobe().getElevation(lookAt.latitude, lookAt.longitude);
-		elevation = Math.max(elevation+20, newRange);
+//		Position lookAt = view.getLookAtPosition();
 
-		TextView rangeText = ((WorldWindowGLSurfaceView) this.eventSource).getRangeText();
+		TextView rangeText = ((WorldWindowGLTextureView) this.eventSource).getRangeText();
 		if (rangeText != null)
-			rangeText.setText(String.format("%1$.2fm", elevation));
+			rangeText.setText(String.format("%1$.2fm", newRange));
 
-		view.setRange(elevation);
+		view.setRange(newRange);
 		return true;
 	}
 
 	@Override
 	public boolean onScaleBegin(ScaleGestureDetector detector) {
+		stopAnimations();
 		return true;
 	}
 

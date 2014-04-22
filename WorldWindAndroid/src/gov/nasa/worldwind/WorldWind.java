@@ -98,7 +98,7 @@ public class WorldWind {
 	 * @throws gov.nasa.worldwind.exception.WWRuntimeException
 	 *             if the <code>Object</code> could not be created
 	 * @throws IllegalArgumentException
-	 *             if <code>className</code> is null or zero length
+
 	 */
 	public static Object createComponent(String className) {
 		if (WWUtil.isEmpty(className)) {

@@ -40,6 +40,24 @@ public interface SectorGeometry
 
     void renderOutline(DrawContext dc);
 
+	/**
+	 * Displays the geometry's bounding volume.
+	 *
+	 * @param dc the current draw context.
+	 *
+	 * @throws IllegalArgumentException if the draw context is null.
+	 */
+	void renderBoundingVolume(DrawContext dc);
+
+	/**
+	 * Displays on the geometry's surface the tessellator level and the minimum and maximum elevations of the sector.
+	 *
+	 * @param dc the current draw context.
+	 *
+	 * @throws IllegalArgumentException if the draw context is null.
+	 */
+	void renderTileID(DrawContext dc);
+
     void beginRendering(DrawContext dc);
 
     void endRendering(DrawContext dc);

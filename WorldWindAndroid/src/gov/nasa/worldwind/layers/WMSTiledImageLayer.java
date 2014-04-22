@@ -27,7 +27,7 @@ import org.w3c.dom.Element;
  * @author pabercrombie
  * @version $Id: WMSTiledImageLayer.java 758 2012-09-06 20:11:41Z tgaskins $
  */
-public class WMSTiledImageLayer extends TiledImageLayer {
+public class WMSTiledImageLayer extends BasicTiledImageLayer {
 	private static final String[] formatOrderPreference = new String[] { "image/png", "image/jpeg" };
 
 	public WMSTiledImageLayer(AVList params) {
@@ -110,9 +110,9 @@ public class WMSTiledImageLayer extends TiledImageLayer {
 
 		// Setup WMS URL builder.
 		params.setValue(AVKey.WMS_VERSION, caps.getVersion());
-		params.setValue(AVKey.TILE_URL_BUILDER, new URLBuilder(params));
 		// Setup default WMS tiled image layer behaviors.
-		params.setValue(AVKey.USE_TRANSPARENT_TEXTURES, true);
+		params.setValue(AVKey.USE_TRANSPARENT_TEXTURES, new Boolean(true));
+		params.setValue(AVKey.TILE_URL_BUILDER, new URLBuilder(params));
 
 		return params;
 	}
@@ -126,6 +126,7 @@ public class WMSTiledImageLayer extends TiledImageLayer {
 		private final String wmsVersion;
 		private final String crs;
 		private final String backgroundColor;
+		private boolean useTransparency;
 		public String URLTemplate;
 
 		public URLBuilder(AVList params) {
@@ -133,6 +134,8 @@ public class WMSTiledImageLayer extends TiledImageLayer {
 			this.styleNames = params.getStringValue(AVKey.STYLE_NAMES);
 			this.imageFormat = params.getStringValue(AVKey.IMAGE_FORMAT);
 			this.backgroundColor = params.getStringValue(AVKey.WMS_BACKGROUND_COLOR);
+			Boolean b = (Boolean) params.getValue(AVKey.USE_TRANSPARENT_TEXTURES);
+			if (b != null) this.useTransparency = b;
 			String version = params.getStringValue(AVKey.WMS_VERSION);
 
 			if (version == null || version.compareTo(MAX_VERSION) >= 0) {
@@ -155,8 +158,10 @@ public class WMSTiledImageLayer extends TiledImageLayer {
 				sb.append(this.crs);
 				sb.append("&layers=").append(this.layerNames);
 				sb.append("&styles=").append(this.styleNames != null ? this.styleNames : "");
-				sb.append("&transparent=TRUE");
-				if (this.backgroundColor != null) sb.append("&bgcolor=").append(this.backgroundColor);
+				if(this.useTransparency)
+					sb.append("&transparent=TRUE");
+				if (this.backgroundColor != null)
+					sb.append("&bgcolor=").append(this.backgroundColor);
 
 				this.URLTemplate = sb.toString();
 			} else {

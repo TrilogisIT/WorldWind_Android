@@ -29,8 +29,8 @@ import java.util.Random;
  * @version $Id: Tile.java 842 2012-10-09 23:46:47Z tgaskins $
  */
 public class Tile implements Cacheable {
-	public interface TileFactory {
-		Tile createTile(Sector sector, Level level, int row, int column);
+	public interface TileFactory<T extends Tile> {
+		T createTile(Sector sector, Level level, int row, int column);
 	}
 
 	protected Sector sector;
@@ -546,7 +546,7 @@ public class Tile implements Cacheable {
 		}
 	}
 
-	public static void createTilesForLevel(Level level, Sector sector, TileFactory factory, List<Tile> result, LatLon origin) {
+	public static <T extends Tile> void createTilesForLevel(Level level, Sector sector, TileFactory<T> factory, List<T> result, LatLon origin) {
 		if (level == null) {
 			String msg = Logging.getMessage("nullValue.LevelIsNull");
 			Logging.error(msg);

@@ -146,11 +146,13 @@ public class VisibleTerrain implements Terrain
         SectorGeometryList sectorGeometry = this.dc.getSurfaceGeometry();
         if (sectorGeometry != null && sectorGeometry.getSurfacePoint(latitude, longitude, result))
         {
-            // The sector geometry already has vertical exaggeration applied. This has the effect of interpreting
-            // metersOffset as height above the terrain after vertical exaggeration is applied.
-            this.getGlobe().computeSurfaceNormalAtPoint(result, this.point);
-            this.point.multiply3AndSet(metersOffset);
-            result.add3AndSet(this.point);
+			if(metersOffset>0) {
+				// The sector geometry already has vertical exaggeration applied. This has the effect of interpreting
+				// metersOffset as height above the terrain after vertical exaggeration is applied.
+				this.getGlobe().computeSurfaceNormalAtPoint(result, this.point);
+				this.point.multiply3AndSet(metersOffset);
+				result.add3AndSet(this.point);
+			}
         }
         else
         {

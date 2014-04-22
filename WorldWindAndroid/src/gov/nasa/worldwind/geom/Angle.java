@@ -11,7 +11,7 @@ import gov.nasa.worldwind.util.Logging;
  * @author dcollins
  * @version $Id: Angle.java 733 2012-09-02 17:15:09Z dcollins $
  */
-public class Angle
+public class Angle implements Comparable<Angle>
 {
 	/** Represents an angle of zero degrees */
 	public final static Angle ZERO = Angle.fromDegrees(0);
@@ -447,6 +447,34 @@ public class Angle
         long temp = this.degrees != +0.0d ? Double.doubleToLongBits(this.degrees) : 0L;
         return (int) (temp ^ (temp >>> 32));
     }
+
+	/**
+	 * Compares this {@link Angle} with another. Returns a negative integer if this is the smaller angle, a positive
+	 * integer if this is the larger, and zero if both angles are equal.
+	 *
+	 * @param angle the angle to compare against.
+	 *
+	 * @return -1 if this angle is smaller, 0 if both are equal and +1 if this angle is larger.
+	 *
+	 * @throws IllegalArgumentException if angle is null.
+	 */
+	public final int compareTo(Angle angle)
+	{
+		if (angle == null)
+		{
+			String msg = Logging.getMessage("nullValue.AngleIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		if (this.degrees < angle.degrees)
+			return -1;
+
+		if (this.degrees > angle.degrees)
+			return 1;
+
+		return 0;
+	}
 
     /**
      * Obtains the amount of memory this {@link Angle} consumes.

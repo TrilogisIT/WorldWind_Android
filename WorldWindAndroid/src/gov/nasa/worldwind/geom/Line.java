@@ -70,6 +70,23 @@ public class Line
     protected final Vec4 origin;
     protected final Vec4 direction;
 
+	/**
+	 * Create the line containing a line segement between two points.
+	 *
+	 * @param pa the first point of the line segment.
+	 * @param pb the second point of the line segment.
+	 *
+	 * @return The line containing the two points.
+	 *
+	 * @throws IllegalArgumentException if either point is null or they are coincident.
+	 */
+	public static Line fromSegment(Vec4 pa, Vec4 pb)
+	{
+		Line line = new Line();
+		line.setSegment(pa, pb);
+		return line;
+	}
+
     /** Creates a new line with its origin set to (0, 0, 0) and its direction set to (1, 0, 0). */
     public Line()
     {

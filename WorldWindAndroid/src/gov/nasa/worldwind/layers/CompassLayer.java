@@ -42,10 +42,12 @@ import android.opengl.GLES20;
  */
 public class CompassLayer extends AbstractLayer {
 	protected static final int VERTEX_SHADER_PATH_TEXTURE = R.raw.compasslayertexturevert;
-	protected static final int FRAGMENT_SHADER_PATH_TEXTURE = R.raw.compasslayertexturefrag;
-	protected final Object programTextureKey = new Object();
-	protected String iconFilePath = "images/notched-compass.png"; // TODO: make configurable
+	protected static final int FRAGMENT_SHADER_PATH_TEXTURE = R.raw.etc1alphafrag;
+//	protected String iconFilePath = "images/notched-compass.png"; // TODO: make configurable
+//	protected static final int FRAGMENT_SHADER_PATH_TEXTURE = R.raw.etc1alphafrag;
+	protected String iconFilePath = "images/notched-compass_mip_0.pkm"; // TODO: make configurable
 	protected double compassToViewportScale = 0.2; // TODO: make configurable
+	protected final Object programTextureKey = new Object();
 	protected double iconScale = 0.5;
 	protected int borderWidth = 20; // TODO: make configurable
 	protected String position = AVKey.NORTHEAST; // TODO: make configurable
@@ -338,15 +340,19 @@ public class CompassLayer extends AbstractLayer {
 				if (iconTexture != null && textureProgram != null) {
 					textureProgram.bind();
 					textureProgram.loadUniformMatrix("mvpMatrix", mvp);
-					GLES20.glEnable(GLES20.GL_TEXTURE_2D);
-					WorldWindowGLSurfaceView.glCheckError("glEnable");
+
 					GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
 					WorldWindowGLSurfaceView.glCheckError("glActiveTexture");
 					iconTexture.bind();
 					textureProgram.loadUniformSampler("sTexture", 0);
+					textureProgram.loadUniformSampler("aTexture", 1);
+
+					Matrix texMatrix = Matrix.fromIdentity();
+//					iconTexture.applyInternalTransform(dc, texMatrix);
+					textureProgram.loadUniformMatrix("texMatrix", texMatrix);
 
 					GLES20.glEnable(GLES20.GL_BLEND);
-					WorldWindowGLSurfaceView.glCheckError("glEnable");
+					WorldWindowGLSurfaceView.glCheckError("glEnable: GL_BLEND");
 					GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 					WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
 
@@ -430,8 +436,6 @@ public class CompassLayer extends AbstractLayer {
 			if (!dc.isPickingMode()) {
 				GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
 				WorldWindowGLSurfaceView.glCheckError("glBindTexture");
-				GLES20.glDisable(GLES20.GL_TEXTURE_2D); // restore to default texture state 
-				WorldWindowGLSurfaceView.glCheckError("glDisable");
 				GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 				WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
 			}
@@ -565,7 +569,8 @@ public class CompassLayer extends AbstractLayer {
 				}
 			}
 
-			iconTexture = GpuTexture.createTexture(dc, GpuTextureData.createTextureData(iconStream));// TextureIO.newTexture(iconStream, false, null);
+			iconTexture = GpuTexture.createTexture(dc, GpuTextureData.createTextureData(iconStream, getIconFilePath(), "image/pkm", false));
+//			iconTexture = GpuTexture.createTexture(dc, GpuTextureData.createTextureData(iconStream, getIconFilePath(), "image/png", false));
 			iconTexture.bind();
 			this.iconWidth = iconTexture.getWidth();
 			this.iconHeight = iconTexture.getHeight();
@@ -575,14 +580,6 @@ public class CompassLayer extends AbstractLayer {
 			Logging.error(msg);
 			throw new WWRuntimeException(msg, e);
 		}
-		// GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);// _MIPMAP_LINEAR); 
-		WorldWindowGLSurfaceView.glCheckError("glTexParameterf");
-		// GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR); 
-		WorldWindowGLSurfaceView.glCheckError("glTexParameterf");
-		// GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE); 
-		WorldWindowGLSurfaceView.glCheckError("glTexParameterf");
-		// GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE); 
-		WorldWindowGLSurfaceView.glCheckError("glTexParameterf");
 	}
 
 	@Override

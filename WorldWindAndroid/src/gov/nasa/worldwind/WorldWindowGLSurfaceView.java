@@ -17,6 +17,7 @@ import gov.nasa.worldwind.exception.WWRuntimeException;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.pick.*;
 import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.PerformanceStatistic;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -29,7 +30,6 @@ import java.util.*;
  */
 public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurfaceView.Renderer, WorldWindow, WWObject
 {
-	private static boolean DEBUG = true;
     protected WWObjectImpl wwo = new WWObjectImpl(this);
     protected SceneController sceneController;
     protected InputHandler inputHandler;
@@ -37,6 +37,7 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
     protected List<RenderingListener> renderingListeners = new ArrayList<RenderingListener>();
     protected int viewportWidth;
     protected int viewportHeight;
+
     protected TextView latitudeText;
     protected TextView longitudeText;
     protected TextView rangeText;
@@ -197,6 +198,14 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
         try
         {
             this.sceneController.drawFrame(this.viewportWidth, this.viewportHeight);
+
+			Double frameTime = sceneController.getFrameTime();
+			if (frameTime != null)
+				this.setValue(PerformanceStatistic.FRAME_TIME, frameTime);
+
+			Double frameRate = sceneController.getFramesPerSecond();
+			if (frameRate != null)
+				this.setValue(PerformanceStatistic.FRAME_RATE, frameRate);
         }
         catch (Exception e)
         {
@@ -211,8 +220,13 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
 	public static void glCheckError(String op) {
 		if(!DEBUG) return;
 		int error;
-		while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) { 
-			Logging.error(op + ": glError " + GLUtils.getEGLErrorString(error));
+		while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
+			final StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+			StringBuilder sb = new StringBuilder(stackTrace.length*80);
+			for(StackTraceElement element : stackTrace) {
+				sb.append("\n").append(element.toString());
+			}
+			Logging.error(op + ": glError " + GLUtils.getEGLErrorString(error) + sb.toString());
 //			throw new RuntimeException(op + ": glError " + GLUtils.getEGLErrorString(error));
 		}
 	}
@@ -526,4 +540,18 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
     {
         // Empty implementation
     }
+
+	public void setPerFrameStatisticsKeys(Set<String> keys)
+	{
+		if (this.sceneController != null)
+			this.sceneController.setPerFrameStatisticsKeys(keys);
+	}
+
+	public Map<String, PerformanceStatistic> getPerFrameStatistics()
+	{
+		if (this.sceneController == null || this.sceneController.getPerFrameStatistics() == null)
+			return new HashMap<String, PerformanceStatistic>(0);
+
+		return this.sceneController.getPerFrameStatistics();
+	}
 }

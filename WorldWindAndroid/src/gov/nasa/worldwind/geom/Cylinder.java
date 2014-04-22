@@ -270,7 +270,7 @@ public class Cylinder implements Extent
 
     public String toString()
     {
-        return this.cylinderRadius + ", " + this.bottomCenter.toString() + ", " + this.topCenter.toString() + ", "
+        return "Cylinder " + this.cylinderRadius + ", " + this.bottomCenter.toString() + ", " + this.topCenter.toString() + ", "
             + this.axisUnitDirection.toString();
     }
 }

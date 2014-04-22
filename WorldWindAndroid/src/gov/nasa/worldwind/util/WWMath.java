@@ -5,6 +5,7 @@
  */
 package gov.nasa.worldwind.util;
 
+import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.globes.Globe;
 
@@ -92,7 +93,7 @@ public class WWMath
         if (elevation <= 0)
             return 0;
 
-        return Math.sqrt(elevation * (2 * globe.getRadius() + elevation));
+		return Math.sqrt(elevation * (2 * globe.getRadius() + elevation));
     }
 
     /**

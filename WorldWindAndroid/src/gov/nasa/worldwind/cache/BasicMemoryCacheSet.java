@@ -6,7 +6,10 @@
 package gov.nasa.worldwind.cache;
 
 import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.PerformanceStatistic;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -77,4 +80,17 @@ public class BasicMemoryCacheSet implements MemoryCacheSet
 
         this.caches.clear();
     }
+
+	public Collection<PerformanceStatistic> getPerformanceStatistics()
+	{
+		ArrayList<PerformanceStatistic> stats = new ArrayList<PerformanceStatistic>();
+
+		for (MemoryCache cache : this.caches.values())
+		{
+			stats.add(new PerformanceStatistic(PerformanceStatistic.MEMORY_CACHE, "Cache Size (Kb): " + cache.getName(),
+					cache.getUsedCapacity() / 1000));
+		}
+
+		return stats;
+	}
 }

@@ -36,7 +36,7 @@ import android.opengl.GLES20;
  * In order to support simultaneous use of this shape with multiple globes (windows), this shape maintains a cache of data computed relative to each globe.
  * During rendering, the data for the currently active globe, as indicated in the draw context, is made current. Subsequently called methods rely on the
  * existence of this current data cache entry.
- * 
+ *
  * @author tag
  * @version $Id: AbstractShape.java 844 2012-10-11 00:35:07Z tgaskins $
  */
@@ -70,7 +70,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * Compute the intersections of a specified line with this shape. If the shape's altitude mode is other than {@link AVKey#ABSOLUTE}, the shape's geometry is
 	 * created relative to the specified terrain rather than the terrain used
 	 * during rendering, which may be at lower level of detail than required for accurate intersection determination.
-	 * 
+	 *
 	 * @param line
 	 *            the line to intersect.
 	 * @param terrain
@@ -94,7 +94,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * shape on the draw context's ordered renderable list for subsequent rendering. This method is called during {@link #pick(DrawContext, Point)} and
 	 * {@link #render(DrawContext)} when it's been determined that the shape is likely to
 	 * be visible.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @return true if the ordered renderable state was successfully computed, otherwise false, in which case the
@@ -108,7 +108,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/**
 	 * Determines whether this shape's ordered renderable state is valid and can be rendered. Called by {@link #makeOrderedRenderable(DrawContext)}just prior to
 	 * adding the shape to the ordered renderable list.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @return true if this shape is ready to be rendered as an ordered renderable.
@@ -121,7 +121,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * attributes. Subclasses should execute the drawing commands specific to the type of shape.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -133,7 +133,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * interior attributes. Subclasses should execute the drawing commands specific to the type of shape.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -143,7 +143,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * Fill this shape's vertex buffer objects. If the vertex buffer object resource IDs don't yet exist, create them.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -151,7 +151,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Creates and returns a new cache entry specific to the subclass.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @return a data cache entry for the state in the specified draw context.
@@ -160,7 +160,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Returns the shape's geographic extent.
-	 * 
+	 *
 	 * @return the shape's geographic extent.
 	 */
 	protected abstract Sector getSector();
@@ -208,7 +208,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Returns the data cache entry for the current rendering.
-	 * 
+	 *
 	 * @return the data cache entry for the current rendering.
 	 */
 	protected AbstractShapeData getCurrentData() {
@@ -232,7 +232,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 		 * Constructs a data cache entry and initializes its globe-dependent state key for the globe in the specified
 		 * draw context and capture the current vertical exaggeration. The entry becomes invalid when these values
 		 * change or when the entry's expiration timer expires.
-		 * 
+		 *
 		 * @param dc
 		 *            the current draw context.
 		 * @param minExpiryTime
@@ -327,7 +327,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Returns this shape's normal (as opposed to highlight) attributes.
-	 * 
+	 *
 	 * @return this shape's normal attributes. May be null.
 	 */
 	public ShapeAttributes getAttributes() {
@@ -336,7 +336,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Specifies this shape's normal (as opposed to highlight) attributes.
-	 * 
+	 *
 	 * @param normalAttrs
 	 *            the normal attributes. May be null, in which case default attributes are used.
 	 */
@@ -346,7 +346,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Returns this shape's highlight attributes.
-	 * 
+	 *
 	 * @return this shape's highlight attributes. May be null.
 	 */
 	public ShapeAttributes getHighlightAttributes() {
@@ -355,7 +355,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Specifies this shape's highlight attributes.
-	 * 
+	 *
 	 * @param highlightAttrs
 	 *            the highlight attributes. May be null, in which case default attributes are used.
 	 */
@@ -373,7 +373,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Indicates whether this shape is drawn during rendering.
-	 * 
+	 *
 	 * @return true if this shape is drawn, otherwise false.
 	 * @see #setVisible(boolean)
 	 */
@@ -383,7 +383,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Specifies whether this shape is drawn during rendering.
-	 * 
+	 *
 	 * @param visible
 	 *            true to draw this shape, otherwise false. The default value is true.
 	 * @see #setAttributes(ShapeAttributes)
@@ -395,7 +395,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/**
 	 * Returns this shape's altitude mode. If no altitude mode is set, this returns <code>null</code> to indicate that
 	 * the default altitude mode {@link AVKey#ABSOLUTE} is used.
-	 * 
+	 *
 	 * @return this shape's altitude mode, or <code>null</code> indicating the default altitude mode.
 	 * @see #setAltitudeMode(String)
 	 */
@@ -411,7 +411,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * Note: If the altitude mode is unrecognized, {@link AVKey#ABSOLUTE} is used.
 	 * <p/>
 	 * Note: Subclasses may recognize additional altitude modes or may not recognize the ones described above.
-	 * 
+	 *
 	 * @param altitudeMode
 	 *            the altitude mode. The default value is {@link AVKey#ABSOLUTE}.
 	 */
@@ -428,7 +428,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Indicates whether batch rendering is enabled for the concrete shape type of this shape.
-	 * 
+	 *
 	 * @return true if batch rendering is enabled, otherwise false.
 	 * @see #setEnableBatchRendering(boolean).
 	 */
@@ -440,7 +440,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * Specifies whether adjacent shapes of this shape's concrete type in the ordered renderable list may be rendered
 	 * together if they are contained in the same layer. This increases performance. There is seldom a reason to disable
 	 * it.
-	 * 
+	 *
 	 * @param enableBatchRendering
 	 *            true to enable batch rendering, otherwise false.
 	 */
@@ -450,7 +450,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Indicates whether batch picking is enabled.
-	 * 
+	 *
 	 * @return true if batch rendering is enabled, otherwise false.
 	 * @see #setEnableBatchPicking(boolean).
 	 */
@@ -464,7 +464,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * polygons to be reported in a SelectEvent even if several of the polygons are at the pick position.
 	 * <p/>
 	 * Batch rendering ({@link #setEnableBatchRendering(boolean)}) must be enabled in order for batch picking to occur.
-	 * 
+	 *
 	 * @param enableBatchPicking
 	 *            true to enable batch rendering, otherwise false.
 	 */
@@ -475,7 +475,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/**
 	 * Indicates the outline line width to use during picking. A larger width than normal typically makes the outline
 	 * easier to pick.
-	 * 
+	 *
 	 * @return the outline line width used during picking.
 	 */
 	public int getOutlinePickWidth() {
@@ -487,7 +487,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * easier to pick.
 	 * <p/>
 	 * Note that the size of the pick aperture also affects the precision necessary to pick.
-	 * 
+	 *
 	 * @param outlinePickWidth
 	 *            the outline pick width. The default is 10.
 	 * @throws IllegalArgumentException
@@ -506,7 +506,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/**
 	 * Indicates whether the filled sides of this shape should be offset towards the viewer to help eliminate artifacts
 	 * when two or more faces of this or other filled shapes are coincident.
-	 * 
+	 *
 	 * @return true if depth offset is applied, otherwise false.
 	 */
 	public boolean isEnableDepthOffset() {
@@ -516,7 +516,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/**
 	 * Specifies whether the filled sides of this shape should be offset towards the viewer to help eliminate artifacts
 	 * when two or more faces of this or other filled shapes are coincident.
-	 * 
+	 *
 	 * @param enableDepthOffset
 	 *            true if depth offset is applied, otherwise false.
 	 */
@@ -527,7 +527,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/**
 	 * Indicates the maximum length of time between geometry regenerations. See {@link #setGeometryRegenerationInterval(int)} for the regeneration-interval's
 	 * description.
-	 * 
+	 *
 	 * @return the geometry regeneration interval, in milliseconds.
 	 * @see #setGeometryRegenerationInterval(int)
 	 */
@@ -542,7 +542,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * from a server.) Decreasing this value causes the geometry to more quickly track terrain changes but at the cost
 	 * of performance. Increasing this value often does not have much effect because there are limiting factors other
 	 * than geometry regeneration.
-	 * 
+	 *
 	 * @param geometryRegenerationInterval
 	 *            the geometry regeneration interval, in milliseconds. The default is two
 	 *            seconds.
@@ -559,7 +559,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/**
 	 * Specifies the position to use as a reference position for computed geometry. This value should typically left to
 	 * the default value of the first position in the polygon's outer boundary.
-	 * 
+	 *
 	 * @param referencePosition
 	 *            the reference position. May be null, in which case the first position of the outer
 	 *            boundary is the reference position.
@@ -579,7 +579,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Returns this shape's extent in model coordinates.
-	 * 
+	 *
 	 * @return this shape's extent, or null if an extent has not been computed.
 	 */
 	public Extent getExtent() {
@@ -589,7 +589,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/**
 	 * Returns the Cartesian coordinates of this shape's reference position as computed during the most recent
 	 * rendering.
-	 * 
+	 *
 	 * @return the Cartesian coordinates corresponding to this shape's reference position, or null if the point has not
 	 *         been computed.
 	 */
@@ -656,15 +656,24 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 			this.shapeDataCache.addEntry(this.currentData);
 		}
 
-		if (!this.isVisible()) return;
+		if (!this.isVisible()) {
+			Logging.debug("Not drawing object: !isVisible");
+			return;
+		}
 
 		if (this.isTerrainDependent()) this.checkViewDistanceExpiration(dc);
 
 		if (this.getExtent() != null) {
-			if (!this.intersectsFrustum(dc)) return;
+			if (!this.intersectsFrustum(dc)) {
+				Logging.debug("Not drawing object: !intersectsFrustrum");
+				return;
+			}
 
 			// If the shape is less that a pixel in size, don't render it.
-			if (dc.isSmall(this.getExtent(), 1)) return;
+			if (dc.isSmall(this.getExtent(), 1)) {
+				Logging.debug("Not drawing object: isSmall");
+				return;
+			}
 		}
 
 		if (dc.isOrderedRenderingMode()) this.drawOrderedRenderable(dc);
@@ -676,7 +685,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * renderable geometry.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -684,11 +693,16 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 		// Re-use values already calculated this frame.
 		if (dc.getFrameTimeStamp() != this.getCurrentData().getFrameNumber()) {
 			this.determineActiveAttributes();
-			if (this.getActiveAttributes() == null) return;
+			if (this.getActiveAttributes() == null) {
+				Logging.debug("Not drawing object: getActiveAttributes()==null");
+				return;
+			}
 
 			// Regenerate the positions and shape at a specified frequency.
 			if (this.mustRegenerateGeometry(dc)) {
-				if (!this.doMakeOrderedRenderable(dc)) return;
+				if (!this.doMakeOrderedRenderable(dc)) {
+					return;
+				}
 
 				this.fillVBO(dc);
 
@@ -698,7 +712,10 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 			this.getCurrentData().setFrameNumber(dc.getFrameTimeStamp());
 		}
 
-		if (!this.isOrderedRenderableValid(dc)) return;
+		if (!this.isOrderedRenderableValid(dc)) {
+			Logging.debug("Not drawing object: !isOrderedRenderableValid(dc)");
+			return;
+		}
 
 		if (dc.isPickingMode()) this.pickLayer = dc.getCurrentLayer();
 
@@ -707,7 +724,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Adds this shape to the draw context's ordered renderable list.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -718,7 +735,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/**
 	 * Determines which attributes -- normal, highlight or default -- to use each frame. Places the result in this
 	 * shape's current active attributes.
-	 * 
+	 *
 	 * @see #getActiveAttributes()
 	 */
 	protected void determineActiveAttributes() {
@@ -745,7 +762,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * attributes are either the normal or highlight attributes, depending on
 	 * this shape's highlight flag, and incorporates default attributes for those not specified in the applicable
 	 * attribute set.
-	 * 
+	 *
 	 * @return this shape's currently active attributes.
 	 */
 	public ShapeAttributes getActiveAttributes() {
@@ -757,7 +774,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * property change or the expiration of the geometry regeneration interval.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @return true if this shape's geometry must be regenerated, otherwise false.
@@ -768,7 +785,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Indicates whether this shape's interior must be drawn.
-	 * 
+	 *
 	 * @return true if an interior must be drawn, otherwise false.
 	 */
 	protected boolean mustDrawInterior() {
@@ -777,7 +794,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Indicates whether this shape's outline must be drawn.
-	 * 
+	 *
 	 * @return true if the outline should be drawn, otherwise false.
 	 */
 	protected boolean mustDrawOutline() {
@@ -786,7 +803,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Indicates whether standard lighting must be applied.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context
 	 * @return true if lighting must be applied, otherwise false.
@@ -797,7 +814,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Indicates whether standard lighting must be applied.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context
 	 * @param activeAttrs
@@ -811,7 +828,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Indicates whether normal vectors must be computed by consulting the current active attributes.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context
 	 * @return true if normal vectors must be computed, otherwise false.
@@ -822,7 +839,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Indicates whether standard lighting must be applied.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context
 	 * @param activeAttrs
@@ -836,7 +853,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Indicates whether this shape's geometry depends on the terrain.
-	 * 
+	 *
 	 * @return true if this shape's geometry depends on the terrain, otherwise false.
 	 */
 	protected boolean isTerrainDependent() {
@@ -847,7 +864,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * Indicates whether this shape's terrain-dependent geometry is continually computed as its distance from the eye
 	 * point changes. This is often necessary to ensure that the shape is updated as the terrain precision changes. But
 	 * it's often not necessary as well, and can be disabled.
-	 * 
+	 *
 	 * @return true if the terrain dependent geometry is updated as the eye distance changes, otherwise false. The
 	 *         default is true.
 	 */
@@ -859,7 +876,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * Specifies whether this shape's terrain-dependent geometry is continually computed as its distance from the eye
 	 * point changes. This is often necessary to ensure that the shape is updated as the terrain precision changes. But
 	 * it's often not necessary as well, and can be disabled.
-	 * 
+	 *
 	 * @param viewDistanceExpiration
 	 *            true to enable view distance expiration, otherwise false.
 	 */
@@ -870,7 +887,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/**
 	 * Determines whether this shape's geometry should be invalidated because the view distance changed, and if so,
 	 * invalidates the geometry.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -896,7 +913,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * Determines whether this shape intersects the view frustum.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @return true if this shape intersects the frustum, otherwise false.
@@ -905,8 +922,8 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 		if (this.getExtent() == null) return true; // don't know the visibility, shape hasn't been computed yet
 
 		// TODO: Restore these two lines after implementing World Wind Android picking frustums.
-		// if (dc.isPickingMode())
-		// return dc.getPickFrustums().intersectsAny(this.getExtent());
+		if (dc.isPickingMode())
+			return dc.getPickFrustums().intersectsAny(this.getExtent());
 
 		return dc.getView().getFrustumInModelCoordinates().intersects(this.getExtent());
 	}
@@ -915,7 +932,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * Draws this shape as an ordered renderable.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -934,7 +951,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * Establish the OpenGL state needed to draw this shape.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -949,19 +966,19 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 		// Enable the gpu program's vertexPoint attribute, if one exists. The data for this attribute is specified by
 		// each shape.
 		int attribLocation = program.getAttribLocation("vertexPoint");
-		if (attribLocation >= 0) GLES20.glEnableVertexAttribArray(attribLocation); 
-	WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+		if (attribLocation >= 0) GLES20.glEnableVertexAttribArray(attribLocation);
+		WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
 
 		// Set the OpenGL state that this shape depends on.
-		GLES20.glDisable(GLES20.GL_CULL_FACE); 
-	WorldWindowGLSurfaceView.glCheckError("glDisable");
+		GLES20.glDisable(GLES20.GL_CULL_FACE);
+		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_CULL_FACE");
 	}
 
 	/**
 	 * Pop the state set in {@link #beginDrawing(DrawContext)}.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -973,27 +990,27 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 		// beginRendering. This must be done while the program is still bound, because getAttribLocation depends on
 		// the current OpenGL program state.
 		int location = program.getAttribLocation("vertexPoint");
-		if (location >= 0) GLES20.glDisableVertexAttribArray(location); 
-	WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+		if (location >= 0) GLES20.glDisableVertexAttribArray(location);
+		WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
 
 		// Restore the previous OpenGL program state.
 		dc.setCurrentProgram(null);
-		GLES20.glUseProgram(0); 
-	WorldWindowGLSurfaceView.glCheckError("glUseProgram");
+		GLES20.glUseProgram(0);
+		WorldWindowGLSurfaceView.glCheckError("glUseProgram");
 
 		// Restore the OpenGL array and element array buffer bindings to 0.
-		GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0); 
-	WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
-		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0); 
-	WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+		GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+		WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
+		WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
 
 		// Restore the remaining OpenGL state values to their defaults.
-		GLES20.glEnable(GLES20.GL_CULL_FACE); 
-	WorldWindowGLSurfaceView.glCheckError("glEnable");
-		GLES20.glDepthMask(true); 
-	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
-		GLES20.glLineWidth(1f); 
-	WorldWindowGLSurfaceView.glCheckError("glLineWidth");
+		GLES20.glEnable(GLES20.GL_CULL_FACE);
+		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_CULL_FACE");
+		GLES20.glDepthMask(true);
+		WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+		GLES20.glLineWidth(1f);
+		WorldWindowGLSurfaceView.glCheckError("glLineWidth");
 	}
 
 	protected GpuProgram getDefaultGpuProgram(GpuResourceCache cache) {
@@ -1021,7 +1038,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * current pick mode is true, only shapes within the same layer are drawn as a batch.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -1045,7 +1062,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 				if (!shape.isEnableBatchRendering() || !shape.isEnableBatchPicking()) break;
 
 				if (shape.pickLayer != this.pickLayer) // batch pick only within a single layer
-				break;
+					break;
 
 				dc.pollOrderedRenderables(); // take it off the queue
 				shape.doDrawOrderedRenderable(dc, this.pickSupport);
@@ -1062,7 +1079,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * rendered in batch are added to the same pick list.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @param pickCandidates
@@ -1093,7 +1110,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/**
 	 * Creates a {@link gov.nasa.worldwind.pick.PickedObject} for this shape and the specified unique pick color code.
 	 * The PickedObject returned by this method will be added to the pick list to represent the current shape.
-	 * 
+	 *
 	 * @param colorCode
 	 *            the unique color code for this shape.
 	 * @return a new picked object.
@@ -1106,7 +1123,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * Draws this shape's interior.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -1119,7 +1136,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/**
 	 * Establishes OpenGL state for drawing the interior, including setting the color/material. Enabling texture is left
 	 * to the subclass.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @param activeAttrs
@@ -1136,8 +1153,8 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 			// Disable writing the shape's interior fragments to the OpenGL depth buffer when the interior is
 			// semi-transparent.
-			if (color.a < 1) GLES20.glDepthMask(false); 
-	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+			if (color.a < 1) GLES20.glDepthMask(false);
+			WorldWindowGLSurfaceView.glCheckError("glDepthMask");
 
 			// Load the current interior color into the gpu program's color uniform variable. We first copy the outline
 			// color into the current color so we can premultiply it. The SceneController configures the OpenGL blending
@@ -1151,7 +1168,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * Draws this shape's outline.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -1166,7 +1183,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/**
 	 * Establishes OpenGL state for drawing the outline, including setting the color/material, line smoothing, line
 	 * width and stipple. Disables texture.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @param activeAttrs
@@ -1195,7 +1212,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Computes a model-coordinate point from a position, applying this shape's altitude mode.
-	 * 
+	 *
 	 * @param terrain
 	 *            the terrain to compute a point relative to the globe's surface.
 	 * @param position
@@ -1216,7 +1233,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 	/**
 	 * Computes this shape's approximate extent from its positions.
-	 * 
+	 *
 	 * @param globe
 	 *            the globe to use to compute the extent.
 	 * @param verticalExaggeration
@@ -1253,7 +1270,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * Get or create OpenGL resource IDs for the current data cache entry.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 * @return an array containing the coordinate vertex buffer ID in the first position and the index vertex buffer ID
@@ -1267,7 +1284,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	 * Removes from the GPU resource cache the entry for the current data cache entry's VBOs.
 	 * <p/>
 	 * A {@link gov.nasa.worldwind.render.AbstractShape.AbstractShapeData} must be current when this method is called.
-	 * 
+	 *
 	 * @param dc
 	 *            the current draw context.
 	 */
@@ -1280,18 +1297,18 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 		for (int i = 0; i < prims.size(); i++) {
 			switch (primTypes.get(i)) {
-				case GLES20.GL_TRIANGLES: 
-	WorldWindowGLSurfaceView.glCheckError("GL_TRIANGLES");
+				case GLES20.GL_TRIANGLES:
+					WorldWindowGLSurfaceView.glCheckError("GL_TRIANGLES");
 					numVertices += prims.get(i).size();
 					break;
 
-				case GLES20.GL_TRIANGLE_FAN: 
-	WorldWindowGLSurfaceView.glCheckError("GL_TRIANGLE_FAN");
+				case GLES20.GL_TRIANGLE_FAN:
+					WorldWindowGLSurfaceView.glCheckError("GL_TRIANGLE_FAN");
 					numVertices += (prims.get(i).size() - 2) * 3; // N tris from N + 2 vertices
 					break;
 
-				case GLES20.GL_TRIANGLE_STRIP: 
-	WorldWindowGLSurfaceView.glCheckError("GL_TRIANGLE_STRIP");
+				case GLES20.GL_TRIANGLE_STRIP:
+					WorldWindowGLSurfaceView.glCheckError("GL_TRIANGLE_STRIP");
 					numVertices += (prims.get(i).size() - 2) * 3; // N tris from N + 2 vertices
 					break;
 			}

@@ -13,14 +13,18 @@ import gov.nasa.worldwind.pick.PickedObjectList;
 import gov.nasa.worldwind.render.Color;
 import gov.nasa.worldwind.render.DrawContext;
 import gov.nasa.worldwind.render.OrderedRenderable;
+import gov.nasa.worldwind.terrain.SectorGeometry;
 import gov.nasa.worldwind.terrain.SectorGeometryList;
 import gov.nasa.worldwind.util.Logging;
 import android.graphics.Point;
 import android.opengl.GLES20;
+import gov.nasa.worldwind.util.PerformanceStatistic;
+
+import java.util.*;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
- * 
+ *
  * @author dcollins
  * @version $Id: SceneController.java 834 2012-10-08 22:25:55Z dcollins $
  */
@@ -35,6 +39,14 @@ public class SceneController extends WWObjectImpl {
 	protected Point pickPoint;
 	protected PickedObjectList objectsAtPickPoint = new PickedObjectList();
 
+	protected Set<String> perFrameStatisticsKeys = new HashSet<String>();
+	protected final Map<String, PerformanceStatistic> perFrameStatistics = new HashMap<String, PerformanceStatistic>();
+	protected long frame = 0;
+	protected long timebase = System.currentTimeMillis();
+	protected double framesPerSecond;
+	protected double frameTime;
+	protected double pickTime;
+
 	protected SceneController() {
 		this.setVerticalExaggeration(Configuration.getDoubleValue(AVKey.VERTICAL_EXAGGERATION));
 		this.dc = this.createDrawContext();
@@ -46,7 +58,7 @@ public class SceneController extends WWObjectImpl {
 
 	/**
 	 * Indicates the scene controller's model. This returns <code>null</code> if the scene controller has no model.
-	 * 
+	 *
 	 * @return the scene controller's model, or <code>null</code> if the scene controller has no model.
 	 */
 	public Model getModel() {
@@ -55,7 +67,7 @@ public class SceneController extends WWObjectImpl {
 
 	/**
 	 * Specifies the scene controller's model. This method fires an {@link gov.nasa.worldwind.avlist.AVKey#MODEL} property change event.
-	 * 
+	 *
 	 * @param model
 	 *            the scene controller's model.
 	 */
@@ -71,7 +83,7 @@ public class SceneController extends WWObjectImpl {
 	/**
 	 * Returns the current view. This method fires an {@link gov.nasa.worldwind.avlist.AVKey#VIEW} property change
 	 * event.
-	 * 
+	 *
 	 * @return the current view.
 	 */
 	public View getView() {
@@ -80,7 +92,7 @@ public class SceneController extends WWObjectImpl {
 
 	/**
 	 * Sets the current view.
-	 * 
+	 *
 	 * @param view
 	 *            the view.
 	 */
@@ -96,7 +108,7 @@ public class SceneController extends WWObjectImpl {
 
 	/**
 	 * Indicates the current vertical exaggeration.
-	 * 
+	 *
 	 * @return the current vertical exaggeration.
 	 */
 	public double getVerticalExaggeration() {
@@ -105,7 +117,7 @@ public class SceneController extends WWObjectImpl {
 
 	/**
 	 * Specifies the exaggeration to apply to elevation values of terrain and other displayed items.
-	 * 
+	 *
 	 * @param verticalExaggeration
 	 *            the vertical exaggeration to apply.
 	 */
@@ -117,7 +129,7 @@ public class SceneController extends WWObjectImpl {
 
 	/**
 	 * Returns this scene controller's GPU Resource cache.
-	 * 
+	 *
 	 * @return this scene controller's GPU Resource cache.
 	 */
 	public GpuResourceCache getGpuResourceCache() {
@@ -126,7 +138,7 @@ public class SceneController extends WWObjectImpl {
 
 	/**
 	 * Specifies the GPU Resource cache to use.
-	 * 
+	 *
 	 * @param gpuResourceCache
 	 *            the texture cache.
 	 */
@@ -136,7 +148,7 @@ public class SceneController extends WWObjectImpl {
 
 	/**
 	 * Indicates whether all items under the cursor are identified during picking.
-	 * 
+	 *
 	 * @return true if all items under the cursor are identified during picking, otherwise false.
 	 */
 	public boolean isDeepPickEnabled() {
@@ -145,7 +157,7 @@ public class SceneController extends WWObjectImpl {
 
 	/**
 	 * Specifies whether all items under the cursor are identified during picking.
-	 * 
+	 *
 	 * @param tf
 	 *            true to identify all items under the cursor during picking, otherwise false.
 	 */
@@ -155,7 +167,7 @@ public class SceneController extends WWObjectImpl {
 
 	/**
 	 * Returns the current pick point in AWT screen coordinates.
-	 * 
+	 *
 	 * @return the current pick point, or <code>null</code> if no pick point is current.
 	 * @see #setPickPoint(Point)
 	 */
@@ -169,7 +181,7 @@ public class SceneController extends WWObjectImpl {
 	 * them in a PickedObjectList. This list can be accessed by calling {@link #getObjectsAtPickPoint()}.
 	 * <p/>
 	 * If the pick point is <code>null</code>, this scene controller ignores the pick point and the list of objects returned by getPickedObjectList is empty.
-	 * 
+	 *
 	 * @param pickPoint
 	 *            the current pick point, or <code>null</code>.
 	 */
@@ -180,16 +192,44 @@ public class SceneController extends WWObjectImpl {
 	/**
 	 * Returns the list of picked objects at the current pick point. The returned list is computed during the most
 	 * recent call to repaint.
-	 * 
+	 *
 	 * @return the list of picked objects at the pick point, or null if no objects are currently picked.
 	 */
 	public PickedObjectList getObjectsAtPickPoint() {
 		return this.objectsAtPickPoint;
 	}
 
+	public double getFramesPerSecond()
+	{
+		return this.framesPerSecond;
+	}
+
+	public double getFrameTime()
+	{
+		return this.frameTime;
+	}
+
+	public void setPerFrameStatisticsKeys(Set<String> keys)
+	{
+		this.perFrameStatisticsKeys.clear();
+		if (keys == null)
+			return;
+
+		for (String key : keys)
+		{
+			if (key != null)
+				this.perFrameStatisticsKeys.add(key);
+		}
+	}
+
+	public Map<String, PerformanceStatistic> getPerFrameStatistics()
+	{
+		return perFrameStatistics;
+	}
+
 	/**
 	 * Cause the window to regenerate the frame, including pick resolution.
-	 * 
+	 *
 	 * @param viewportWidth
 	 *            the width of the current viewport this scene controller is associated with, in pixels. Must
 	 *            not be less than zero.
@@ -212,17 +252,56 @@ public class SceneController extends WWObjectImpl {
 			throw new IllegalArgumentException(msg);
 		}
 
+		perFrameStatistics.clear();
 		// Prepare the drawing context for a new frame then cause this scene controller to draw its content. There is no
 		// need to explicitly swap the front and back buffers here, as the owner WorldWindow does this for us. In the
 		// case of WorldWindowGLSurfaceView, the GLSurfaceView automatically swaps the front and back buffers for us.
 		this.initializeDrawContext(this.dc, viewportWidth, viewportHeight);
 		this.doDrawFrame(this.dc);
+
+		++this.frame;
+		long time = System.currentTimeMillis();
+		this.frameTime = System.currentTimeMillis() - this.frameTime;
+		if (time - this.timebase > 2000) // recalculate every two seconds
+		{
+			this.framesPerSecond = frame * 1000d / (time - timebase);
+			this.timebase = time;
+			this.frame = 0;
+		}
+		this.dc.setPerFrameStatistic(PerformanceStatistic.FRAME_TIME, "Frame Time (ms)", (int) this.frameTime);
+		this.dc.setPerFrameStatistic(PerformanceStatistic.FRAME_RATE, "Frame Rate (fps)", (int) this.framesPerSecond);
+		this.dc.setPerFrameStatistic(PerformanceStatistic.PICK_TIME, "Pick Time (ms)", (int) this.pickTime);
+
+		Set<String> perfKeys = dc.getPerFrameStatisticsKeys();
+
+		if (perfKeys.contains(PerformanceStatistic.MEMORY_CACHE) || perfKeys.contains(PerformanceStatistic.ALL))
+		{
+			this.dc.setPerFrameStatistics(WorldWind.getMemoryCacheSet().getPerformanceStatistics());
+		}
+
+		if (perfKeys.contains(PerformanceStatistic.TEXTURE_CACHE) || perfKeys.contains(PerformanceStatistic.ALL))
+		{
+			if (dc.getTextureCache() != null)
+				this.dc.setPerFrameStatistic(PerformanceStatistic.TEXTURE_CACHE,
+						"Texture Cache size (Kb)", this.dc.getTextureCache().getUsedCapacity() / 1000);
+		}
+
+		if (perfKeys.contains(PerformanceStatistic.JVM_HEAP) || perfKeys.contains(PerformanceStatistic.ALL))
+		{
+			long totalMemory = Runtime.getRuntime().totalMemory();
+			this.dc.setPerFrameStatistic(PerformanceStatistic.JVM_HEAP,
+					"JVM total memory (Kb)", totalMemory / 1000);
+
+			this.dc.setPerFrameStatistic(PerformanceStatistic.JVM_HEAP_USED,
+					"JVM used memory (Kb)", (totalMemory - Runtime.getRuntime().freeMemory()) / 1000);
+		}
 	}
 
 	protected void doDrawFrame(DrawContext dc) {
 		this.initializeFrame(dc);
 		try {
 			this.applyView(dc);
+			this.createPickFrustum(dc);
 			this.createTerrain(dc);
 			this.clearFrame(dc);
 			this.pick(dc);
@@ -243,36 +322,37 @@ public class SceneController extends WWObjectImpl {
 		dc.setGpuResourceCache(this.gpuResourceCache);
 		dc.setFrameTimeStamp(timeStamp);
 		dc.setPickPoint(this.pickPoint);
+		dc.setPerFrameStatisticsKeys(this.perFrameStatisticsKeys, this.perFrameStatistics);
 	}
 
 	protected void initializeFrame(DrawContext dc) {
-		GLES20.glEnable(GLES20.GL_BLEND); 
-	WorldWindowGLSurfaceView.glCheckError("glEnable");
-		GLES20.glEnable(GLES20.GL_CULL_FACE); 
-	WorldWindowGLSurfaceView.glCheckError("glEnable");
-		GLES20.glEnable(GLES20.GL_DEPTH_TEST); 
-	WorldWindowGLSurfaceView.glCheckError("glEnable");
+		GLES20.glEnable(GLES20.GL_BLEND);
+		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_BLEND");
+		GLES20.glEnable(GLES20.GL_CULL_FACE);
+		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_CULL_FACE");
+		GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_DEPTH_TEST");
 		GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA); // Blend in premultiplied alpha mode. 
-	WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
-		GLES20.glDepthFunc(GLES20.GL_LEQUAL); 
-	WorldWindowGLSurfaceView.glCheckError("glDepthFunc");
+		WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+		GLES20.glDepthFunc(GLES20.GL_LEQUAL);
+		WorldWindowGLSurfaceView.glCheckError("glDepthFunc");
 		// We do not specify glCullFace, because the default cull face state GL_BACK is appropriate for our needs.
 	}
 
 	protected void finalizeFrame(DrawContext dc) {
 		// Restore the default GL state values we modified in initializeFrame.
-		GLES20.glDisable(GLES20.GL_BLEND); 
-	WorldWindowGLSurfaceView.glCheckError("glDisable");
-		GLES20.glDisable(GLES20.GL_CULL_FACE); 
-	WorldWindowGLSurfaceView.glCheckError("glDisable");
-		GLES20.glDisable(GLES20.GL_DEPTH_TEST); 
-	WorldWindowGLSurfaceView.glCheckError("glDisable");
-		GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ZERO); 
-	WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
-		GLES20.glDepthFunc(GLES20.GL_LESS); 
-	WorldWindowGLSurfaceView.glCheckError("glDepthFunc");
-		GLES20.glClearColor(0f, 0f, 0f, 0f); 
-	WorldWindowGLSurfaceView.glCheckError("glClearColor");
+		GLES20.glDisable(GLES20.GL_BLEND);
+		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_BLEND");
+		GLES20.glDisable(GLES20.GL_CULL_FACE);
+		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_CULL_FACE");
+		GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_DEPTH_TEST");
+		GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ZERO);
+		WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+		GLES20.glDepthFunc(GLES20.GL_LESS);
+		WorldWindowGLSurfaceView.glCheckError("glDepthFunc");
+		GLES20.glClearColor(0f, 0f, 0f, 0f);
+		WorldWindowGLSurfaceView.glCheckError("glClearColor");
 	}
 
 	protected void clearFrame(DrawContext dc) {
@@ -280,10 +360,10 @@ public class SceneController extends WWObjectImpl {
 		this.clearColor.set(dc.getClearColor());
 		// Set the DrawContext's clear color, then clear the framebuffer's color buffer and depth buffer. This fills
 		// the color buffer with the background color, and fills the depth buffer with 1 (the default).
-		GLES20.glClearColor((float) this.clearColor.r, (float) this.clearColor.g, (float) this.clearColor.b, (float) this.clearColor.a); 
-	WorldWindowGLSurfaceView.glCheckError("glClearColor");
-		GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT); 
-	WorldWindowGLSurfaceView.glCheckError("glClear");
+		GLES20.glClearColor((float) this.clearColor.r, (float) this.clearColor.g, (float) this.clearColor.b, (float) this.clearColor.a);
+		WorldWindowGLSurfaceView.glCheckError("glClearColor");
+		GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+		WorldWindowGLSurfaceView.glCheckError("glClear");
 	}
 
 	protected void applyView(DrawContext dc) {
@@ -310,6 +390,7 @@ public class SceneController extends WWObjectImpl {
 	protected void draw(DrawContext dc) {
 		this.drawLayers(dc);
 		this.drawOrderedRenderables(dc);
+		this.drawDiagnosticDisplays(dc);
 	}
 
 	protected void drawLayers(DrawContext dc) {
@@ -349,6 +430,27 @@ public class SceneController extends WWObjectImpl {
 		dc.setOrderedRenderingMode(false);
 	}
 
+	protected void drawDiagnosticDisplays(DrawContext dc) {
+		if (dc.getSurfaceGeometry() != null && dc.getModel() != null
+				&& (dc.getModel().isShowWireframe() || dc.getModel().isShowTessellationBoundingVolumes()
+				|| dc.getModel().isShowTessellationTileIds()))
+		{
+			Model model = dc.getModel();
+
+			for (SectorGeometry sg : dc.getSurfaceGeometry())
+			{
+				if (model.isShowWireframe())
+					sg.renderWireframe(dc);
+
+				if (model.isShowTessellationBoundingVolumes())
+					sg.renderBoundingVolume(dc);
+
+				if(model.isShowTessellationTileIds())
+					sg.renderTileID(dc);
+			}
+		}
+	}
+
 	protected void pick(DrawContext dc) {
 		try {
 			this.beginPicking(dc);
@@ -358,6 +460,12 @@ public class SceneController extends WWObjectImpl {
 		}
 	}
 
+	protected void createPickFrustum(DrawContext dc)
+	{
+		dc.addPickPointFrustum();
+//		dc.addPickRectangleFrustum();
+	}
+
 	/**
 	 * Configures the draw context and GL state for picking. This ensures that pick colors are drawn into the
 	 * framebuffer as specified, and are not modified by any GL state. This makes the following GL state changes:
@@ -365,16 +473,17 @@ public class SceneController extends WWObjectImpl {
 	 * <li>Disable blending</li>
 	 * <li>Disable dithering</li>
 	 * </ul>
-	 * 
+	 *
 	 * @param dc
 	 *            the draw context to configure.
 	 */
 	protected void beginPicking(DrawContext dc) {
 		dc.setPickingMode(true);
 		GLES20.glDisable(GLES20.GL_BLEND); // Blending is disabled by default, but is enabled in initializeFrame. 
-	WorldWindowGLSurfaceView.glCheckError("glDisable");
+		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_BLEND");
 		GLES20.glDisable(GLES20.GL_DITHER); // Dithering is enabled by default. 
-	WorldWindowGLSurfaceView.glCheckError("glDisable");
+		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_DITHER");
+		//TODO bind texture framebuffer
 	}
 
 	/**
@@ -383,16 +492,17 @@ public class SceneController extends WWObjectImpl {
 	 * <li>Enable blending</li>
 	 * <li>Enable dithering</li>
 	 * </ul>
-	 * 
+	 *
 	 * @param dc
 	 *            the draw context on which to restore state.
 	 */
 	protected void endPicking(DrawContext dc) {
+		//TODO unbind texture framebuffer
 		dc.setPickingMode(false);
 		GLES20.glEnable(GLES20.GL_BLEND); // Blending is disabled by default, but is enabled in initializeFrame. 
-	WorldWindowGLSurfaceView.glCheckError("glEnable");
+		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_BLEND");
 		GLES20.glEnable(GLES20.GL_DITHER); // Dithering is enabled by default. 
-	WorldWindowGLSurfaceView.glCheckError("glEnable");
+		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_DITHER");
 	}
 
 	protected void doPick(DrawContext dc) {
@@ -412,7 +522,7 @@ public class SceneController extends WWObjectImpl {
 
 	protected void doPickNonTerrain(DrawContext dc) {
 		if (dc.getPickPoint() == null) // Don't do the pick if there's no current pick point.
-		return;
+			return;
 
 		this.pickLayers(dc);
 		this.pickOrderedRenderables(dc);
@@ -492,14 +602,14 @@ public class SceneController extends WWObjectImpl {
 	 * <ul>
 	 * <li>Disable depth test</li>
 	 * </ul>
-	 * 
+	 *
 	 * @param dc
 	 *            the draw context to configure.
 	 */
 	protected void beginDeepPicking(DrawContext dc) {
 		dc.setDeepPickingEnabled(true);
 		GLES20.glDisable(GLES20.GL_DEPTH_TEST); // Depth test is disabled by default, but enabled in initializeFrame. 
-	WorldWindowGLSurfaceView.glCheckError("glDisable");
+		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_DEPTH_TEST");
 	}
 
 	/**
@@ -508,14 +618,14 @@ public class SceneController extends WWObjectImpl {
 	 * <ul>
 	 * <li>Enable depth test</li>
 	 * </ul>
-	 * 
+	 *
 	 * @param dc
 	 *            the draw context on which to restore state.
 	 */
 	protected void endDeepPicking(DrawContext dc) {
 		dc.setDeepPickingEnabled(false);
 		GLES20.glEnable(GLES20.GL_DEPTH_TEST); // Depth test is disabled by default, but enabled in initializeFrame. 
-	WorldWindowGLSurfaceView.glCheckError("glEnable");
+		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_DEPTH_TEST");
 	}
 
 	protected PickedObjectList mergePickedObjectLists(PickedObjectList listA, PickedObjectList listB) {

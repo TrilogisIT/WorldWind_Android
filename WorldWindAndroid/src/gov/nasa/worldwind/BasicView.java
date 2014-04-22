@@ -4,6 +4,16 @@ All Rights Reserved.
  */
 package gov.nasa.worldwind;
 
+import android.animation.Animator;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
+import android.util.Property;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.Interpolator;
+import gov.nasa.worldwind.animation.AngleEvaluator;
+import gov.nasa.worldwind.animation.DoubleEvaluator;
+import gov.nasa.worldwind.animation.PositionEvaluator;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Frustum;
@@ -15,8 +25,16 @@ import gov.nasa.worldwind.geom.Vec4;
 import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.render.DrawContext;
 import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.PerformanceStatistic;
 import gov.nasa.worldwind.util.WWMath;
 import android.graphics.Point;
+import gov.nasa.worldwind.view.BasicOrbitViewLimits;
+import gov.nasa.worldwind.view.OrbitViewCollisionSupport;
+import gov.nasa.worldwind.view.OrbitViewLimits;
+import gov.nasa.worldwind.view.ViewPropertyLimits;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -28,7 +46,7 @@ public class BasicView extends WWObjectImpl implements View {
 	// TODO: add documentation to all public methods
 
 	// TODO: make configurable
-	protected static final double MINIMUM_NEAR_DISTANCE = 2;
+	protected static final double MINIMUM_NEAR_DISTANCE = 1;
 	protected static final double MINIMUM_FAR_DISTANCE = 100;
 
 	// View representation
@@ -53,13 +71,51 @@ public class BasicView extends WWObjectImpl implements View {
 	protected Angle tilt = new Angle();
 	protected Angle roll = new Angle();
 
+	protected DrawContext dc;
+	protected Globe globe;
+	protected OrbitViewCollisionSupport collisionSupport = new OrbitViewCollisionSupport();
+	protected boolean detectCollisions = true;
+	protected boolean hadCollisions;
+	protected float farDistanceMultiplier = 1f;
+
 	// Temporary property used to avoid constant allocation of Line objects during repeated calls to
 	// computePositionFromScreenPoint.
 	protected Line line = new Line();
+	private ViewPropertyLimits viewLimits = new BasicOrbitViewLimits();
 
 	public BasicView() {
 		this.lookAtPosition.setDegrees(Configuration.getDoubleValue(AVKey.INITIAL_LATITUDE, 0.0), Configuration.getDoubleValue(AVKey.INITIAL_LONGITUDE, 0.0), 0.0);
 		this.range = Configuration.getDoubleValue(AVKey.INITIAL_ALTITUDE, 0.0);
+	}
+
+	public float getFarDistanceMultiplier() {
+		return this.farDistanceMultiplier;
+	}
+
+	public void setFarDistanceMultiplier(float multiplier) {
+		this.farDistanceMultiplier = multiplier;
+	}
+
+	public boolean isDetectCollisions()
+	{
+		return this.detectCollisions;
+	}
+
+	public void setDetectCollisions(boolean detectCollisions)
+	{
+		this.detectCollisions = detectCollisions;
+	}
+
+	public boolean hadCollisions()
+	{
+		boolean result = this.hadCollisions;
+		this.hadCollisions = false;
+		return result;
+	}
+
+	protected void flagHadCollisions()
+	{
+		this.hadCollisions = true;
 	}
 
 	/** {@inheritDoc} */
@@ -225,6 +281,9 @@ public class BasicView extends WWObjectImpl implements View {
 			throw new IllegalArgumentException(msg);
 		}
 
+		this.dc = dc;
+		this.globe = this.dc.getGlobe();
+
 		// Compute and apply the current modelview matrix, its inverse, and its transpose.
 		this.applyModelviewMatrix(dc);
 		this.modelviewInv.invertTransformMatrix(this.modelview);
@@ -252,8 +311,7 @@ public class BasicView extends WWObjectImpl implements View {
 	}
 
 	protected void applyModelviewMatrix(DrawContext dc) {
-		this.modelview.setLookAt(dc.getVisibleTerrain(), this.lookAtPosition.latitude, this.lookAtPosition.longitude, this.lookAtPosition.elevation, AVKey.ABSOLUTE, this.range,
-				this.heading, this.tilt, this.roll);
+		calculateOrbitModelview(dc, this.lookAtPosition, this.heading, this.tilt, this.roll, this.range, this.modelview);
 	}
 
 	protected void applyProjectionMatrix(DrawContext dc) {
@@ -265,13 +323,8 @@ public class BasicView extends WWObjectImpl implements View {
 	}
 
 	protected void applyFrustum(DrawContext dc) {
-		double tanHalfFov = this.fieldOfView.tanHalfAngle();
-		this.nearClipDistance = this.eyePosition.elevation / (2 * Math.sqrt(2 * tanHalfFov * tanHalfFov + 1));
-		this.farClipDistance = WWMath.computeHorizonDistance(dc.getGlobe(), this.eyePosition.elevation);
-
-		if (this.nearClipDistance < MINIMUM_NEAR_DISTANCE) this.nearClipDistance = MINIMUM_NEAR_DISTANCE;
-
-		if (this.farClipDistance < MINIMUM_FAR_DISTANCE) this.farClipDistance = MINIMUM_FAR_DISTANCE;
+		nearClipDistance = computeNearDistance(eyePoint);
+		farClipDistance = computeFarDistance(eyePosition);
 
 		this.frustum.setPerspective(this.fieldOfView, this.viewport.width, this.viewport.height, this.nearClipDistance, this.farClipDistance);
 	}
@@ -285,20 +338,6 @@ public class BasicView extends WWObjectImpl implements View {
 	public Position getEyePosition(Globe globe) {
 		// TODO: Remove the globe parameter from this method.
 		return this.eyePosition;
-	}
-
-	public Position getLookAtPosition() {
-		return this.lookAtPosition;
-	}
-
-	public void setLookAtPosition(Position position) {
-		if (position == null) {
-			String msg = Logging.getMessage("nullValue.PositionIsNull");
-			Logging.error(msg);
-			throw new IllegalArgumentException(msg);
-		}
-
-		this.lookAtPosition.set(position);
 	}
 
 	/**
@@ -397,6 +436,22 @@ public class BasicView extends WWObjectImpl implements View {
 		return delta;
 	}
 
+	public Position getLookAtPosition() {
+		return this.lookAtPosition;
+	}
+
+	public void setLookAtPosition(Position position) {
+		if (position == null) {
+			String msg = Logging.getMessage("nullValue.PositionIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		this.lookAtPosition.set(position);
+		this.lookAtPosition.set(BasicOrbitViewLimits.limitLookAtPosition(this.lookAtPosition, this.getOrbitViewLimits()));
+		resolveCollisionsWithCenterPosition();
+	}
+
 	public double getRange() {
 		return this.range;
 	}
@@ -407,8 +462,12 @@ public class BasicView extends WWObjectImpl implements View {
 			Logging.error(msg);
 			throw new IllegalArgumentException(msg);
 		}
-
+		boolean isZoomingIn = distance<this.range;
 		this.range = distance;
+		this.range = BasicOrbitViewLimits.limitZoom(this.range, this.getOrbitViewLimits());
+		if(isZoomingIn) {
+			resolveCollisionsWithCenterPosition();
+		}
 	}
 
 	public Angle getHeading() {
@@ -423,6 +482,8 @@ public class BasicView extends WWObjectImpl implements View {
 		}
 
 		this.heading.set(angle);
+		this.heading.set(BasicOrbitViewLimits.limitHeading(this.heading, this.getOrbitViewLimits()));
+		resolveCollisionsWithPitch();
 	}
 
 	public Angle getTilt() {
@@ -437,6 +498,8 @@ public class BasicView extends WWObjectImpl implements View {
 		}
 
 		this.tilt.set(angle);
+		this.tilt.set(BasicOrbitViewLimits.limitPitch(this.tilt, this.getOrbitViewLimits()));
+		resolveCollisionsWithPitch();
 	}
 
 	public Angle getRoll() {
@@ -451,5 +514,241 @@ public class BasicView extends WWObjectImpl implements View {
 		}
 
 		this.roll.set(angle);
+	}
+
+	/**
+	 * Returns the <code>OrbitViewLimits</code> that apply to this <code>OrbitView</code>. Incoming parameters to the
+	 * methods setCenterPosition, setHeading, setPitch, or setZoom are be limited by the parameters defined in this
+	 * <code>OrbitViewLimits</code>.
+	 *
+	 * @return the <code>OrbitViewLimits</code> that apply to this <code>OrbitView</code>
+	 */
+	public OrbitViewLimits getOrbitViewLimits()
+	{
+		return (OrbitViewLimits) viewLimits;
+	}
+
+	/**
+	 * Sets the <code>OrbitViewLimits</code> that will apply to this <code>OrbitView</code>. Incoming parameters to the
+	 * methods setCenterPosition, setHeading, setPitch, or setZoom will be limited by the parameters defined in
+	 * <code>viewLimits</code>.
+	 *
+	 * @param viewLimits the <code>OrbitViewLimits</code> that will apply to this <code>OrbitView</code>.
+	 *
+	 * @throws IllegalArgumentException if <code>viewLimits</code> is null.
+	 */
+	public void setOrbitViewLimits(OrbitViewLimits viewLimits)
+	{
+		if (viewLimits == null)
+		{
+			String message = Logging.getMessage("nullValue.ViewLimitsIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		this.viewLimits = viewLimits;
+	}
+
+	public Vec4 getCurrentEyePoint()
+	{
+		if (this.globe != null)
+		{
+			Matrix modelview = Matrix.fromIdentity();
+			calculateOrbitModelview(dc, this.lookAtPosition, this.heading,
+					this.tilt, this.roll, this.range, modelview);
+			if (modelview != null) {
+				Matrix modelviewInv = modelview.invert();
+				if (modelviewInv != null) {
+					return Vec4.UNIT_W.transformBy4(modelviewInv);
+				}
+			}
+		}
+
+		return Vec4.ZERO;
+	}
+
+	public Position getCurrentEyePosition()
+	{
+		if (this.globe != null)
+		{
+			return this.globe.computePositionFromPoint(getCurrentEyePoint());
+		}
+
+		return Position.ZERO;
+	}
+
+	public static void calculateOrbitModelview(DrawContext dc, Position lookAtPosition, Angle heading, Angle tilt, Angle roll, double range, Matrix matrix) {
+		matrix.setLookAt(dc.getVisibleTerrain(),
+				lookAtPosition.latitude, lookAtPosition.longitude, lookAtPosition.elevation,
+				AVKey.CLAMP_TO_GROUND, range, heading, tilt, roll);
+	}
+
+	protected double computeNearDistance(Vec4 eyePoint)
+	{
+		double near = 0;
+		if (eyePoint != null && this.dc != null)
+		{
+			double tanHalfFov = this.fieldOfView.tanHalfAngle();
+			Vec4 lookAtPoint = dc.getVisibleTerrain().getSurfacePoint(lookAtPosition.latitude, lookAtPosition.longitude, 0);
+			double eyeDistance = new Vec4().subtract3AndSet(eyePoint, lookAtPoint).getLength3();
+			near = eyeDistance / (2 * Math.sqrt(2 * tanHalfFov * tanHalfFov + 1));
+		}
+		return near < MINIMUM_NEAR_DISTANCE ? MINIMUM_NEAR_DISTANCE : near;
+	}
+
+	protected double computeFarDistance(Position eyePosition)
+	{
+		double far = 0;
+		if (eyePosition != null)
+		{
+			double height = OrbitViewCollisionSupport.computeViewHeightAboveSurface(dc, modelviewInv, fieldOfView, viewport, nearClipDistance);
+			far = WWMath.computeHorizonDistance(dc.getGlobe(), height);
+			if(WorldWindow.DEBUG) {
+				Logging.verbose(String.format("Sea level horizon: %.2f",
+						WWMath.computeHorizonDistance(dc.getGlobe(), eyePosition.elevation)));
+				Logging.verbose(String.format("Surface horizon: %.2f",
+						far));
+			}
+			far *= farDistanceMultiplier;
+		}
+
+		return far < MINIMUM_FAR_DISTANCE ? MINIMUM_FAR_DISTANCE : far;
+	}
+
+	protected void resolveCollisionsWithCenterPosition()
+	{
+		if (this.dc == null)
+			return;
+
+		if (!isDetectCollisions())
+			return;
+
+		if(dc.getVisibleTerrain().getGlobe()==null) {
+			//TODO figure out why this is null
+			Logging.warning("getVisibleTerrain().getGlobe()==null.\tBasicView.dc.getGlobe(): " + dc.getGlobe());
+			return;
+		}
+		// If there is no collision, 'newCenterPosition' will be null. Otherwise it will contain a value
+		// that will resolve the collision.
+		double nearDistance = this.computeNearDistance(this.getCurrentEyePoint());
+		Position newCenter = this.collisionSupport.computeCenterPositionToResolveCollision(this, nearDistance, this.dc);
+		if (newCenter != null && newCenter.getLatitude().degrees >= -90 && newCenter.getLongitude().degrees <= 90)
+		{
+			this.lookAtPosition = newCenter;
+			flagHadCollisions();
+		}
+	}
+
+	protected void resolveCollisionsWithPitch()
+	{
+		if (this.dc == null)
+			return;
+
+		if (!isDetectCollisions())
+			return;
+
+		if(dc.getVisibleTerrain().getGlobe()==null) {
+			//TODO figure out why this is null
+			Logging.warning("getVisibleTerrain().getGlobe()==null.\tBasicView.dc.getGlobe(): " + dc.getGlobe());
+			return;
+		}
+
+		// Compute the near distance corresponding to the current set of values.
+		// If there is no collision, 'newPitch' will be null. Otherwise it will contain a value
+		// that will resolve the collision.
+		double nearDistance = this.computeNearDistance(this.getCurrentEyePoint());
+		Angle newPitch = this.collisionSupport.computePitchToResolveCollision(this, nearDistance, this.dc);
+		if (newPitch != null && newPitch.degrees <= 90 && newPitch.degrees >= 0)
+		{
+			this.tilt = newPitch;
+			flagHadCollisions();
+		}
+	}
+
+	protected Map<String, Animator> goToAnimations = new HashMap<String, Animator>();
+
+	public void stopAnimations() {
+		for(Animator a : goToAnimations.values()) {
+			a.cancel();
+		}
+		goToAnimations.clear();
+	}
+
+	public ValueAnimator createTiltAnimator(final WorldWindowGLTextureView wwd, Angle tilt) {
+		final ValueAnimator tiltAnimator = ValueAnimator
+				.ofObject(new AngleEvaluator(), this.tilt, tilt);
+		tiltAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+			@Override
+			public void onAnimationUpdate(final ValueAnimator animation) {
+				wwd.invokeInRenderingThread(new Runnable() {
+					@Override
+					public void run() {
+						setTilt((Angle)animation.getAnimatedValue());
+					}
+				});
+				BasicView.this.firePropertyChange(AVKey.VIEW, null, BasicView.this);
+			}
+		});
+		return tiltAnimator;
+	}
+
+	public ValueAnimator createHeadingAnimator(final WorldWindowGLTextureView wwd, Angle heading) {
+		final ValueAnimator headingAnimator = ValueAnimator
+				.ofObject(new AngleEvaluator(), this.heading, heading);
+		headingAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+			@Override
+			public void onAnimationUpdate(final ValueAnimator animation) {
+				wwd.invokeInRenderingThread(new Runnable() {
+					@Override
+					public void run() {
+						setHeading((Angle)animation.getAnimatedValue());
+					}
+				});
+				firePropertyChange(AVKey.VIEW, null, BasicView.this);
+			}
+		});
+		return headingAnimator;
+	}
+
+	public ValueAnimator createRangeAnimator(final WorldWindowGLTextureView wwd, double range) {
+		final ValueAnimator rangeAnimator = ValueAnimator
+				.ofObject(new DoubleEvaluator(), this.range, range);
+		rangeAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+			@Override
+			public void onAnimationUpdate(final ValueAnimator animation) {
+				wwd.invokeInRenderingThread(new Runnable() {
+					@Override
+					public void run() {
+						setRange((Double)animation.getAnimatedValue());
+					}
+				});
+				firePropertyChange(AVKey.VIEW, null, BasicView.this);
+			}
+		});
+		return rangeAnimator;
+	}
+
+	private ValueAnimator createLookAtAnimator(final WorldWindowGLTextureView wwd, Position position) {
+		final ValueAnimator lookAtAnimator = ValueAnimator.ofObject(
+						new PositionEvaluator(), this.lookAtPosition, position);
+		lookAtAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+			@Override
+			public void onAnimationUpdate(final ValueAnimator animation) {
+				wwd.invokeInRenderingThread(new Runnable() {
+					@Override
+					public void run() {
+						setLookAtPosition((Position)animation.getAnimatedValue());
+					}
+				});
+				firePropertyChange(AVKey.VIEW, null, BasicView.this);
+			}
+		});
+		return lookAtAnimator;
+	}
+
+	public void animate(Animator animator) {
+		stopAnimations();
+		goToAnimations.put("Custom", animator);
+		animator.start();
 	}
 }

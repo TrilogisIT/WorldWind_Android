@@ -9,6 +9,11 @@ import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.event.*;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.pick.PickedObjectList;
+import gov.nasa.worldwind.util.PerformanceStatistic;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * @author dcollins
@@ -16,6 +21,8 @@ import gov.nasa.worldwind.pick.PickedObjectList;
  */
 public interface WorldWindow extends WWObject
 {
+	public static boolean DEBUG = true;
+
     /**
      * Returns the window's current model.
      *
@@ -135,4 +142,20 @@ public interface WorldWindow extends WWObject
     void redraw();
 
     void invokeInRenderingThread(Runnable r);
+
+	/**
+	 * Activates the per-frame performance statistic specified. Per-frame statistics measure values within a single
+	 * frame of rendering, such as number of tiles drawn to produce the frame.
+	 *
+	 * @param keys The statistics to activate.
+	 */
+	void setPerFrameStatisticsKeys(Set<String> keys);
+
+	/**
+	 * Returns the active per-frame performance statistics such as number of tiles drawn in the most recent frame.
+	 *
+	 * @return The keys and values of the active per-frame statistics.
+	 */
+	Map<String, PerformanceStatistic> getPerFrameStatistics(); // TODO: move the constants from AVKey to this interface.
+
 }

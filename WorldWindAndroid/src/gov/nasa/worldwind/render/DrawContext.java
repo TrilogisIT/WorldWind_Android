@@ -4,14 +4,15 @@ All Rights Reserved.
  */
 package gov.nasa.worldwind.render;
 
+import android.graphics.*;
 import gov.nasa.worldwind.Model;
 import gov.nasa.worldwind.View;
 import gov.nasa.worldwind.WWObjectImpl;
 import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.cache.GpuResourceCache;
-import gov.nasa.worldwind.geom.Extent;
-import gov.nasa.worldwind.geom.Position;
-import gov.nasa.worldwind.geom.Sector;
+import gov.nasa.worldwind.geom.*;
+import gov.nasa.worldwind.geom.Matrix;
+import gov.nasa.worldwind.geom.Rect;
 import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.layers.Layer;
 import gov.nasa.worldwind.layers.LayerList;
@@ -22,14 +23,17 @@ import gov.nasa.worldwind.terrain.Terrain;
 import gov.nasa.worldwind.terrain.VisibleTerrain;
 import gov.nasa.worldwind.util.BufferUtil;
 import gov.nasa.worldwind.util.Logging;
+
 import java.nio.ByteBuffer;
-import java.util.PriorityQueue;
-import android.graphics.Point;
+import java.util.*;
+
 import android.opengl.GLES20;
+import gov.nasa.worldwind.util.PerformanceStatistic;
+import gov.nasa.worldwind.util.PickPointFrustumList;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
- * 
+ *
  * @author dcollins
  * @version $Id: DrawContext.java 834 2012-10-08 22:25:55Z dcollins $
  */
@@ -81,6 +85,12 @@ public class DrawContext extends WWObjectImpl {
 	protected Point pickPoint;
 	protected PickedObjectList objectsAtPickPoint = new PickedObjectList();
 
+	protected PickPointFrustumList pickFrustumList = new PickPointFrustumList();
+	protected Point pickPointFrustumDimension = new Point(3, 3);
+
+	protected Set<String> perFrameStatisticsKeys;
+	protected Map<String, PerformanceStatistic> perFrameStatistics;
+
 	/**
 	 * Initializes this <code>DrawContext</code>. This method should be called at the beginning of each frame to prepare
 	 * the <code>DrawContext</code> for the coming render pass.
@@ -131,7 +141,7 @@ public class DrawContext extends WWObjectImpl {
 	 * information on the color int format.
 	 * <p/>
 	 * The returned int can be converted to a floating-point RGBA color using the Color constructor {@link Color#Color(int)}.
-	 * 
+	 *
 	 * @return a packed 32-bit ARGB color representing the background color.
 	 */
 	public int getClearColor() {
@@ -140,7 +150,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Retrieves the current <code>Model</code>, which may be null.
-	 * 
+	 *
 	 * @return the current <code>Model</code>, which may be null
 	 */
 	public Model getModel() {
@@ -150,7 +160,7 @@ public class DrawContext extends WWObjectImpl {
 	/**
 	 * Assign a new <code>Model</code>. Some layers cannot function properly with a null <code>Model</code>. It is
 	 * recommended that the <code>Model</code> is never set to null during a normal render pass.
-	 * 
+	 *
 	 * @param model
 	 *            the new <code>Model</code>
 	 */
@@ -160,7 +170,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Retrieves the current <code>View</code>, which may be null.
-	 * 
+	 *
 	 * @return the current <code>View</code>, which may be null
 	 */
 	public View getView() {
@@ -170,7 +180,7 @@ public class DrawContext extends WWObjectImpl {
 	/**
 	 * Assigns a new <code>View</code>. Some layers cannot function properly with a null <code>View</code>. It is
 	 * recommended that the <code>View</code> is never set to null during a normal render pass.
-	 * 
+	 *
 	 * @param view
 	 *            the enw <code>View</code>
 	 */
@@ -180,7 +190,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Retrieves the current <code>Globe</code>, which may be null.
-	 * 
+	 *
 	 * @return the current <code>Globe</code>, which may be null
 	 */
 	public Globe getGlobe() {
@@ -189,7 +199,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Retrieves a list containing all the current layers. No guarantee is made about the order of the layers.
-	 * 
+	 *
 	 * @return a <code>LayerList</code> containing all the current layers
 	 */
 	public LayerList getLayers() {
@@ -201,7 +211,7 @@ public class DrawContext extends WWObjectImpl {
 	 * elevation. A vertical exaggeration of zero creates a surface which exactly fits the shape of the underlying <code>Globe</code>. A vertical exaggeration
 	 * of 3 will create mountains and valleys which are three times as
 	 * high/deep as they really are.
-	 * 
+	 *
 	 * @return the current vertical exaggeration
 	 */
 	public double getVerticalExaggeration() {
@@ -213,7 +223,7 @@ public class DrawContext extends WWObjectImpl {
 	 * vertical exaggeration of zero creates a surface which exactly fits the shape of the underlying <code>Globe</code>. A vertical exaggeration of 3 will
 	 * create mountains and valleys which are three times as
 	 * high/deep as they really are.
-	 * 
+	 *
 	 * @param verticalExaggeration
 	 *            the new vertical exaggeration.
 	 */
@@ -223,7 +233,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Returns the GPU resource cache used by this draw context.
-	 * 
+	 *
 	 * @return the GPU resource cache used by this draw context.
 	 */
 	public GpuResourceCache getGpuResourceCache() {
@@ -231,8 +241,21 @@ public class DrawContext extends WWObjectImpl {
 	}
 
 	/**
+	 * Returns the GPU resource cache for this draw context. This method returns the same value as {@link
+	 * #getGpuResourceCache()}.
+	 *
+	 * @return the GPU resource cache for this draw context.
+	 *
+	 * @see #getGpuResourceCache()
+	 */
+	public GpuResourceCache getTextureCache()
+	{
+		return this.gpuResourceCache;
+	}
+
+	/**
 	 * Specifies the GPU resource cache for this draw context.
-	 * 
+	 *
 	 * @param gpuResourceCache
 	 *            the GPU resource cache for this draw context.
 	 */
@@ -250,7 +273,7 @@ public class DrawContext extends WWObjectImpl {
 	 * Returns the time stamp corresponding to the beginning of a pre-render, pick, render sequence. The stamp remains
 	 * constant across these three operations so that called objects may avoid recomputing the same values during each
 	 * of the calls in the sequence.
-	 * 
+	 *
 	 * @return the frame time stamp. See {@link System#currentTimeMillis()} for its numerical meaning.
 	 */
 	public long getFrameTimeStamp() {
@@ -261,7 +284,7 @@ public class DrawContext extends WWObjectImpl {
 	 * Specifies the time stamp corresponding to the beginning of a pre-render, pick, render sequence. The stamp must
 	 * remain constant across these three operations so that called objects may avoid recomputing the same values during
 	 * each of the calls in the sequence.
-	 * 
+	 *
 	 * @param timeStamp
 	 *            the frame time stamp. See {@link System#currentTimeMillis()} for its numerical meaning.
 	 */
@@ -272,7 +295,7 @@ public class DrawContext extends WWObjectImpl {
 	/**
 	 * Retrieves a <code>Sector</code> which is at least as large as the current visible sector. The value returned is
 	 * the value passed to <code>SetVisibleSector</code>. This method may return null.
-	 * 
+	 *
 	 * @return a <code>Sector</code> at least the size of the current visible sector, null if unavailable
 	 */
 	public Sector getVisibleSector() {
@@ -282,7 +305,7 @@ public class DrawContext extends WWObjectImpl {
 	/**
 	 * Sets the visible <code>Sector</code>. The new visible sector must completely encompass the Sector which is
 	 * visible on the display.
-	 * 
+	 *
 	 * @param sector
 	 *            the new visible <code>Sector</code>
 	 */
@@ -297,16 +320,47 @@ public class DrawContext extends WWObjectImpl {
 	 * <p/>
 	 * The returned interface does not provide any method for drawing the currently visible terrain geometry. The methods {@link #getSurfaceGeometry()} and
 	 * {@link #getSurfaceTileRenderer()} return interfaces suited for terrain rendering.
-	 * 
+	 *
 	 * @return an interface to perform queries against the currently visible terrain.
 	 */
 	public Terrain getVisibleTerrain() {
 		return this.visibleTerrain;
 	}
 
+	public Vec4 getPointOnTerrain(Angle latitude, Angle longitude)
+	{
+		if (latitude == null || longitude == null)
+		{
+			String message = Logging.getMessage("nullValue.LatitudeOrLongitudeIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (this.getVisibleSector() == null)
+			return null;
+
+		if (!this.getVisibleSector().contains(latitude, longitude))
+			return null;
+
+		SectorGeometryList sectorGeometry = this.getSurfaceGeometry();
+		if (sectorGeometry != null)
+		{
+			Vec4 p = new Vec4();
+			sectorGeometry.getSurfacePoint(latitude, longitude, p);
+			if (p != null)
+				return p;
+		}
+
+		return null;
+	}
+
+	public Vec4 getPointOnTerrain(LatLon point) {
+		return getPointOnTerrain(point.latitude, point.longitude);
+	}
+
 	/**
 	 * Indicates the surface geometry that is visible this frame.
-	 * 
+	 *
 	 * @return the visible surface geometry.
 	 */
 	public SectorGeometryList getSurfaceGeometry() {
@@ -315,7 +369,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Specifies the surface geometry that is visible this frame.
-	 * 
+	 *
 	 * @param surfaceGeometry
 	 *            the visible surface geometry.
 	 */
@@ -330,7 +384,7 @@ public class DrawContext extends WWObjectImpl {
 	/**
 	 * Returns the current layer. The field is informative only and enables layer contents to determine their containing
 	 * layer.
-	 * 
+	 *
 	 * @return the current layer, or null if no layer is current.
 	 */
 	public Layer getCurrentLayer() {
@@ -340,7 +394,7 @@ public class DrawContext extends WWObjectImpl {
 	/**
 	 * Sets the current layer field to the specified layer or null. The field is informative only and enables layer
 	 * contents to determine their containing layer.
-	 * 
+	 *
 	 * @param layer
 	 *            the current layer or null.
 	 */
@@ -399,12 +453,96 @@ public class DrawContext extends WWObjectImpl {
 		this.orderedRenderables.add(new OrderedRenderableEntry(orderedRenderable, Double.MAX_VALUE, System.nanoTime()));
 	}
 
+	public PickPointFrustumList getPickFrustums()
+	{
+		return this.pickFrustumList;
+	}
+
+	public void setPickPointFrustumDimension(Point dim)
+	{
+		if (dim == null)
+		{
+			String message = Logging.getMessage("nullValue.DimensionIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (dim.x < 3 || dim.y < 3)
+		{
+			String message = Logging.getMessage("DrawContext.PickPointFrustumDimensionTooSmall");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		this.pickPointFrustumDimension = new Point(dim);
+	}
+
+	public android.graphics.Point getPickPointFrustumDimension()
+	{
+		return this.pickPointFrustumDimension;
+	}
+
+	public void addPickPointFrustum()
+	{
+		//Compute the current picking frustum
+		if (getPickPoint() != null)
+		{
+			Rect viewport = getView().getViewport();
+
+			double viewportWidth = viewport.width <= 0.0 ? 1.0 : viewport.width;
+			double viewportHeight = viewport.height <= 0.0 ? 1.0 : viewport.height;
+
+			//Get the pick point and translate screen center to zero
+			Point ptCenter = new Point(getPickPoint());
+			ptCenter.y = (int) viewportHeight - ptCenter.y;
+			ptCenter.x += (int) (-viewportWidth / 2);
+			ptCenter.y += (int) (-viewportHeight / 2);
+
+			//Number of pixels around pick point to include in frustum
+			int offsetX = pickPointFrustumDimension.x / 2;
+			int offsetY = pickPointFrustumDimension.y / 2;
+
+			//If the frustum is not valid then don't add it and return silently
+			if (offsetX == 0 || offsetY == 0)
+				return;
+
+			//Compute the distance to the near plane in screen coordinates
+			double width = getView().getFieldOfView().tanHalfAngle() * getView().getNearClipDistance();
+			double x = width / (viewportWidth / 2.0);
+			double screenDist = getView().getNearClipDistance() / x;
+
+			//Create the four vectors that define the top-left, top-right, bottom-left, and bottom-right vectors
+			Vec4 vTL = new Vec4(ptCenter.x - offsetX, ptCenter.y + offsetY, -screenDist);
+			Vec4 vTR = new Vec4(ptCenter.x + offsetX, ptCenter.y + offsetY, -screenDist);
+			Vec4 vBL = new Vec4(ptCenter.x - offsetX, ptCenter.y - offsetY, -screenDist);
+			Vec4 vBR = new Vec4(ptCenter.x + offsetX, ptCenter.y - offsetY, -screenDist);
+
+			//Compute the frustum from these four vectors
+			Frustum frustum = Frustum.fromPerspectiveVecs(vTL, vTR, vBL, vBR,
+					getView().getNearClipDistance(), getView().getFarClipDistance());
+
+			//Create the screen rectangle associated with this frustum
+			android.graphics.Rect rectScreen = new android.graphics.Rect(getPickPoint().x - offsetX,
+					(int) viewportHeight - getPickPoint().y - offsetY,
+					pickPointFrustumDimension.x,
+					pickPointFrustumDimension.y);
+
+			//Transform the frustum to Model Coordinates
+			Matrix modelviewTranspose = Matrix.fromIdentity();
+			modelviewTranspose.transpose(getView().getModelviewMatrix());
+			if (modelviewTranspose != null)
+				frustum = frustum.transformBy(modelviewTranspose);
+
+			this.pickFrustumList.add(new PickPointFrustum(frustum, rectScreen));
+		}
+	}
+
 	/**
 	 * Indicates whether the drawing is occurring in picking picking mode. In picking mode, each unique object is drawn
 	 * in a unique RGB color by calling {@link #getUniquePickColor()} prior to rendering. Any OpenGL state that could
 	 * cause an object to draw a color other than the unique RGB pick color must be disabled. This includes
 	 * antialiasing, blending, and dithering.
-	 * 
+	 *
 	 * @return true if drawing should occur in picking mode, otherwise false.
 	 */
 	public boolean isPickingMode() {
@@ -413,7 +551,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Specifies whether drawing should occur in picking mode. See {@link #isPickingMode()} for more information.
-	 * 
+	 *
 	 * @param tf
 	 *            true to specify that drawing should occur in picking mode, otherwise false.
 	 */
@@ -423,7 +561,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Indicates whether all items under the pick point are picked.
-	 * 
+	 *
 	 * @return true if all items under the pick point are picked, otherwise false .
 	 */
 	public boolean isDeepPickingEnabled() {
@@ -432,7 +570,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Specifies whether all items under the pick point are picked.
-	 * 
+	 *
 	 * @param tf
 	 *            true to pick all objects under the pick point.
 	 */
@@ -447,20 +585,20 @@ public class DrawContext extends WWObjectImpl {
 	 * <p/>
 	 * The returned int can be converted to a floating-point RGB color using the Color constructor {@link Color#Color(int, boolean)} and passing
 	 * <code>false</code> in hasAlpha.
-	 * 
+	 *
 	 * @return a packed 32-bit RGB color representing a unique pick color.
 	 */
 	public int getUniquePickColor() {
 		this.uniquePickNumber++; // Increment to the next pick number. This causes the pick numbers to start at 1.
 
 		if (this.uniquePickNumber == this.clearColor) // Skip the clear color.
-		this.uniquePickNumber++;
+			this.uniquePickNumber++;
 
 		if (this.uniquePickNumber >= 0x00FFFFFF) // We have run out of available pick numbers.
 		{
 			this.uniquePickNumber = 1; // Do not use black or white as a pick color. Pick numbers start at 1.
 			if (this.uniquePickNumber == this.clearColor) // Skip the clear color.
-			this.uniquePickNumber++;
+				this.uniquePickNumber++;
 		}
 
 		return this.uniquePickNumber;
@@ -475,7 +613,7 @@ public class DrawContext extends WWObjectImpl {
 	 * <p/>
 	 * The returned int can be converted to a floating-point RGB color using the Color constructor {@link Color#Color(int, boolean)} and passing
 	 * <code>false</code> in hasAlpha.
-	 * 
+	 *
 	 * @param point
 	 *            the screen point who's RGB color is returned.
 	 * @return a packed 32-bit RGB color representing the color at the screen point, or 0 if the point indicates a pixel
@@ -494,8 +632,8 @@ public class DrawContext extends WWObjectImpl {
 		// support reading only the RGB values, so we read the RGBA value and ignore the alpha component. We convert the
 		// y coordinate from system screen coordinates to OpenGL screen coordinates.
 		int yInGLCoords = this.viewportHeight - point.y;
-		GLES20.glReadPixels(point.x, yInGLCoords, 1, 1, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, this.pickColor); 
-	WorldWindowGLSurfaceView.glCheckError("glReadPixels");
+		GLES20.glReadPixels(point.x, yInGLCoords, 1, 1, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, this.pickColor);
+		WorldWindowGLSurfaceView.glCheckError("glReadPixels");
 
 		// OpenGL places the pixel's RGBA components in the first 4 bytes of the buffer, in that order. We ignore the
 		// alpha component and compose a packed 24-bit RGB color int equivalent to those returned by getUniquePickColor.
@@ -505,7 +643,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Returns the current pick point.
-	 * 
+	 *
 	 * @return the current pick point, or null if no pick point is available.
 	 */
 	public Point getPickPoint() {
@@ -514,7 +652,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Specifies the pick point.
-	 * 
+	 *
 	 * @param point
 	 *            the pick point, or null to indicate there is no pick point.
 	 */
@@ -524,7 +662,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Indicates the geographic coordinates of the point on the terrain at the current viewport's center.
-	 * 
+	 *
 	 * @return the geographic coordinates of the current viewport's center. Returns null if the globe's surface is not
 	 *         under the viewport's center point.
 	 */
@@ -539,7 +677,7 @@ public class DrawContext extends WWObjectImpl {
 	/**
 	 * Returns the World Wind objects at the current pick point. The list of objects is determined while drawing in
 	 * picking mode, and is cleared each time this draw context is initialized.
-	 * 
+	 *
 	 * @return the list of currently picked objects.
 	 */
 	public PickedObjectList getObjectsAtPickPoint() {
@@ -548,7 +686,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Adds a single picked object to the current picked-object list.
-	 * 
+	 *
 	 * @param pickedObject
 	 *            the object to add.
 	 * @throws IllegalArgumentException
@@ -566,7 +704,7 @@ public class DrawContext extends WWObjectImpl {
 
 	/**
 	 * Indicates whether a specified extent is smaller than a specified number of pixels for the current view.
-	 * 
+	 *
 	 * @param extent
 	 *            the extent to test. May be null, in which case this method returns false.
 	 * @param numPixels
@@ -596,7 +734,7 @@ public class DrawContext extends WWObjectImpl {
 	 * Performs a multi-pass rendering technique to ensure that outlines around filled shapes are drawn correctly when
 	 * blending or ant-aliasing is performed, and that filled portions of the shape resolve depth-buffer fighting with
 	 * shapes previously drawn in favor of the current shape.
-	 * 
+	 *
 	 * @param renderer
 	 *            an object implementing the {@link gov.nasa.worldwind.render.OutlinedShape} interface for the
 	 *            shape.
@@ -634,7 +772,7 @@ public class DrawContext extends WWObjectImpl {
 			if (renderer.isDrawInterior(this, shape)) renderer.drawInterior(this, shape);
 
 			if (renderer.isDrawOutline(this, shape)) // the line might extend outside the interior's projection
-			renderer.drawOutline(this, shape);
+				renderer.drawOutline(this, shape);
 
 			return;
 		}
@@ -644,10 +782,10 @@ public class DrawContext extends WWObjectImpl {
 			// fill pixels contribute the depth values. When the interior is drawn, it draws on top of these colors, and
 			// the outline is be visible behind the potentially transparent interior.
 			if (renderer.isDrawOutline(this, shape) && renderer.isDrawInterior(this, shape)) {
-				GLES20.glColorMask(true, true, true, true); 
-	WorldWindowGLSurfaceView.glCheckError("glColorMask");
-				GLES20.glDepthMask(false); 
-	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+				GLES20.glColorMask(true, true, true, true);
+				WorldWindowGLSurfaceView.glCheckError("glColorMask");
+				GLES20.glDepthMask(false);
+				WorldWindowGLSurfaceView.glCheckError("glDepthMask");
 
 				renderer.drawOutline(this, shape);
 			}
@@ -664,12 +802,12 @@ public class DrawContext extends WWObjectImpl {
 					// Draw depth.
 					Double depthOffsetFactor = renderer.getDepthOffsetFactor(this, shape);
 					Double depthOffsetUnits = renderer.getDepthOffsetUnits(this, shape);
-					GLES20.glColorMask(false, false, false, false); 
-	WorldWindowGLSurfaceView.glCheckError("glColorMask");
-					GLES20.glDepthMask(true); 
-	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
-					GLES20.glEnable(GLES20.GL_POLYGON_OFFSET_FILL); 
-	WorldWindowGLSurfaceView.glCheckError("glEnable");
+					GLES20.glColorMask(false, false, false, false);
+					WorldWindowGLSurfaceView.glCheckError("glColorMask");
+					GLES20.glDepthMask(true);
+					WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+					GLES20.glEnable(GLES20.GL_POLYGON_OFFSET_FILL);
+					WorldWindowGLSurfaceView.glCheckError("glEnable: GL_POLYGON_OFFSET_FILL");
 					GLES20.glPolygonOffset(depthOffsetFactor != null ? depthOffsetFactor.floatValue() : DEFAULT_DEPTH_OFFSET_FACTOR,
 							depthOffsetUnits != null ? depthOffsetUnits.floatValue() : DEFAULT_DEPTH_OFFSET_UNITS);
 					WorldWindowGLSurfaceView.glCheckError("glPolygonOffset");
@@ -677,19 +815,19 @@ public class DrawContext extends WWObjectImpl {
 					renderer.drawInterior(this, shape);
 
 					// Draw color.
-					GLES20.glColorMask(true, true, true, true); 
-	WorldWindowGLSurfaceView.glCheckError("glColorMask");
-					GLES20.glDepthMask(false); 
-	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
-					GLES20.glDisable(GLES20.GL_POLYGON_OFFSET_FILL); 
-	WorldWindowGLSurfaceView.glCheckError("glDisable");
+					GLES20.glColorMask(true, true, true, true);
+					WorldWindowGLSurfaceView.glCheckError("glColorMask");
+					GLES20.glDepthMask(false);
+					WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+					GLES20.glDisable(GLES20.GL_POLYGON_OFFSET_FILL);
+					WorldWindowGLSurfaceView.glCheckError("glDisable: GL_POLYGON_OFFSET_FILL");
 
 					renderer.drawInterior(this, shape);
 				} else {
-					GLES20.glColorMask(true, true, true, true); 
-	WorldWindowGLSurfaceView.glCheckError("glColorMask");
-					GLES20.glDepthMask(true); 
-	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+					GLES20.glColorMask(true, true, true, true);
+					WorldWindowGLSurfaceView.glCheckError("glColorMask");
+					GLES20.glDepthMask(true);
+					WorldWindowGLSurfaceView.glCheckError("glDepthMask");
 
 					renderer.drawInterior(this, shape);
 				}
@@ -698,23 +836,82 @@ public class DrawContext extends WWObjectImpl {
 			// If the outline is enabled, then draw the outline color and depth values. This blends outline colors with
 			// the interior colors.
 			if (renderer.isDrawOutline(this, shape)) {
-				GLES20.glColorMask(true, true, true, true); 
-	WorldWindowGLSurfaceView.glCheckError("glColorMask");
-				GLES20.glDepthMask(true); 
-	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+				GLES20.glColorMask(true, true, true, true);
+				WorldWindowGLSurfaceView.glCheckError("glColorMask");
+				GLES20.glDepthMask(true);
+				WorldWindowGLSurfaceView.glCheckError("glDepthMask");
 
 				renderer.drawOutline(this, shape);
 			}
 		} finally {
 			// Restore the default GL state values we modified above.
-			GLES20.glDisable(GLES20.GL_POLYGON_OFFSET_FILL); 
-	WorldWindowGLSurfaceView.glCheckError("glDisable");
-			GLES20.glColorMask(true, true, true, true); 
-	WorldWindowGLSurfaceView.glCheckError("glColorMask");
-			GLES20.glDepthMask(true); 
-	WorldWindowGLSurfaceView.glCheckError("glDepthMask");
-			GLES20.glPolygonOffset(0f, 0f); 
-	WorldWindowGLSurfaceView.glCheckError("glPolygonOffset");
+			GLES20.glDisable(GLES20.GL_POLYGON_OFFSET_FILL);
+			WorldWindowGLSurfaceView.glCheckError("glDisable");
+			GLES20.glColorMask(true, true, true, true);
+			WorldWindowGLSurfaceView.glCheckError("glColorMask");
+			GLES20.glDepthMask(true);
+			WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+			GLES20.glPolygonOffset(0f, 0f);
+			WorldWindowGLSurfaceView.glCheckError("glPolygonOffset");
+		}
+	}
+
+
+	public Map<String, PerformanceStatistic> getPerFrameStatistics()
+	{
+		return this.perFrameStatistics;
+	}
+
+
+	public void setPerFrameStatisticsKeys(Set<String> statKeys, Map<String, PerformanceStatistic> stats)
+	{
+		this.perFrameStatisticsKeys = statKeys;
+		this.perFrameStatistics = stats;
+	}
+
+	public Set<String> getPerFrameStatisticsKeys()
+	{
+		return perFrameStatisticsKeys;
+	}
+
+	public void setPerFrameStatistic(String key, String displayName, Object value)
+	{
+		if (this.perFrameStatistics == null || this.perFrameStatisticsKeys == null)
+			return;
+
+		if (key == null)
+		{
+			String message = Logging.getMessage("nullValue.KeyIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (displayName == null)
+		{
+			String message = Logging.getMessage("nullValue.DisplayNameIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (this.perFrameStatisticsKeys.contains(key) || this.perFrameStatisticsKeys.contains(PerformanceStatistic.ALL))
+			this.perFrameStatistics.put(key, new PerformanceStatistic(key, displayName, value));
+	}
+
+	public void setPerFrameStatistics(Collection<PerformanceStatistic> stats)
+	{
+		if (stats == null)
+		{
+			String message = Logging.getMessage("nullValue.ListIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (this.perFrameStatistics == null || this.perFrameStatisticsKeys == null)
+			return;
+
+		for (PerformanceStatistic stat : stats)
+		{
+			this.perFrameStatistics.put(stat.getKey(), stat);
 		}
 	}
 }

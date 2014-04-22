@@ -26,6 +26,24 @@ import java.util.Arrays;
  */
 public class Matrix
 {
+	//Matrix indices as row major notation (Row x Column)
+	public static final int M00 = 0;  // 0;
+	public static final int M01 = 1;  // 1;
+	public static final int M02 = 2;  // 2;
+	public static final int M03 = 3; // 3;
+	public static final int M10 = 4;  // 4;
+	public static final int M11 = 5;  // 5;
+	public static final int M12 = 6;  // 6;
+	public static final int M13 = 7; // 7;
+	public static final int M20 = 8;  // 8;
+	public static final int M21 = 9;  // 9;
+	public static final int M22 = 10; // 10;
+	public static final int M23 = 11; // 11;
+	public static final int M30 = 12;  // 12;
+	public static final int M31 = 13;  // 13;
+	public static final int M32 = 14; // 14;
+	public static final int M33 = 15; // 15;
+
     public final double[] m = new double[16];
 
     // This is a temporary vector used to prevent allocating a point in order to compute cartesian points from
@@ -85,16 +103,6 @@ public class Matrix
         this.m[14] = m43;
         this.m[15] = m44;
     }
-
-	/**
-	 * Get element at row x column
-	 * @param row	row
-	 * @param column	column
-	 * @return element at [row,column]
-	 */
-	public double get(int row, int column) {
-		return this.m[(row-1)*4+(column-1)];
-	}
 
     public static Matrix fromIdentity()
     {

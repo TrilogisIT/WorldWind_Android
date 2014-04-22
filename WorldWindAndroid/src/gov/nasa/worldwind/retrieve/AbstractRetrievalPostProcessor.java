@@ -7,9 +7,12 @@
 package gov.nasa.worldwind.retrieve;
 
 import android.graphics.Bitmap;
+import android.opengl.ETC1Util;
+import gov.nasa.worldwind.WorldWindow;
 import gov.nasa.worldwind.avlist.*;
 import gov.nasa.worldwind.util.*;
 import gov.nasa.worldwind.util.dds.DDSCompressor;
+import gov.nasa.worldwind.util.pkm.ETC1Compressor;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -528,6 +531,9 @@ public abstract class AbstractRetrievalPostProcessor implements RetrievalPostPro
         if (outFile.getPath().endsWith("dds"))
             return this.saveDDS();
 
+		if(outFile.getPath().endsWith("pkm"))
+			return this.savePKM();
+
         Bitmap image = this.transformPixels();
 
         if (image != null)
@@ -643,4 +649,51 @@ public abstract class AbstractRetrievalPostProcessor implements RetrievalPostPro
 
         return buffer;
     }
+
+	/**
+	 * Saves a PKM image file after first converting any other image format to PKM.
+	 *
+	 * @return the converted image data if a conversion is performed, otherwise the original image data.
+	 *
+	 * @throws IOException if an IO error occurs while converting or saving the image.
+	 */
+	protected ByteBuffer savePKM() throws IOException
+	{
+		if(WorldWindow.DEBUG)
+			Logging.verbose("Converting PKM file: " + getOutputFile().toString());
+
+		ByteBuffer buffer = this.getRetriever().getBuffer();
+		try {
+			if (!this.getRetriever().getContentType().contains("pkm")) {
+				ETC1Util.ETC1Texture etc1 = this.convertToPKM();
+				if (WorldWindow.DEBUG)
+					Logging.verbose("Conversion finished. Saving PKM file: " + getOutputFile().toString());
+
+				FileOutputStream fis = new FileOutputStream(getOutputFile());
+				ETC1Util.writeTexture(etc1, fis);
+				WWIO.closeStream(fis, getOutputFile().getName());
+			} else {
+				this.saveBuffer(buffer);
+			}
+		} catch(Exception e) {
+			Logging.error("savePKM Exception", e);
+		}
+		return buffer;
+	}
+
+	/**
+	 * Converts an image to PKM. If the image format is not originally PKM, calls {@link #transformPixels()} to perform
+	 * any defined image transform.
+	 *
+	 * @return the converted image data if a conversion is performed, otherwise the original image data.
+	 *
+	 * @throws IOException if an IO error occurs while converting the image.
+	 */
+	protected ETC1Util.ETC1Texture convertToPKM() throws IOException
+	{
+		Bitmap image = this.transformPixels();
+
+		return image!=null ? ETC1Compressor.compressImage(image)
+				: ETC1Compressor.compressImageBuffer(this.getRetriever().getBuffer());
+	}
 }
