@@ -5,14 +5,7 @@ All Rights Reserved.
 package gov.nasa.worldwind.globes;
 
 import gov.nasa.worldwind.WWObject;
-import gov.nasa.worldwind.geom.Angle;
-import gov.nasa.worldwind.geom.Intersection;
-import gov.nasa.worldwind.geom.LatLon;
-import gov.nasa.worldwind.geom.Line;
-import gov.nasa.worldwind.geom.Matrix;
-import gov.nasa.worldwind.geom.Position;
-import gov.nasa.worldwind.geom.Sector;
-import gov.nasa.worldwind.geom.Vec4;
+import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.render.DrawContext;
 import gov.nasa.worldwind.terrain.ElevationModel;
 import gov.nasa.worldwind.terrain.SectorGeometryList;
@@ -24,7 +17,7 @@ import gov.nasa.worldwind.terrain.Tessellator;
  * @author dcollins
  * @version $Id: Globe.java 827 2012-10-08 19:32:08Z tgaskins $
  */
-public interface Globe extends WWObject {
+public interface Globe extends WWObject, Extent {
 	/**
 	 * Returns a typed state key identifying this globe's current configuration. Can be used to subsequently determine
 	 * whether the globe's configuration has changed.
@@ -78,9 +71,29 @@ public interface Globe extends WWObject {
 	 */
 	SectorGeometryList tessellate(DrawContext dc);
 
-	double getRadius();
+	/**
+	 * Intersects a specified line with this globe. Only the ellipsoid itself is considered; terrain elevations are not
+	 * incorporated.
+	 *
+	 * @param line     the line to intersect.
+	 * @param altitude a distance in meters to expand the globe's equatorial and polar radii prior to performing the
+	 *                 intersection.
+	 *
+	 * @return the intersection points, or null if no intersection occurs or the <code>line</code> is null.
+	 */
+	Intersection[] intersect(Line line, double altitude);
 
-	Intersection[] intersect(Line line);
+	/**
+	 * Intersects a specified triangle with the globe. Only the ellipsoid itself is considered; terrain elevations are
+	 * not incorporated.
+	 *
+	 * @param triangle the triangle to intersect.
+	 * @param altitude a distance in meters to expand the globe's equatorial and polar radii prior to performing the
+	 *                 intersection.
+	 *
+	 * @return the intersection points, or null if no intersection occurs or <code>triangle</code> is null.
+	 */
+	Intersection[] intersect(Triangle triangle, double altitude);
 
 	boolean getIntersectionPosition(Line line, Position result);
 

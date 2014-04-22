@@ -30,18 +30,6 @@ public interface Extent
     double getRadius();
 
     /**
-     * Computes the distance between this extent and the specified point. This returns 0 if the point is inside this
-     * extent. This does not retain any reference to the specified point, or modify it in any way.
-     *
-     * @param point the point who's distance to this extent is computed.
-     *
-     * @return the distance between the point and this extent, or 0 if the point is inside this extent.
-     *
-     * @throws IllegalArgumentException if the point is <code>null</code>.
-     */
-    double distanceTo(Vec4 point);
-
-    /**
      * Computes the effective radius of the extent relative to a specified plane.
      *
      * @param plane the plane.
@@ -59,4 +47,37 @@ public interface Extent
      * @return true if there is an intersection, false otherwise.
      */
     boolean intersects(Frustum frustum);
+
+	/**
+	 * Computes the intersections of this extent with <code>line</code>. The returned array may be either null or of
+	 * zero length if no intersections are discovered. It does not contain null elements. Tangential intersections are
+	 * marked as such. <code>line</code> is considered to have infinite length in both directions.
+	 *
+	 * @param line the <code>Line</code> with which to intersect this <code>Extent</code>.
+	 *
+	 * @return an array of intersections representing all the points where <code>line</code> enters or leave this
+	 *         <code>Extent</code>.
+	 */
+	Intersection[] intersect(Line line);
+
+	/**
+	 * Determines whether or not <code>line</code> intersects this <code>Extent</code>. This method may be faster than
+	 * checking the size of the array returned by <code>intersect(Line)</code>. Implementing methods must ensure that
+	 * this method returns true if and only if <code>intersect(Line)</code> returns a non-null array containing at least
+	 * one element.
+	 *
+	 * @param line the <code>Line</code> with which to test for intersection.
+	 *
+	 * @return true if an intersection is found, false otherwise.
+	 */
+	boolean intersects(Line line);
+
+	/**
+	 * Calculate whether or not this <code>Extent</code> is intersected by <code>plane</code>.
+	 *
+	 * @param plane the <code>Plane</code> with which to test for intersection.
+	 *
+	 * @return true if <code>plane</code> is found to intersect this <code>Extent</code>.
+	 */
+	boolean intersects(Plane plane);
 }

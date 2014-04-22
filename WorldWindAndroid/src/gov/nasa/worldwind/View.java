@@ -219,5 +219,5 @@ public interface View extends WWObject {
 	 * 
 	 * @return the position of the eye corresponding to the most recent state of this view
 	 */
-	Position getEyePosition(Globe globe);
+	Position getEyePosition();
 }

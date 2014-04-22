@@ -5,29 +5,17 @@ All Rights Reserved.
 package gov.nasa.worldwind;
 
 import android.animation.Animator;
-import android.animation.AnimatorSet;
-import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
-import android.util.Property;
-import android.view.animation.AccelerateDecelerateInterpolator;
-import android.view.animation.Interpolator;
+import android.graphics.Point;
 import gov.nasa.worldwind.animation.AngleEvaluator;
 import gov.nasa.worldwind.animation.DoubleEvaluator;
 import gov.nasa.worldwind.animation.PositionEvaluator;
 import gov.nasa.worldwind.avlist.AVKey;
-import gov.nasa.worldwind.geom.Angle;
-import gov.nasa.worldwind.geom.Frustum;
-import gov.nasa.worldwind.geom.Line;
-import gov.nasa.worldwind.geom.Matrix;
-import gov.nasa.worldwind.geom.Position;
-import gov.nasa.worldwind.geom.Rect;
-import gov.nasa.worldwind.geom.Vec4;
+import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.render.DrawContext;
 import gov.nasa.worldwind.util.Logging;
-import gov.nasa.worldwind.util.PerformanceStatistic;
 import gov.nasa.worldwind.util.WWMath;
-import android.graphics.Point;
 import gov.nasa.worldwind.view.BasicOrbitViewLimits;
 import gov.nasa.worldwind.view.OrbitViewCollisionSupport;
 import gov.nasa.worldwind.view.OrbitViewLimits;
@@ -69,6 +57,8 @@ public class BasicView extends WWObjectImpl implements View {
 	protected double range;
 	protected Angle heading = new Angle();
 	protected Angle tilt = new Angle();
+	protected Vec4 lastForwardVector;
+	protected Vec4 lastUpVector;
 	protected Angle roll = new Angle();
 
 	protected DrawContext dc;
@@ -77,11 +67,12 @@ public class BasicView extends WWObjectImpl implements View {
 	protected boolean detectCollisions = true;
 	protected boolean hadCollisions;
 	protected float farDistanceMultiplier = 1f;
-
+	protected ViewPropertyLimits viewLimits = new BasicOrbitViewLimits();
 	// Temporary property used to avoid constant allocation of Line objects during repeated calls to
 	// computePositionFromScreenPoint.
 	protected Line line = new Line();
-	private ViewPropertyLimits viewLimits = new BasicOrbitViewLimits();
+	private Matrix tmpMatrix1 = Matrix.fromIdentity();
+	private Matrix tmpMatrix2 = Matrix.fromIdentity();
 
 	public BasicView() {
 		this.lookAtPosition.setDegrees(Configuration.getDoubleValue(AVKey.INITIAL_LATITUDE, 0.0), Configuration.getDoubleValue(AVKey.INITIAL_LONGITUDE, 0.0), 0.0);
@@ -249,6 +240,24 @@ public class BasicView extends WWObjectImpl implements View {
 		// noinspection SimplifiableIfStatement
 		if (!this.computeRayFromScreenPoint(point, this.line)) return false;
 
+//		if (getEyePosition().elevation < globe.getMaxElevation() * 10)
+//		{
+			// Use ray casting below some altitude
+			// Try ray intersection with current terrain geometry
+//			Intersection[] intersections = getSceneController().getTerrain().intersect(this.line);
+//			if (intersections != null && intersections.length > 0)
+//				pickPos = globe.computePositionFromPoint(intersections[0].getIntersectionPoint());
+//			else
+				// Fallback on raycasting using elevation data
+//				RayCastingSupport.intersectRayWithTerrain(globe, this.line.getOrigin(), this.line.getDirection(),
+//						200, 20, result);
+//			return true;
+//		}
+			// Use intersection with sphere at reference altitude.
+//			Intersection inters[] = globe.intersect(this.line);
+//			if (inters != null)
+//				globe.computePositionFromPoint(inters[0].getIntersectionPoint(), result);
+
 		return globe.getIntersectionPosition(this.line, result);
 	}
 
@@ -335,8 +344,7 @@ public class BasicView extends WWObjectImpl implements View {
 	}
 
 	/** {@inheritDoc} */
-	public Position getEyePosition(Globe globe) {
-		// TODO: Remove the globe parameter from this method.
+	public Position getEyePosition() {
 		return this.eyePosition;
 	}
 
@@ -577,6 +585,42 @@ public class BasicView extends WWObjectImpl implements View {
 		return Position.ZERO;
 	}
 
+	public Vec4 getUpVector()
+	{
+		if (this.lastUpVector == null)
+			this.lastUpVector = Vec4.UNIT_Y.transformBy4(this.modelviewInv);
+		return this.lastUpVector;
+	}
+
+	public Vec4 getForwardVector()
+	{
+		if (this.lastForwardVector == null)
+			this.lastForwardVector = Vec4.UNIT_NEGATIVE_Z.transformBy4(this.modelviewInv);
+		return this.lastForwardVector;
+	}
+
+	/**
+	 * Returns the most up-to-date forward vector. Unlike {@link #getForwardVector()}, this method will return the
+	 * View's immediate forward vector.
+	 *
+	 * @return Vec4 of the forward axis.
+	 */
+	public Vec4 getCurrentForwardVector()
+	{
+		if (this.globe != null)
+		{
+			calculateOrbitModelview(this.dc, this.lookAtPosition,
+					this.heading, this.tilt, this.roll, this.range, tmpMatrix1);
+			if (tmpMatrix1 != null)
+			{
+				tmpMatrix1.invert();
+				return Vec4.UNIT_NEGATIVE_Z.transformBy4(tmpMatrix1);
+			}
+		}
+
+		return null;
+	}
+
 	public static void calculateOrbitModelview(DrawContext dc, Position lookAtPosition, Angle heading, Angle tilt, Angle roll, double range, Matrix matrix) {
 		matrix.setLookAt(dc.getVisibleTerrain(),
 				lookAtPosition.latitude, lookAtPosition.longitude, lookAtPosition.elevation,
@@ -603,12 +647,6 @@ public class BasicView extends WWObjectImpl implements View {
 		{
 			double height = OrbitViewCollisionSupport.computeViewHeightAboveSurface(dc, modelviewInv, fieldOfView, viewport, nearClipDistance);
 			far = WWMath.computeHorizonDistance(dc.getGlobe(), height);
-			if(WorldWindow.DEBUG) {
-				Logging.verbose(String.format("Sea level horizon: %.2f",
-						WWMath.computeHorizonDistance(dc.getGlobe(), eyePosition.elevation)));
-				Logging.verbose(String.format("Surface horizon: %.2f",
-						far));
-			}
 			far *= farDistanceMultiplier;
 		}
 

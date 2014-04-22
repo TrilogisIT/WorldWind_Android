@@ -248,7 +248,7 @@ public class Line
         return this.direction;
     }
 
-    public void getPointAt(double t, Vec4 result)
+    public Vec4 getPointAt(double t, Vec4 result)
     {
         if (result == null)
         {
@@ -258,6 +258,7 @@ public class Line
         }
 
         result.setPointOnLine3(this.origin, t, this.direction);
+		return result;
     }
 
     public double selfDot()

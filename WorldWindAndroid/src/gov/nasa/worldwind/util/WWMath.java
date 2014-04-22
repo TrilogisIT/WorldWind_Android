@@ -5,6 +5,7 @@
  */
 package gov.nasa.worldwind.util;
 
+import gov.nasa.worldwind.View;
 import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.globes.Globe;
@@ -26,6 +27,12 @@ public class WWMath
     protected static final double MINUTE_TO_MILLIS = 60.0 * SECOND_TO_MILLIS;
     /** The ratio of milliseconds per hour. Used to convert time in hours to time in milliseconds. */
     protected static final double HOUR_TO_MILLIS = 60.0 * MINUTE_TO_MILLIS;
+
+	public static final double METERS_TO_KILOMETERS = 1e-3;
+	public static final double METERS_TO_MILES = 0.000621371192;
+	public static final double METERS_TO_NAUTICAL_MILES = 0.000539956803;
+	public static final double METERS_TO_YARDS = 1.0936133;
+	public static final double METERS_TO_FEET = 3.280839895;
 
     // Temporary properties used to avoid constant reallocation of primitive types.
     protected static Vec4 point1 = new Vec4();
@@ -68,6 +75,42 @@ public class WWMath
     {
         return hours * HOUR_TO_MILLIS;
     }
+
+    /**
+	 * converts meters to feet.
+	 *
+	 * @param meters the value in meters.
+	 *
+	 * @return the value converted to feet.
+	 */
+	public static double convertMetersToFeet(double meters)
+	{
+		return (meters * METERS_TO_FEET);
+	}
+
+	/**
+	 * converts meters to miles.
+	 *
+	 * @param meters the value in meters.
+	 *
+	 * @return the value converted to miles.
+	 */
+	public static double convertMetersToMiles(double meters)
+	{
+		return (meters * METERS_TO_MILES);
+	}
+
+	/**
+	 * Converts distance in feet to distance in meters.
+	 *
+	 * @param feet the distance in feet.
+	 *
+	 * @return the distance converted to meters.
+	 */
+	public static double convertFeetToMeters(double feet)
+	{
+		return (feet / METERS_TO_FEET);
+	}
 
     /**
      * Computes the distance to the horizon from a viewer at the specified elevation. Only the globe's ellipsoid is
@@ -333,6 +376,218 @@ public class WWMath
     }
 
     /**
+	 * Computes the area in square pixels of a sphere after it is projected into the specified <code>view's</code>
+	 * viewport. The returned value is the screen area that the sphere covers in the infinite plane defined by the
+	 * <code>view's</code> viewport. This area is not limited to the size of the <code>view's</code> viewport, and
+	 * portions of the sphere are not clipped by the <code>view's</code> frustum.
+	 * <p/>
+	 * This returns zero if the specified <code>radius</code> is zero.
+	 *
+	 * @param view   the <code>View</code> for which to compute a projected screen area.
+	 * @param center the sphere's center point, in model coordinates.
+	 * @param radius the sphere's radius, in meters.
+	 *
+	 * @return the projected screen area of the sphere in square pixels.
+	 *
+	 * @throws IllegalArgumentException if the <code>view</code> is <code>null</code>, if <code>center</code> is
+	 *                                  <code>null</code>, or if <code>radius</code> is less than zero.
+	 */
+	public static double computeSphereProjectedArea(View view, Vec4 center, double radius)
+	{
+		if (view == null)
+		{
+			String message = Logging.getMessage("nullValue.ViewIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (center == null)
+		{
+			String message = Logging.getMessage("nullValue.CenterIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (radius < 0)
+		{
+			String message = Logging.getMessage("Geom.RadiusIsNegative", radius);
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (radius == 0)
+			return 0;
+
+		// Compute the sphere's area by scaling its radius based on the sphere's depth in eye coordinates. This provides
+		// a good approximation of the sphere's projected area, but does not provide an exact value: the perspective
+		// projection of a sphere is an ellipse.
+
+		// Compute the sphere's depth in eye coordinates by transforming the center point into eye coordinates and using
+		// its absolute z-value as the depth value. Then compute the radius in pixels by dividing the radius in meters
+		// by the number of meters per pixel at the sphere's depth.
+		double depth = Math.abs(center.transformBy4(view.getModelviewMatrix()).z);
+		double radiusInPixels = radius / view.computePixelSizeAtDistance(depth);
+
+		return Math.PI * radiusInPixels * radiusInPixels;
+	}
+
+	/**
+	 * Computes a unit-length normal vector for a buffer of coordinate triples. The normal vector is computed from the
+	 * first three non-colinear points in the buffer.
+	 *
+	 * @param coords the coordinates. This method returns null if this argument is null.
+	 * @param stride the number of floats between successive points. 0 indicates that the points are arranged one
+	 *               immediately after the other.
+	 *
+	 * @return the computed unit-length normal vector, or null if a normal vector could not be computed.
+	 */
+	public static Vec4 computeBufferNormal(FloatBuffer coords, int stride)
+	{
+		Vec4[] verts = WWMath.findThreeIndependentVertices(coords, stride);
+		return verts != null ? WWMath.computeTriangleNormal(verts[0], verts[1], verts[2]) : null;
+	}
+
+	/**
+	 * Computes a unit-length normal vector for an array of coordinates. The normal vector is computed from the first
+	 * three non-colinear points in the array.
+	 *
+	 * @param coords the coordinates. This method returns null if this argument is null.
+	 *
+	 * @return the computed unit-length normal vector, or null if a normal vector could not be computed.
+	 */
+	public static Vec4 computeArrayNormal(Vec4[] coords)
+	{
+		Vec4[] verts = WWMath.findThreeIndependentVertices(coords);
+		return verts != null ? WWMath.computeTriangleNormal(verts[0], verts[1], verts[2]) : null;
+	}
+
+	/**
+	 * Finds three non-colinear points in a buffer.
+	 *
+	 * @param coords the coordinates. This method returns null if this argument is null.
+	 * @param stride the number of floats between successive points. 0 indicates that the points are arranged one
+	 *               immediately after the other.
+	 *
+	 * @return an array of three points, or null if three non-colinear points could not be found.
+	 */
+	public static Vec4[] findThreeIndependentVertices(FloatBuffer coords, int stride)
+	{
+		int xstride = stride > 0 ? stride : 3;
+
+		if (coords == null || coords.limit() < 3 * xstride)
+			return null;
+
+		Vec4 a = new Vec4(coords.get(0), coords.get(1), coords.get(2));
+		Vec4 b = null;
+		Vec4 c = null;
+
+		int k = xstride;
+		for (; k < coords.limit(); k += xstride)
+		{
+			b = new Vec4(coords.get(k), coords.get(k + 1), coords.get(k + 2));
+			if (!(b.x == a.x && b.y == a.y && b.z == a.z))
+				break;
+			b = null;
+		}
+
+		if (b == null)
+			return null;
+
+		for (k += xstride; k < coords.limit(); k += xstride)
+		{
+			c = new Vec4(coords.get(k), coords.get(k + 1), coords.get(k + 2));
+
+			// if c is not coincident with a or b, and the vectors ab and bc are not colinear, break and return a, b, c
+			if (!((c.x == a.x && c.y == a.y && c.z == a.z) || (c.x == b.x && c.y == b.y && c.z == b.z)))
+			{
+				if (!Vec4.areColinear(a, b, c))
+					break;
+			}
+
+			c = null; // reset c to signal failure to return statement below
+		}
+
+		return c != null ? new Vec4[] {a, b, c} : null;
+	}
+
+	/**
+	 * Finds three non-colinear points in an array of points.
+	 *
+	 * @param coords the coordinates. This method returns null if this argument is null.
+	 *
+	 * @return an array of three points, or null if three non-colinear points could not be found.
+	 */
+	public static Vec4[] findThreeIndependentVertices(Vec4[] coords)
+	{
+		if (coords == null || coords.length < 3)
+			return null;
+
+		Vec4 a = coords[0];
+		Vec4 b = null;
+		Vec4 c = null;
+
+		int k = 1;
+		for (; k < coords.length; k++)
+		{
+			b = coords[k];
+			if (!(b.x == a.x && b.y == a.y && b.z == a.z))
+				break;
+			b = null;
+		}
+
+		if (b == null)
+			return null;
+
+		for (; k < coords.length; k++)
+		{
+			c = coords[k];
+
+			// if c is not coincident with a or b, and the vectors ab and bc are not colinear, break and return a, b, c
+			if (!((c.x == a.x && c.y == a.y && c.z == a.z) || (c.x == b.x && c.y == b.y && c.z == b.z)))
+			{
+				if (!Vec4.areColinear(a, b, c))
+					break;
+			}
+
+			c = null; // reset c to signal failure to return statement below
+		}
+
+		return c != null ? new Vec4[] {a, b, c} : null;
+	}
+
+	/**
+	 * Returns the normal vector corresponding to the triangle defined by three vertices (a, b, c).
+	 *
+	 * @param a the triangle's first vertex.
+	 * @param b the triangle's second vertex.
+	 * @param c the triangle's third vertex.
+	 *
+	 * @return the triangle's unit-length normal vector.
+	 *
+	 * @throws IllegalArgumentException if any of the specified vertices are null.
+	 */
+	public static Vec4 computeTriangleNormal(Vec4 a, Vec4 b, Vec4 c)
+	{
+		if (a == null || b == null || c == null)
+		{
+			String message = Logging.getMessage("nullValue.Vec4IsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		double x = ((b.y - a.y) * (c.z - a.z)) - ((b.z - a.z) * (c.y - a.y));
+		double y = ((b.z - a.z) * (c.x - a.x)) - ((b.x - a.x) * (c.z - a.z));
+		double z = ((b.x - a.x) * (c.y - a.y)) - ((b.y - a.y) * (c.x - a.x));
+
+		double length = (x * x) + (y * y) + (z * z);
+		if (length == 0d)
+			return new Vec4(x, y, z);
+
+		length = Math.sqrt(length);
+		return new Vec4(x / length, y / length, z / length);
+	}
+
+    /**
      * Transforms the model coordinate point (x, y, z) to screen coordinates using the specified transform parameters.
      * This does not retain any reference to the specified parameters or modify them in any way.
      * <p/>
@@ -553,5 +808,96 @@ public class WWMath
     {
         int power = (int) Math.ceil(Math.log(reference) / Math.log(2d));
         return (int) Math.pow(2d, power);
+    }
+
+	/**
+	 * Intersect a line with a convex polytope and return the intersection points.
+	 * <p/>
+	 * See "3-D Computer Graphics" by Samuel R. Buss, 2005, Section X.1.4.
+	 *
+	 * @param line   the line to intersect with the polytope.
+	 * @param planes the planes defining the polytope. Each plane's normal must point away from the the polytope, i.e.
+	 *               each plane's positive halfspace is outside the polytope. (Note: This is the opposite convention
+	 *               from that of a view frustum.)
+	 *
+	 * @return the points of intersection, or null if the line does not intersect the polytope. Two points are returned
+	 *         if the line both enters and exits the polytope. One point is retured if the line origin is within the
+	 *         polytope.
+	 *
+	 * @throws IllegalArgumentException if the line is null or ill-formed, the planes array is null or there are fewer
+	 *                                  than three planes.
+	 */
+	public static Intersection[] polytopeIntersect(Line line, Plane[] planes)
+	{
+		if (line == null)
+		{
+			String message = Logging.getMessage("nullValue.LineIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		// Algorithm from "3-D Computer Graphics" by Samuel R. Buss, 2005, Section X.1.4.
+
+		// Determine intersection with each plane and categorize the intersections as "front" if the line intersects
+		// the front side of the plane (dot product of line direction with plane normal is negative) and "back" if the
+		// line intersects the back side of the plane (dot product of line direction with plane normal is positive).
+
+		double fMax = -Double.MAX_VALUE;
+		double bMin = Double.MAX_VALUE;
+		boolean isTangent = false;
+
+		Vec4 u = line.getDirection();
+		Vec4 p = line.getOrigin();
+
+		for (Plane plane : planes)
+		{
+			Vec4 n = plane.getNormal();
+			double d = -plane.getDistance();
+
+			double s = u.dot3(n);
+			if (s == 0) // line is parallel to plane
+			{
+				double pdn = p.dot3(n);
+				if (pdn > d) // is line in positive halfspace (in front of) of the plane?
+					return null; // no intersection
+				else
+				{
+					if (pdn == d)
+						isTangent = true; // line coincident with plane
+					continue; // line is in negative halfspace; possible intersection; check other planes
+				}
+			}
+
+			// Determine whether front or back intersection.
+			double a = (d - p.dot3(n)) / s;
+			if (u.dot3(n) < 0) // line intersects front face and therefore entering polytope
+			{
+				if (a > fMax)
+				{
+					if (a > bMin)
+						return null;
+					fMax = a;
+				}
+			}
+			else // line intersects back face and therefore leaving polytope
+			{
+				if (a < bMin)
+				{
+					if (a < 0 || a < fMax)
+						return null;
+					bMin = a;
+				}
+			}
+		}
+
+		// Compute the Cartesian intersection points. There will be no more than two.
+		if (fMax >= 0) // intersects frontface and backface; point origin is outside the polytope
+			return new Intersection[]
+					{
+							new Intersection(p.add3(u.multiply3(fMax)), isTangent),
+							new Intersection(p.add3(u.multiply3(bMin)), isTangent)
+					};
+		else // intersects backface only; point origin is within the polytope
+			return new Intersection[] {new Intersection(p.add3(u.multiply3(bMin)), isTangent)};
     }
 }

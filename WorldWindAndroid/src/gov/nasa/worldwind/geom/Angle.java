@@ -5,14 +5,20 @@
  */
 package gov.nasa.worldwind.geom;
 
+import android.os.Parcel;
+import android.os.Parcelable;
 import gov.nasa.worldwind.util.Logging;
 
 /**
  * @author dcollins
  * @version $Id: Angle.java 733 2012-09-02 17:15:09Z dcollins $
  */
-public class Angle implements Comparable<Angle>
+public class Angle implements Comparable<Angle>, Parcelable
 {
+	// Angle format
+	public final static String ANGLE_FORMAT_DD = "gov.nasa.worldwind.Geom.AngleDD";
+	public final static String ANGLE_FORMAT_DMS = "gov.nasa.worldwind.Geom.AngleDMS";
+
 	/** Represents an angle of zero degrees */
 	public final static Angle ZERO = Angle.fromDegrees(0);
 
@@ -486,6 +492,37 @@ public class Angle implements Comparable<Angle>
         return Double.SIZE / 8;
     }
 
+	/**
+	 * Obtains a {@link String} representation of this {@link Angle} formated as degrees, minutes and seconds
+	 * integer values.
+	 *
+	 * @return the value of this angle in degrees, minutes, seconds as a string.
+	 */
+	public final String toDMSString()
+	{
+		double temp = this.degrees;
+		int sign = (int) Math.signum(temp);
+		temp *= sign;
+		int d = (int) Math.floor(temp);
+		temp = (temp - d) * 60d;
+		int m = (int) Math.floor(temp);
+		temp = (temp - m) * 60d;
+		int s = (int) Math.round(temp);
+
+		if (s == 60)
+		{
+			m++;
+			s = 0;
+		} // Fix rounding errors
+		if (m == 60)
+		{
+			d++;
+			m = 0;
+		}
+
+		return (sign == -1 ? "-" : "") + d + '\u00B0' + ' ' + m + '\u2019' + ' ' + s + '\u201d';
+    }
+
     /**
      * Obtains a <code>String</code> representation of this angle.
      *
@@ -565,4 +602,26 @@ public class Angle implements Comparable<Angle>
 
 		return angle;
 	}
+
+	@Override
+	public int describeContents() {
+		return 0;
+	}
+
+	@Override
+	public void writeToParcel(Parcel dest, int flags) {
+		dest.writeDouble(this.degrees);
+	}
+
+	public static final Creator<Angle> CREATOR = new Creator<Angle>() {
+		@Override
+		public Angle createFromParcel(Parcel in) {
+			return Angle.fromDegrees(in.readDouble());
+		}
+
+		@Override
+		public Angle[] newArray(int size) {
+			return new Angle[size];
+		}
+	};
 }

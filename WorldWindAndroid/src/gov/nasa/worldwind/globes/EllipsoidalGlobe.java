@@ -4,18 +4,13 @@ All Rights Reserved.
  */
 package gov.nasa.worldwind.globes;
 
-import gov.nasa.worldwind.geom.Angle;
-import gov.nasa.worldwind.geom.Intersection;
-import gov.nasa.worldwind.geom.LatLon;
-import gov.nasa.worldwind.geom.Line;
-import gov.nasa.worldwind.geom.Matrix;
-import gov.nasa.worldwind.geom.Position;
-import gov.nasa.worldwind.geom.Sector;
-import gov.nasa.worldwind.geom.Vec4;
+import gov.nasa.worldwind.View;
+import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.render.DrawContext;
 import gov.nasa.worldwind.terrain.ElevationModel;
 import gov.nasa.worldwind.terrain.Tessellator;
 import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.WWMath;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -110,15 +105,64 @@ public class EllipsoidalGlobe extends AbstractGlobe {
 		return this.equatorialRadius;
 	}
 
+	public Vec4 getCenter()
+	{
+		return this.center;
+	}
+
+	public double getEffectiveRadius(Plane plane)
+	{
+		return this.getRadius();
+	}
+
+	public boolean intersects(Frustum frustum)
+	{
+		if (frustum == null)
+		{
+			String message = Logging.getMessage("nullValue.FrustumIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+// See if the extent's bounding sphere is within or intersects the frustum. The dot product of the extent's
+		// center point with each plane's vector provides a distance to each plane. If this distance is less than
+		// -radius, the extent is completely clipped by that plane and therefore does not intersect the space enclosed
+		// by this Frustum.
+
+		Vec4 c = this.getCenter();
+		double nr = -this.getRadius();
+
+		if (frustum.getFar().dot(c) <= nr)
+			return false;
+		if (frustum.getLeft().dot(c) <= nr)
+			return false;
+		if (frustum.getRight().dot(c) <= nr)
+			return false;
+		if (frustum.getTop().dot(c) <= nr)
+			return false;
+		if (frustum.getBottom().dot(c) <= nr)
+			return false;
+		//noinspection RedundantIfStatement
+		if (frustum.getNear().dot(c) <= nr)
+			return false;
+
+		return true;
+	}
+
 	/** {@inheritDoc} */
 	public Intersection[] intersect(Line line) {
+		return this.intersect(line, 0);
+	}
+
+	/** {@inheritDoc} */
+	public Intersection[] intersect(Line line, double altitude)
+	{
 		if (line == null) {
 			String msg = Logging.getMessage("nullValue.LineIsNull");
 			Logging.error(msg);
 			throw new IllegalArgumentException(msg);
 		}
 
-		return this.intersect(line, this.equatorialRadius, this.polarRadius);
+		return this.intersect(line, this.equatorialRadius + altitude, this.polarRadius + altitude);
 	}
 
 	/** {@inheritDoc} */
@@ -187,6 +231,74 @@ public class EllipsoidalGlobe extends AbstractGlobe {
 
 	protected static double discriminant(double a, double b, double c) {
 		return b * b - 4 * a * c;
+	}
+
+	public Intersection[] intersect(Triangle t, double elevation)
+	{
+		if (t == null)
+			return null;
+
+		boolean bA = isPointAboveElevation(t.getA(), elevation);
+		boolean bB = isPointAboveElevation(t.getB(), elevation);
+		boolean bC = isPointAboveElevation(t.getC(), elevation);
+
+		if (!(bA ^ bB) && !(bB ^ bC))
+			return null; // all triangle points are either above or below the given elevation
+
+		Intersection[] inter = new Intersection[2];
+		int idx = 0;
+
+		// Assumes that intersect(Line) returns only one intersection when the line
+		// originates inside the ellipsoid at the given elevation.
+		if (bA ^ bB)
+			if (bA)
+				inter[idx++] = intersect(new Line(t.getB(), t.getA().subtract3(t.getB())), elevation)[0];
+			else
+				inter[idx++] = intersect(new Line(t.getA(), t.getB().subtract3(t.getA())), elevation)[0];
+
+		if (bB ^ bC)
+			if (bB)
+				inter[idx++] = intersect(new Line(t.getC(), t.getB().subtract3(t.getC())), elevation)[0];
+			else
+				inter[idx++] = intersect(new Line(t.getB(), t.getC().subtract3(t.getB())), elevation)[0];
+
+		if (bC ^ bA)
+			if (bC)
+				inter[idx] = intersect(new Line(t.getA(), t.getC().subtract3(t.getA())), elevation)[0];
+			else
+				inter[idx] = intersect(new Line(t.getC(), t.getA().subtract3(t.getC())), elevation)[0];
+
+		return inter;
+	}
+
+	public boolean intersects(Line line)
+	{
+		if (line == null)
+			return false;
+
+		return line.distanceTo(this.center) <= this.equatorialRadius;
+	}
+
+	public boolean intersects(Plane plane)
+	{
+		if (plane == null)
+			return false;
+
+		double dq1 = plane.dot(this.center);
+		return dq1 <= this.equatorialRadius;
+	}
+
+	/** {@inheritDoc} */
+	public double getProjectedArea(View view)
+	{
+		if (view == null)
+		{
+			String message = Logging.getMessage("nullValue.ViewIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		return WWMath.computeSphereProjectedArea(view, this.getCenter(), this.getRadius());
 	}
 
 	/** {@inheritDoc} */
@@ -832,5 +944,24 @@ public class EllipsoidalGlobe extends AbstractGlobe {
 		transform = transform.multiply(Matrix.fromTranslation(point));
 
 		return transform;
+	}
+
+	/**
+	 * Determines whether a point is above a given elevation
+	 *
+	 * @param point     the <code>Vec4</code> point to test.
+	 * @param elevation the elevation to test for.
+	 *
+	 * @return true if the given point is above the given elevation.
+	 */
+	public boolean isPointAboveElevation(Vec4 point, double elevation)
+	{
+		if (point == null)
+			return false;
+
+		return (point.x * point.x) / ((this.equatorialRadius + elevation) * (this.equatorialRadius + elevation))
+				+ (point.y * point.y) / ((this.polarRadius + elevation) * (this.polarRadius + elevation))
+				+ (point.z * point.z) / ((this.equatorialRadius + elevation) * (this.equatorialRadius + elevation))
+				- 1 > 0;
 	}
 }

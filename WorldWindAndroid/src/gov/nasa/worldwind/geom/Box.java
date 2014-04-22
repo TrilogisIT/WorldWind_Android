@@ -524,6 +524,41 @@ public class Box implements Extent, Renderable
         return 0.5 * (Math.abs(this.s.dot3(n)) + Math.abs(this.t.dot3(n)));
     }
 
+
+
+	/** {@inheritDoc} */
+	public boolean intersects(Plane plane)
+	{
+		if (plane == null)
+		{
+			String message = Logging.getMessage("nullValue.PlaneIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		double effectiveRadius = this.getEffectiveRadius(plane);
+		return this.intersects(plane, effectiveRadius) >= 0;
+	}
+
+	protected double intersects(Plane plane, double effectiveRadius)
+	{
+		// Test the distance from the first end-point.
+		double dq1 = plane.dot(this.bottomCenter);
+		boolean bq1 = dq1 <= -effectiveRadius;
+
+		// Test the distance from the top of the box.
+		double dq2 = plane.dot(this.topCenter);
+		boolean bq2 = dq2 <= -effectiveRadius;
+
+		if (bq1 && bq2) // both beyond effective radius; box is on negative side of plane
+			return -1;
+
+		if (bq1 == bq2) // both within effective radius; can't draw any conclusions
+			return 0;
+
+		return 1; // box almost certainly intersects
+	}
+
     /** {@inheritDoc} */
     public boolean intersects(Frustum frustum)
     {
@@ -601,6 +636,24 @@ public class Box implements Extent, Renderable
 
         return t;
     }
+
+	/** {@inheritDoc} */
+	public Intersection[] intersect(Line line)
+	{
+		if (line == null)
+		{
+			String message = Logging.getMessage("nullValue.LineIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+		return WWMath.polytopeIntersect(line, this.planes);
+	}
+
+	/** {@inheritDoc} */
+	public boolean intersects(Line line)
+	{
+		return intersect(line) != null;
+	}
 
     @Override
     public boolean equals(Object o)

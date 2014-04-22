@@ -245,7 +245,7 @@ public class SkyGradientLayer extends AbstractLayer {
 		if (viewportWidth <= 0) viewportWidth = 1;
 		if (viewportHeight <= 0) viewportHeight = 1;
 
-		double horizonDist = WWMath.computeHorizonDistance(dc.getGlobe(), view.getEyePosition(dc.getGlobe()).elevation);
+		double horizonDist = WWMath.computeHorizonDistance(dc.getGlobe(), view.getEyePosition().elevation);
 		Matrix projection = Matrix.fromPerspective(view.getFieldOfView(), viewportWidth, viewportHeight, 100, horizonDist + 10e3);
 		return projection;
 	}
@@ -254,7 +254,7 @@ public class SkyGradientLayer extends AbstractLayer {
 		View view = dc.getView();
 		ArrayList<float[]> retval = null;
 
-		double tangentialDistance = WWMath.computeHorizonDistance(dc.getGlobe(), view.getEyePosition(dc.getGlobe()).elevation);
+		double tangentialDistance = WWMath.computeHorizonDistance(dc.getGlobe(), view.getEyePosition().elevation);
 		double distToCenterOfPlanet = view.getEyePoint().getLength3();
 		Position camPos = dc.getGlobe().computePositionFromPoint(view.getEyePoint());
 		double worldRadius = dc.getGlobe().computePointFromPosition(camPos, 0).getLength3();

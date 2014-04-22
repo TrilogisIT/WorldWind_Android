@@ -4,6 +4,8 @@ All Rights Reserved.
  */
 package gov.nasa.worldwind.geom;
 
+import android.os.Parcel;
+import android.os.Parcelable;
 import gov.nasa.worldwind.util.Logging;
 
 /**
@@ -12,7 +14,7 @@ import gov.nasa.worldwind.util.Logging;
  * @author dcollins
  * @version $Id: LatLon.java 812 2012-09-26 22:03:40Z dcollins $
  */
-public class LatLon {
+public class LatLon implements Parcelable {
 	public final Angle latitude;
 	public final Angle longitude;
 
@@ -65,6 +67,36 @@ public class LatLon {
 
 	public static LatLon fromRadians(double latitude, double longitude) {
 		return new LatLon(Angle.fromRadians(latitude), Angle.fromRadians(longitude));
+	}
+
+	public LatLon add(LatLon that)
+	{
+		if (that == null)
+		{
+			String msg = Logging.getMessage("nullValue.AngleIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		Angle lat = Angle.normalizedLatitude(this.latitude.add(that.latitude));
+		Angle lon = Angle.normalizedLongitude(this.longitude.add(that.longitude));
+
+		return new LatLon(lat, lon);
+	}
+
+	public LatLon subtract(LatLon that)
+	{
+		if (that == null)
+		{
+			String msg = Logging.getMessage("nullValue.AngleIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		Angle lat = Angle.normalizedLatitude(this.latitude.subtract(that.latitude));
+		Angle lon = Angle.normalizedLongitude(this.longitude.subtract(that.longitude));
+
+		return new LatLon(lat, lon);
 	}
 
 	/**
@@ -537,5 +569,30 @@ public class LatLon {
 		sb.append(this.longitude.toString());
 		sb.append(")");
 		return sb.toString();
+	}
+
+	private static final ClassLoader LOADER = LatLon.class.getClassLoader();
+
+	public static final Creator<LatLon> CREATOR = new Creator<LatLon>() {
+		@Override
+		public LatLon createFromParcel(Parcel in) {
+			return new LatLon(in.<Angle>readParcelable(LOADER), in.<Angle>readParcelable(LOADER));
+		}
+
+		@Override
+		public LatLon[] newArray(int size) {
+			return new LatLon[size];
+		}
+	};
+
+	@Override
+	public int describeContents() {
+		return 0;
+	}
+
+	@Override
+	public void writeToParcel(Parcel dest, int flags) {
+		dest.writeParcelable(this.latitude, flags);
+		dest.writeParcelable(this.longitude, flags);
 	}
 }

@@ -69,6 +69,76 @@ public class Vec4
         return x * x + y * y + z * z;
     }
 
+	// ============== Mixing Functions ======================= //
+	// ============== Mixing Functions ======================= //
+	// ============== Mixing Functions ======================= //
+
+	public static Vec4 min3(Vec4 value1, Vec4 value2)
+	{
+		if ((value1 == null) || (value2 == null))
+		{
+			String msg = Logging.getMessage("nullValue.Vec4IsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		return new Vec4(
+				(value1.x < value2.x) ? value1.x : value2.x,
+				(value1.y < value2.y) ? value1.y : value2.y,
+				(value1.z < value2.z) ? value1.z : value2.z);
+	}
+
+	public static Vec4 max3(Vec4 value1, Vec4 value2)
+	{
+		if ((value1 == null) || (value2 == null))
+		{
+			String msg = Logging.getMessage("nullValue.Vec4IsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		return new Vec4(
+				(value1.x > value2.x) ? value1.x : value2.x,
+				(value1.y > value2.y) ? value1.y : value2.y,
+				(value1.z > value2.z) ? value1.z : value2.z);
+	}
+
+	public static Vec4 clamp3(Vec4 vec4, double min, double max)
+	{
+		if (vec4 == null)
+		{
+			String msg = Logging.getMessage("nullValue.Vec4IsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		return new Vec4(
+				(vec4.x < min) ? min : ((vec4.x > max) ? max : vec4.x),
+				(vec4.y < min) ? min : ((vec4.y > max) ? max : vec4.y),
+				(vec4.z < min) ? min : ((vec4.z > max) ? max : vec4.z));
+	}
+	
+	public static Vec4 mix3(double amount, Vec4 value1, Vec4 value2)
+	{
+		if ((value1 == null) || (value2 == null))
+		{
+			String msg = Logging.getMessage("nullValue.Vec4IsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		if (amount < 0.0)
+			return value1;
+		else if (amount > 1.0)
+			return value2;
+
+		double t1 = 1.0 - amount;
+		return new Vec4(
+				(value1.x * t1) + (value2.x * amount),
+				(value1.y * t1) + (value2.y * amount),
+				(value1.z * t1) + (value2.z * amount));
+	}
+
     public Vec4 copy()
     {
         return new Vec4(this.x, this.y, this.z, this.w);
@@ -1009,5 +1079,31 @@ public class Vec4
         array[offset] = (float) this.x;
         array[offset + 1] = (float) this.y;
         array[offset + 2] = (float) this.z;
+    }
+
+	/**
+	 * Indicates whether three vectors are colinear.
+	 *
+	 * @param a the first vector.
+	 * @param b the second vector.
+	 * @param c the third vector.
+	 *
+	 * @return true if the vectors are colinear, otherwise false.
+	 *
+	 * @throws IllegalArgumentException if any argument is null.
+	 */
+	public static boolean areColinear(Vec4 a, Vec4 b, Vec4 c)
+	{
+		if (a == null || b == null || c == null)
+		{
+			String msg = Logging.getMessage("nullValue.Vec4IsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		Vec4 ab = b.subtract3(a).normalize3();
+		Vec4 bc = c.subtract3(b).normalize3();
+
+		return Math.abs(ab.dot3(bc)) > 0.999; // ab and bc are considered colinear if their dot product is near +/-1
     }
 }
