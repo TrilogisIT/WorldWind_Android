@@ -17,9 +17,14 @@ import gov.nasa.worldwind.exception.WWRuntimeException;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.pick.*;
 import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.pkm.PKMGpuTextureData;
 
+import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.egl.EGLContext;
+import javax.microedition.khronos.egl.EGLDisplay;
 import javax.microedition.khronos.opengles.GL10;
+
 import java.beans.*;
 import java.util.*;
 
@@ -27,8 +32,11 @@ import java.util.*;
  * @author dcollins
  * @version $Id: WorldWindowGLSurfaceView.java 831 2012-10-08 20:51:39Z tgaskins $
  */
-public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurfaceView.Renderer, WorldWindow, WWObject
+public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurfaceView.EGLContextFactory, GLSurfaceView.Renderer, WorldWindow, WWObject
 {
+	protected static final int EGL_CONTEXT_CLIENT_VERSION = 0x3098;
+	protected static double glVersion = 3.0;
+	
     protected WWObjectImpl wwo = new WWObjectImpl(this);
     protected SceneController sceneController;
     protected InputHandler inputHandler;
@@ -42,7 +50,9 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
     public WorldWindowGLSurfaceView(Context context)
     {
         super(context);
-
+        
+        this.setEGLContextFactory(this);
+        
         try
         {
             this.init(null);
@@ -58,6 +68,8 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
     public WorldWindowGLSurfaceView(Context context, AttributeSet attrs)
     {
         super(context, attrs);
+        
+        this.setEGLContextFactory(this);
 
         try
         {
@@ -75,6 +87,8 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
     {
         super(context);
 
+        this.setEGLContextFactory(this);
+        
         try
         {
             this.init(configChooser);
@@ -162,6 +176,8 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
         // recognize.
         if (this.gpuResourceCache != null)
             this.gpuResourceCache.clear();
+
+        PKMGpuTextureData.initTCSupport();
     }
 
     @Override
@@ -503,4 +519,34 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
     {
         // Empty implementation
     }
+    
+
+
+	@Override
+    public EGLContext createContext(
+            EGL10 egl, EGLDisplay display, EGLConfig eglConfig) {
+		Logging.warning("creating OpenGL ES " + glVersion + " context");
+        int[] attrib_list = {EGL_CONTEXT_CLIENT_VERSION, (int) glVersion,
+                EGL10.EGL_NONE };
+        // attempt to create a OpenGL ES 3.0 context
+        EGLContext context = egl.eglCreateContext(
+                display, eglConfig, EGL10.EGL_NO_CONTEXT, attrib_list);
+        if(context == null) {
+        	Logging.warning("OpenGL ES " + glVersion + " context not supported");
+        	glVersion = 2.0;
+        	Logging.warning("creating OpenGL ES " + glVersion + " context");
+        	int[] attrib_list2 = {EGL_CONTEXT_CLIENT_VERSION, (int) glVersion,
+                    EGL10.EGL_NONE };
+        	// create a OpenGL ES 2.0 context
+            context = egl.eglCreateContext(
+                    display, eglConfig, EGL10.EGL_NO_CONTEXT, attrib_list2);
+        }        
+        
+        return context; // returns null if 3.0 is not supported;
+    }
+
+	@Override
+	public void destroyContext(EGL10 egl, EGLDisplay display, EGLContext context) {
+		egl.eglDestroyContext(display, context);
+	}
 }

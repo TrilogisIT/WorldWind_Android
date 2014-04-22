@@ -5,18 +5,21 @@
  */
 package gov.nasa.worldwind.util.pkm;
 
+import gov.nasa.worldwind.render.GpuTextureData;
+import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.WWIO;
+import gov.nasa.worldwind.util.WWUtil;
+import gov.nasa.worldwind.util.dds.DDSTextureReader;
+
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.opengl.ETC1Util;
 import android.opengl.ETC1Util.ETC1Texture;
-import gov.nasa.worldwind.render.GpuTextureData;
-import gov.nasa.worldwind.util.Logging;
-import gov.nasa.worldwind.util.WWIO;
-import gov.nasa.worldwind.util.WWUtil;
-import gov.nasa.worldwind.util.dds.DDSTextureReader;
+import android.opengl.GLES20;
 
 /**
  * @author dcollins
@@ -24,9 +27,23 @@ import gov.nasa.worldwind.util.dds.DDSTextureReader;
  */
 public class PKMGpuTextureData extends GpuTextureData
 {
+    protected static boolean isETC1Supported;
+    protected static boolean isDXTSupported;
+    
     protected ETC1Texture etcCompressedData;
     
-    public static PKMGpuTextureData fromETCCompressedData(ETC1Texture etctex, long estimatedMemorySize)
+	public static void initTCSupport() {
+    	isETC1Supported = ETC1Util.isETC1Supported();
+    	isDXTSupported = isDXTSupported();
+    }
+    
+    private static boolean isDXTSupported() {
+    	String extensions = GLES20.glGetString(GLES20.GL_EXTENSIONS);
+    	Logging.warning(extensions);
+    	return extensions.contains("GL_EXT_texture_compression_s3tc");
+	}
+
+	public static PKMGpuTextureData fromETCCompressedData(ETC1Texture etctex, long estimatedMemorySize)
     {
         if (etctex == null || etctex.getHeight() == 0)
         {
@@ -112,23 +129,27 @@ public class PKMGpuTextureData extends GpuTextureData
         GpuTextureData data = null;
         try
         {
-//            stream.mark(DEFAULT_MARK_LIMIT);
-//
-//            DDSTextureReader ddsReader = new DDSTextureReader();
-//            data = ddsReader.read(stream);
-//            if (data != null)
-//                return data;
-//
-//            stream.reset();
-            
-            stream.mark(DEFAULT_MARK_LIMIT);
-          	 
-            PKMReader pkmReader = new PKMReader();
-            data = pkmReader.read(stream);
-            if (data != null)
-                return data;
+            if(isDXTSupported) {
+                stream.mark(DEFAULT_MARK_LIMIT);
+                
+                DDSTextureReader ddsReader = new DDSTextureReader();
+                data = ddsReader.read(stream);
+                if (data != null)
+                    return data;
 
-            stream.reset(); 
+                stream.reset();
+            }
+
+            if(isETC1Supported) {
+	            stream.mark(DEFAULT_MARK_LIMIT);
+	          	 
+	            PKMReader pkmReader = new PKMReader();
+	            data = pkmReader.read(stream);
+	            if (data != null)
+	                return data;
+	
+	            stream.reset(); 
+            }
 
             Bitmap bitmap = BitmapFactory.decodeStream(stream);
             return bitmap != null ? new GpuTextureData(bitmap, estimateMemorySize(bitmap)) : null;
