@@ -59,7 +59,7 @@ public class WorldWindowActivity extends Activity {
     private final static double BOLZANO_LONGITUDE = 11.3254d;
     private final static double BOLZANO_VIEW_HEADING = 60d;
     private final static double BOLZANO_VIEW_TILT = 60d;
-    private final static double BOLZANO_VIEW_DISTANCE_KM = 13000d;
+    private final static double BOLZANO_VIEW_DISTANCE_KM = 1300000d;
 
     protected WorldWindowGLSurfaceView wwd;
 
