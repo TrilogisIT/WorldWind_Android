@@ -28,11 +28,7 @@ import java.beans.PropertyChangeEvent;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import javax.xml.xpath.XPath;
 import org.w3c.dom.Element;
 import android.opengl.GLES20;
@@ -44,7 +40,9 @@ import android.util.Pair;
  * @author dcollins
  * @version $Id: TiledTessellator.java 842 2012-10-09 23:46:47Z tgaskins $
  */
-public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.TileFactory {
+public class TiledTessellator extends WWObjectImpl
+		implements Tessellator, Tile.TileFactory<TiledTessellator.TerrainTile> {
+
 	protected static class TerrainTile extends Tile implements SectorGeometry {
 		protected TiledTessellator tessellator;
 		protected Extent extent;
@@ -201,12 +199,23 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 			this.tessellator.pick(dc, this, pickPoint);
 		}
+
+		@Override
+		public Intersection[] intersect(Line line)
+		{
+			throw new RuntimeException("intersect not implemented");
+//			return this.tessellator.intersect(this, line);
+		}
+
+		@Override
+		public Intersection[] intersect(double elevation)
+		{
+			throw new RuntimeException("intersect not implemented");
+//			return this.tessellator.intersect(this, elevation);
+		}
 	}
 
 	protected static class TerrainTileList extends ArrayList<SectorGeometry> implements SectorGeometryList {
-		/**
-		 *
-		 */
 		private static final long serialVersionUID = 7740545209150322934L;
 		protected Sector sector;
 		protected TiledTessellator tessellator;
@@ -285,6 +294,107 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 			this.tessellator.pick(dc, this, pickPoint);
 		}
+
+		/**
+		 * Determines if and where a ray intersects the geometry.
+		 *
+		 * @param line the <code>Line</code> for which an intersection is to be found.
+		 *
+		 * @return the <Vec4> point closest to the ray origin where an intersection has been found or null if no
+		 *         intersection was found.
+		 */
+		public Intersection[] intersect(Line line)
+		{
+			if (line == null)
+			{
+				String msg = Logging.getMessage("nullValue.LineIsNull");
+				Logging.error(msg);
+				throw new IllegalArgumentException(msg);
+			}
+
+			ArrayList<SectorGeometry> sglist = new ArrayList<SectorGeometry>(this);
+
+			Intersection[] hits;
+			ArrayList<Intersection> list = new ArrayList<Intersection>();
+			for (SectorGeometry sg : sglist)
+			{
+				if (sg.getExtent().intersects(line))
+					if ((hits = sg.intersect(line)) != null)
+						list.addAll(Arrays.asList(hits));
+			}
+
+			int numHits = list.size();
+			if (numHits == 0)
+				return null;
+
+			hits = new Intersection[numHits];
+			list.toArray(hits);
+
+			final Vec4 origin = line.getOrigin();
+			Arrays.sort(hits, new Comparator<Intersection>()
+			{
+				public int compare(Intersection i1, Intersection i2)
+				{
+					if (i1 == null && i2 == null)
+						return 0;
+					if (i2 == null)
+						return -1;
+					if (i1 == null)
+						return 1;
+
+					Vec4 v1 = i1.getIntersectionPoint();
+					Vec4 v2 = i2.getIntersectionPoint();
+					double d1 = origin.distanceTo3(v1);
+					double d2 = origin.distanceTo3(v2);
+					return Double.compare(d1, d2);
+				}
+			});
+			return hits;
+		}
+
+		/**
+		 * Determines if and where the geometry intersects the ellipsoid at a given elevation.
+		 * <p/>
+		 * The returned array of <code>Intersection</code> describes a list of individual segments - two
+		 * <code>Intersection</code> for each, corresponding to each geometry triangle that intersects the given elevation.
+		 * <p/>
+		 * Note that the provided bounding <code>Sector</code> only serves as a 'hint' to avoid processing unnecessary
+		 * geometry tiles. The returned intersection list may contain segments outside that sector.
+		 *
+		 * @param elevation the elevation for which intersections are to be found.
+		 * @param sector    the sector inside which intersections are to be found.
+		 *
+		 * @return a list of <code>Intersection</code> pairs/segments describing a contour line at the given elevation.
+		 */
+		public Intersection[] intersect(double elevation, Sector sector)
+		{
+			if (sector == null)
+			{
+				String message = Logging.getMessage("nullValue.SectorIsNull");
+				Logging.error(message);
+				throw new IllegalArgumentException(message);
+			}
+
+			ArrayList<SectorGeometry> sglist = new ArrayList<SectorGeometry>(this);
+
+			Intersection[] hits;
+			ArrayList<Intersection> list = new ArrayList<Intersection>();
+			for (SectorGeometry sg : sglist)
+			{
+				if (sector.intersects(sg.getSector()))
+					if ((hits = sg.intersect(elevation)) != null)
+						list.addAll(Arrays.asList(hits));
+			}
+
+			int numHits = list.size();
+			if (numHits == 0)
+				return null;
+
+			hits = new Intersection[numHits];
+			list.toArray(hits);
+
+			return hits;
+		}
 	}
 
 	protected static class TerrainGeometry implements Cacheable {
@@ -346,8 +456,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 	protected double detailHintOrigin = DEFAULT_DETAIL_HINT_ORIGIN;
 	protected double detailHint;
+	protected Globe globe;
 	protected LevelSet levels;
-	protected List<Tile> topLevelTiles = new ArrayList<Tile>();
+	protected List<TerrainTile> topLevelTiles = new ArrayList<TerrainTile>();
 	protected TerrainTileList currentTiles = new TerrainTileList(this);
 	protected Sector currentCoverage = new Sector();
 	// Data structures used to track when the elevation model changes.
@@ -427,6 +538,249 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		}
 	}
 
+	/**
+	 * Determines if and where a ray intersects a <code>TerrainTile</code> geometry.
+	 *
+	 * @param tile the <Code>TerrainTile</code> which geometry is to be tested for intersection.
+	 * @param line the ray for which an intersection is to be found.
+	 *
+	 * @return an array of <code>Intersection</code> sorted by increasing distance from the line origin, or null if no
+	 *         intersection was found.
+	 */
+//	protected Intersection[] intersect(TerrainTile tile, Line line)
+//	{
+//		if (line == null)
+//		{
+//			String msg = Logging.getMessage("nullValue.LineIsNull");
+//			Logging.error(msg);
+//			throw new IllegalArgumentException(msg);
+//		}
+//
+//		if (tile.ri.vertices == null)
+//			return null;
+//
+//		// Compute 'vertical' plane perpendicular to the ground, that contains the ray
+//		Vec4 normalV = new Vec4();
+//		globe.computeSurfaceNormalAtPoint(line.getOrigin(), normalV);
+//		line.getDirection().cross3(normalV);
+//		Plane verticalPlane = new Plane(normalV.x, normalV.y, normalV.z, -line.getOrigin().dot3(normalV));
+//		if (!tile.getExtent().intersects(verticalPlane))
+//			return null;
+//
+//		// Compute 'horizontal' plane perpendicular to the vertical plane, that contains the ray
+//		Vec4 normalH = line.getDirection().cross3(normalV);
+//		Plane horizontalPlane = new Plane(normalH.x, normalH.y, normalH.z, -line.getOrigin().dot3(normalH));
+//		if (!tile.getExtent().intersects(horizontalPlane))
+//			return null;
+//
+//		Intersection[] hits;
+//		ArrayList<Intersection> list = new ArrayList<Intersection>();
+//
+//		int[] indices = new int[tile.ri.indices.limit()];
+//		float[] coords = new float[tile.ri.vertices.limit()];
+//		tile.ri.indices.rewind();
+//		tile.ri.vertices.rewind();
+//		tile.ri.indices.get(indices, 0, indices.length);
+//		tile.ri.vertices.get(coords, 0, coords.length);
+//		tile.ri.indices.rewind();
+//		tile.ri.vertices.rewind();
+//
+//		int trianglesNum = tile.ri.indices.capacity() - 2;
+//		double centerX = tile.ri.referenceCenter.x;
+//		double centerY = tile.ri.referenceCenter.y;
+//		double centerZ = tile.ri.referenceCenter.z;
+//
+//		// Compute maximum cell size based on tile delta lat, density and globe radius
+//		double effectiveRadiusVertical = tile.extent.getEffectiveRadius(verticalPlane);
+//		double effectiveRadiusHorizontal = tile.extent.getEffectiveRadius(horizontalPlane);
+//
+//		// Loop through all tile cells - triangle pairs
+//		int startIndex = (density + 2) * 2 + 6; // skip first skirt row and a couple degenerate cells
+//		int endIndex = trianglesNum - startIndex; // ignore last skirt row and a couple degenerate cells
+//		int k = -1;
+//		for (int i = startIndex; i < endIndex; i += 2)
+//		{
+//			// Skip skirts and degenerate triangle cells - based on index sequence.
+//			k = k == density - 1 ? -4 : k + 1; // density x terrain cells interleaved with 4 skirt and degenerate cells.
+//			if (k < 0)
+//				continue;
+//
+//			// Triangle pair diagonal - v1 & v2
+//			int vIndex = 3 * indices[i + 1];
+//			Vec4 v1 = new Vec4(
+//					coords[vIndex++] + centerX,
+//					coords[vIndex++] + centerY,
+//					coords[vIndex] + centerZ);
+//
+//			vIndex = 3 * indices[i + 2];
+//			Vec4 v2 = new Vec4(
+//					coords[vIndex++] + centerX,
+//					coords[vIndex++] + centerY,
+//					coords[vIndex] + centerZ);
+//
+//			Vec4 cellCenter = Vec4.mix3(.5, v1, v2);
+//
+//			// Test cell center distance to vertical plane
+//			if (Math.abs(verticalPlane.distanceTo(cellCenter)) > effectiveRadiusVertical)
+//				continue;
+//
+//			// Test cell center distance to horizontal plane
+//			if (Math.abs(horizontalPlane.distanceTo(cellCenter)) > effectiveRadiusHorizontal)
+//				continue;
+//
+//			// Prepare to test triangles - get other two vertices v0 & v3
+//			Vec4 p;
+//			vIndex = 3 * indices[i];
+//			Vec4 v0 = new Vec4(
+//					coords[vIndex++] + centerX,
+//					coords[vIndex++] + centerY,
+//					coords[vIndex] + centerZ);
+//
+//			vIndex = 3 * indices[i + 3];
+//			Vec4 v3 = new Vec4(
+//					coords[vIndex++] + centerX,
+//					coords[vIndex++] + centerY,
+//					coords[vIndex] + centerZ);
+//
+//			// Test triangle 1 intersection w ray
+//			Triangle t = new Triangle(v0, v1, v2);
+//			if ((p = t.intersect(line)) != null)
+//			{
+//				list.add(new Intersection(p, false));
+//			}
+//
+//			// Test triangle 2 intersection w ray
+//			t = new Triangle(v1, v2, v3);
+//			if ((p = t.intersect(line)) != null)
+//			{
+//				list.add(new Intersection(p, false));
+//			}
+//		}
+//
+//		int numHits = list.size();
+//		if (numHits == 0)
+//			return null;
+//
+//		hits = new Intersection[numHits];
+//		list.toArray(hits);
+//
+//		final Vec4 origin = line.getOrigin();
+//		Arrays.sort(hits, new Comparator<Intersection>()
+//		{
+//			public int compare(Intersection i1, Intersection i2)
+//			{
+//				if (i1 == null && i2 == null)
+//					return 0;
+//				if (i2 == null)
+//					return -1;
+//				if (i1 == null)
+//					return 1;
+//
+//				Vec4 v1 = i1.getIntersectionPoint();
+//				Vec4 v2 = i2.getIntersectionPoint();
+//				double d1 = origin.distanceTo3(v1);
+//				double d2 = origin.distanceTo3(v2);
+//				return Double.compare(d1, d2);
+//			}
+//		});
+//
+//		return hits;
+//	}
+
+//	protected Intersection[] intersect(TerrainTile tile, double elevation)
+//	{
+//		if (tile.ri.vertices == null)
+//			return null;
+//
+//		// Check whether the tile includes the intersection elevation - assume cylinder as Extent
+//		// TODO: replace this test with a generic test against Extent
+//		if (tile.getExtent() instanceof Cylinder)
+//		{
+//			Cylinder cylinder = ((Cylinder) tile.getExtent());
+//			if (!(globe.isPointAboveElevation(cylinder.getBottomCenter(), elevation)
+//					^ globe.isPointAboveElevation(cylinder.getTopCenter(), elevation)))
+//				return null;
+//		}
+//
+//		Intersection[] hits;
+//		ArrayList<Intersection> list = new ArrayList<Intersection>();
+//
+//		int[] indices = new int[tile.ri.indices.limit()];
+//		float[] coords = new float[tile.ri.vertices.limit()];
+//		tile.ri.indices.rewind();
+//		tile.ri.vertices.rewind();
+//		tile.ri.indices.get(indices, 0, indices.length);
+//		tile.ri.vertices.get(coords, 0, coords.length);
+//		tile.ri.indices.rewind();
+//		tile.ri.vertices.rewind();
+//
+//		int trianglesNum = tile.ri.indices.capacity() - 2;
+//		double centerX = tile.ri.referenceCenter.x;
+//		double centerY = tile.ri.referenceCenter.y;
+//		double centerZ = tile.ri.referenceCenter.z;
+//
+//		// Loop through all tile cells - triangle pairs
+//		int startIndex = (density + 2) * 2 + 6; // skip first skirt row and a couple degenerate cells
+//		int endIndex = trianglesNum - startIndex; // ignore last skirt row and a couple degenerate cells
+//		int k = -1;
+//		for (int i = startIndex; i < endIndex; i += 2)
+//		{
+//			// Skip skirts and degenerate triangle cells - based on indice sequence.
+//			k = k == density - 1 ? -4 : k + 1; // density x terrain cells interleaved with 4 skirt and degenerate cells.
+//			if (k < 0)
+//				continue;
+//
+//			// Get the four cell corners
+//			int vIndex = 3 * indices[i];
+//			Vec4 v0 = new Vec4(
+//					coords[vIndex++] + centerX,
+//					coords[vIndex++] + centerY,
+//					coords[vIndex] + centerZ);
+//
+//			vIndex = 3 * indices[i + 1];
+//			Vec4 v1 = new Vec4(
+//					coords[vIndex++] + centerX,
+//					coords[vIndex++] + centerY,
+//					coords[vIndex] + centerZ);
+//
+//			vIndex = 3 * indices[i + 2];
+//			Vec4 v2 = new Vec4(
+//					coords[vIndex++] + centerX,
+//					coords[vIndex++] + centerY,
+//					coords[vIndex] + centerZ);
+//
+//			vIndex = 3 * indices[i + 3];
+//			Vec4 v3 = new Vec4(
+//					coords[vIndex++] + centerX,
+//					coords[vIndex++] + centerY,
+//					coords[vIndex] + centerZ);
+//
+//			Intersection[] inter;
+//			// Test triangle 1 intersection
+//			if ((inter = globe.intersect(new Triangle(v0, v1, v2), elevation)) != null)
+//			{
+//				list.add(inter[0]);
+//				list.add(inter[1]);
+//			}
+//
+//			// Test triangle 2 intersection
+//			if ((inter = globe.intersect(new Triangle(v1, v2, v3), elevation)) != null)
+//			{
+//				list.add(inter[0]);
+//				list.add(inter[1]);
+//			}
+//		}
+//
+//		int numHits = list.size();
+//		if (numHits == 0)
+//			return null;
+//
+//		hits = new Intersection[numHits];
+//		list.toArray(hits);
+//
+//		return hits;
+//	}
+
 	protected boolean getSurfacePoint(Angle latitude, Angle longitude, Vec4 result) {
 		for (SectorGeometry tile : this.currentTiles) {
 			if (tile.getSurfacePoint(latitude, longitude, result)) // Each tile tests the location against its sector.
@@ -464,7 +818,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		return this.currentTiles;
 	}
 
-	public Tile createTile(Sector sector, Level level, int row, int column) {
+	public TerrainTile createTile(Sector sector, Level level, int row, int column) {
 		if (sector == null) {
 			String msg = Logging.getMessage("nullValue.SectorIsNull");
 			Logging.error(msg);
@@ -499,7 +853,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		this.currentTiles.clear();
 		this.currentCoverage.setDegrees(0, 0, 0, 0);
 
-		if (this.topLevelTiles.isEmpty()) this.createTopLevelTiles();
+		if (this.topLevelTiles.isEmpty()) this.createTopLevelTiles(dc);
 
 		for (int i = 0; i < this.topLevelTiles.size(); i++) {
 			Tile tile = this.topLevelTiles.get(i);
@@ -512,15 +866,19 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		this.currentTiles.setSector(this.currentCoverage.isEmpty() ? null : this.currentCoverage);
 	}
 
-	protected void createTopLevelTiles() {
+	protected void createTopLevelTiles(DrawContext dc) {
 		if (this.levels.getFirstLevel() == null) {
 			Logging.warning(Logging.getMessage("generic.FirstLevelIsNull"));
 			return;
 		}
+		this.globe = dc.getGlobe();
+
+		Logging.verbose("Creating top level surface tiles");
 
 		this.topLevelTiles.clear();
 		// TODO Tile.createTilesForLevel(this.levels.getFirstLevel(), this.levels.getSector(), this, this.topLevelTiles);
 		Tile.createTilesForLevel(this.levels.getFirstLevel(), this.levels.getSector(), this, this.topLevelTiles, this.levels.getTileOrigin());
+		Logging.verbose("Finished top level creation: #" + topLevelTiles.size());
 	}
 
 	protected void addTileOrDescendants(DrawContext dc, TerrainTile tile) {
@@ -1378,7 +1736,6 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 				SectorGeometry sg = sgList.get(i);
 
-				// TODO: Cull SectorGeometry against the pick frustum.
 				if(!dc.getPickFrustums().intersectsAny(sg.getExtent()))
 					continue;
 
