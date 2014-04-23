@@ -38,6 +38,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
 
@@ -104,7 +105,10 @@ public class WorldWindowActivity extends Activity {
         
         // In order to hide the status bar / Full screen mode
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN);
-    
+		this.getWindow().getDecorView().setSystemUiVisibility(
+				View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+				| View.SYSTEM_UI_FLAG_FULLSCREEN
+				| View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         
         // And initialize the WorldWindow Model and View
         this.wwd = (WorldWindowGLSurfaceView) this.findViewById(R.id.wwd);
@@ -293,4 +297,15 @@ public class WorldWindowActivity extends Activity {
         tocDialog.setWorldWindData(this.wwd);
         tocDialog.show(getFragmentManager(), "tocDialog");
     }
+    
+	@Override
+	public void onWindowFocusChanged(boolean hasFocus) {
+		super.onWindowFocusChanged(hasFocus);
+		if (hasFocus) {
+			this.getWindow().getDecorView().setSystemUiVisibility(
+					View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+					| View.SYSTEM_UI_FLAG_FULLSCREEN
+					| View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+		}
+	}
 }
