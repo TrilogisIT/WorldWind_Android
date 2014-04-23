@@ -190,7 +190,7 @@ public class GpuTextureTile extends Tile implements SurfaceTile {
 	}
 
 	protected GpuTexture getOrCreateTexture(DrawContext dc) {
-		if (this.textureData != null) {
+		if (this.textureData != null) {			
 			GpuTexture texture = this.createTexture(dc, this.textureData);
 			if (texture != null) this.setTexture(dc.getGpuResourceCache(), texture);
 			else {
@@ -203,6 +203,7 @@ public class GpuTextureTile extends Tile implements SurfaceTile {
 	}
 
 	protected GpuTexture createTexture(DrawContext dc, GpuTextureData textureData) {
+		// TODO : offload texture creation to another thread
 		return GpuTexture.createTexture(dc, textureData);
 	}
 
