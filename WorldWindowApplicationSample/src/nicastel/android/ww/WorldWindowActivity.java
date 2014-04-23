@@ -25,20 +25,20 @@ import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.layers.Layer;
 import gov.nasa.worldwind.layers.LayerList;
-import nicastel.android.ww.R;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
 import nicastel.android.ww.dialogs.AddWMSDialog;
-import nicastel.android.ww.dialogs.TocDialog;
 import nicastel.android.ww.dialogs.AddWMSDialog.OnAddWMSLayersListener;
+import nicastel.android.ww.dialogs.TocDialog;
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.WindowManager;
 import android.widget.TextView;
 
 /**
@@ -101,6 +101,11 @@ public class WorldWindowActivity extends Activity {
 
         // set the contentview
         this.setContentView(R.layout.main);
+        
+        // In order to hide the status bar / Full screen mode
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN);
+    
+        
         // And initialize the WorldWindow Model and View
         this.wwd = (WorldWindowGLSurfaceView) this.findViewById(R.id.wwd);
         this.wwd.setModel((Model) WorldWind.createConfigurationComponent(AVKey.MODEL_CLASS_NAME));
