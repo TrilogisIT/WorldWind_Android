@@ -6,8 +6,6 @@
     <uses-sdk
         android:minSdkVersion="15"
         android:targetSdkVersion="18" />
-    <!-- Specify that World Wind Android applications require SDK Platform Android 4.0.3, API 15. -->
-    <uses-sdk android:minSdkVersion="15" />
     <!-- Specify all of the Android features that World Wind requires: OpenGL ES 2.0. -->
     <uses-feature android:glEsVersion="0x00020000" />
     <!-- Specify all of the Android permissions that World Wind requires: internet. -->
