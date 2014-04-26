@@ -2,7 +2,6 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent" >
-
     <it.trilogis.android.ww.view.DragListView
         xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:tlv="http://schemas.android.com/apk/res/it.trilogis.android.ww"
@@ -11,12 +10,11 @@
         android:layout_height="match_parent"
         android:layout_alignParentTop="false"
         android:drawSelectorOnTop="false"
+        tlv:dragndrop_background="#99ffbb33"
         tlv:grabber="@+id/toc_item_grabber"
         tlv:grabber_alignment="right"
         tlv:normal_height="46dip"
-        tlv:dragndrop_background="#99ffbb33"
         tlv:remove_mode="trash" />
-
     <ImageView
         android:id="@+id/removeView"
         android:layout_width="match_parent"
@@ -27,5 +25,4 @@
         android:src="@android:drawable/ic_delete"
         android:visibility="invisible" >
     </ImageView>
-
 </RelativeLayout>

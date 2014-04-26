@@ -4,12 +4,12 @@
     National Aeronautics and Space Administration.
     All Rights Reserved.
 
-    $Id: AndroidManifest.xml 59 2011-09-20 18:41:08Z dcollins $
+    $Id: AndroidManifest.xml 59 2011-09-20 18:41:08Z dcollins $
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="it.trilogis.android.ww"
-    android:versionCode="3"
-    android:versionName="1.0.2" >
+    android:versionCode="5"
+    android:versionName="1.0.3" >
     <!-- Specify that World Wind applications require SDK Platform Android 4.0.3, API 15. -->
     <uses-sdk
         android:minSdkVersion="15"
@@ -27,13 +27,13 @@
     application or checking in changes to this file.
 
     Note: WWAndroidDemo icons are taken from www.androidicons.com. These icons are licensed under the Creative Commons
-    Attribution 3.0 Unported License.
+    Attribution 3.0 Unported License.
     -->
     <supports-screens
         android:largeScreens="true"
-        android:normalScreens="false"
-        android:requiresSmallestWidthDp="600"
-        android:smallScreens="false"
+        android:normalScreens="true"
+        android:requiresSmallestWidthDp="200"
+        android:smallScreens="true"
         android:xlargeScreens="true" />
     <application
         android:allowBackup="false"
@@ -45,7 +45,7 @@
         android:launchMode attribute as singleTask so that the WorldWindowActivity acts as an entry point for the
         application. Configure the android:configChanges attribute to denote that our application handles orientation
         and keyboard availability changes itself. This ensures that the application is not shut down and restarted due
-        to either of these changes.
+        to either of these changes.
         -->
         <activity
             android:name=".WorldWindowActivity"

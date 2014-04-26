@@ -9,9 +9,12 @@ import gov.nasa.worldwind.Disposable;
 import gov.nasa.worldwind.cache.Cacheable;
 import gov.nasa.worldwind.geom.Matrix;
 import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.pkm.PKMGpuTextureData;
 import android.graphics.Bitmap;
+import android.opengl.ETC1;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
+import android.opengl.ETC1Util.ETC1Texture;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -39,7 +42,10 @@ public class GpuTexture implements Cacheable, Disposable {
 				texture = doCreateFromBitmapData(dc, textureData);
 			} else if (textureData.getCompressedData() != null) {
 				texture = doCreateFromCompressedData(dc, textureData);
-			} else {
+			} else if (textureData instanceof PKMGpuTextureData && ((PKMGpuTextureData)textureData).getEtcCompressedData() != null) {
+                texture = doCreateFromETCCompressedData(dc, (PKMGpuTextureData) textureData);
+            }
+			else {
 				String msg = Logging.getMessage("generic.TextureDataUnrecognized", textureData);
 				Logging.error(msg);
 			}
@@ -50,6 +56,40 @@ public class GpuTexture implements Cacheable, Disposable {
 
 		return texture;
 	}
+
+    private static GpuTexture doCreateFromETCCompressedData(DrawContext dc, PKMGpuTextureData textureData) throws Exception {
+        int format = ETC1.ETC1_RGB8_OES;
+        ETC1Texture compressedData = textureData.getEtcCompressedData();
+
+        int[] texture = new int[1];
+        try {
+            GLES20.glGenTextures(1, texture, 0);
+            if (texture[0] <= 0) {
+                String msg = Logging.getMessage("GL.UnableToCreateObject", Logging.getMessage("term.Texture"));
+                Logging.error(msg);
+                return null;
+            }
+
+            // OpenGL ES provides support for non-power-of-two textures, including its associated mipmaps, provided that
+            // the s and t wrap modes are both GL_CLAMP_TO_EDGE.
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture[0]);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+
+            GLES20.glCompressedTexImage2D(GLES20.GL_TEXTURE_2D, 0, format, compressedData.getWidth(), compressedData.getHeight(), 0, compressedData.getData().remaining(),
+                compressedData.getData());
+
+        } catch (Exception e) {
+            GLES20.glDeleteTextures(1, texture, 0);
+            throw e;
+        } finally {
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
+        }
+
+        return new GpuTexture(GLES20.GL_TEXTURE_2D, texture[0], compressedData.getWidth(), compressedData.getHeight(), textureData.getSizeInBytes(), createVerticalFlipTransform());
+    }
 
 	protected static GpuTexture doCreateFromBitmapData(DrawContext dc, GpuTextureData data) throws Exception {
 		Bitmap bitmap = data.getBitmapData().bitmap;

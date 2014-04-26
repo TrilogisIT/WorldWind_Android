@@ -8,6 +8,7 @@ package gov.nasa.worldwind.render;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.util.*;
+import gov.nasa.worldwind.util.pkm.PKMGpuTextureData;
 
 /**
  * @author dcollins
@@ -130,7 +131,7 @@ public class SurfaceImage implements Renderable, SurfaceTile
     {
         GpuTexture texture = null;
 
-        GpuTextureData textureData = GpuTextureData.createTextureData(this.imagePath);
+        GpuTextureData textureData = PKMGpuTextureData.createTextureData(this.imagePath);
         if (textureData != null)
         {
             texture = GpuTexture.createTexture(dc, textureData);

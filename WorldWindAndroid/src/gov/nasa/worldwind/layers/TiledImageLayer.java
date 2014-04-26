@@ -67,7 +67,6 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 	protected boolean useTransparentTextures = false;
 	protected List<Tile> topLevelTiles = new ArrayList<Tile>();
 	protected String tileCountName;
-	protected String wmsLayerName;
 
 	// Stuff computed each frame
 	protected List<GpuTextureTile> currentTiles = new ArrayList<GpuTextureTile>();
@@ -90,9 +89,6 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 
 		String s = params.getStringValue(AVKey.DISPLAY_NAME);
 		if (s != null) this.setName(s);
-		
-		s = params.getStringValue(AVKey.LAYER_NAMES);
-        if (s != null) this.wmsLayerName = s;
 
 		Double d = (Double) params.getValue(AVKey.OPACITY);
 		if (d != null) this.setOpacity(d);
@@ -160,7 +156,7 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 
 		if (params.getValue(AVKey.TILE_HEIGHT) == null) params.setValue(AVKey.TILE_HEIGHT, 512);
 
-		if (params.getValue(AVKey.FORMAT_SUFFIX) == null) params.setValue(AVKey.FORMAT_SUFFIX, ".dds");
+		if (params.getValue(AVKey.FORMAT_SUFFIX) == null) params.setValue(AVKey.FORMAT_SUFFIX, ".png");
 
 		if (params.getValue(AVKey.NUM_LEVELS) == null) params.setValue(AVKey.NUM_LEVELS, 19); // approximately 0.1 meters per pixel
 
@@ -182,13 +178,6 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 		return value != null ? value : this.getLevels().getValue(key); // see if the level set has it
 	}
 
-	public String getWMSLayerName(){
-        if (null == wmsLayerName){
-            wmsLayerName = "";
-        }
-        return wmsLayerName;
-    }
-	
 	public boolean isForceLevelZeroLoads() {
 		return this.forceLevelZeroLoads;
 	}
