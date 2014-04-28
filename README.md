@@ -12,7 +12,7 @@ The Library has updated with some bugfixing (XML parsing and other small issues)
 *  `WMSTiledImageLayer` to display an arbitrary WMS layer. See the application example.
 *  `WorldMapLayer` to display a WorldMap thumbnail in the upper left part of the view which shows where in the world the user is looking at.
 
-**Limited to tablets only, since phones are not able to read the DDS texture format. We are working hard to support both tablets and phones**
+** We fixed the "Tablets only" support. Now textures used are PKM (ETC1) that are widely supported in mobile devices. DDS support is still in the library but is not enabled by default and in the demo application.
 **It requires API 15+**
 
 
