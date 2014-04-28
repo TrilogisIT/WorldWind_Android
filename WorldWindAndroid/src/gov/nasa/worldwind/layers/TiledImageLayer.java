@@ -67,6 +67,7 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 	protected boolean useTransparentTextures = false;
 	protected List<Tile> topLevelTiles = new ArrayList<Tile>();
 	protected String tileCountName;
+	protected String wmsLayerName;
 
 	// Stuff computed each frame
 	protected List<GpuTextureTile> currentTiles = new ArrayList<GpuTextureTile>();
@@ -89,6 +90,9 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 
 		String s = params.getStringValue(AVKey.DISPLAY_NAME);
 		if (s != null) this.setName(s);
+		
+		String wmsName = params.getStringValue(AVKey.LAYER_NAMES);
+        if (wmsName != null) this.setWmsLayerName(wmsName);
 
 		Double d = (Double) params.getValue(AVKey.OPACITY);
 		if (d != null) this.setOpacity(d);
@@ -242,6 +246,25 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 	}
 
 	/**
+     * @return the wmsLayerName
+     */
+    public String getWmsLayerName() {
+        if (null == wmsLayerName){
+            wmsLayerName = "";
+        }
+        return wmsLayerName;
+    }
+    
+
+    /**
+     * @param wmsLayerName the wmsLayerName to set
+     */
+    public void setWmsLayerName(String wmsLayerName) {
+        this.wmsLayerName = wmsLayerName;
+    }
+    
+
+    /**
 	 * Specifies the time of the layer's most recent dataset update, beyond which cached data is invalid. If greater
 	 * than zero, the layer ignores and eliminates any in-memory or on-disk cached data older than the time specified,
 	 * and requests new information from the data source. If zero, the default, the layer applies any expiry times
