@@ -1,5 +1,15 @@
 Change Log
 ===============================================================================
+Version 1.0.3 *(2014-04-28)*
+----------------------------
+
+ * LIBRARY: Added support to every device by using ETC1 texture compression instead of DDS.
+ * LIBRARY: Added WMSLayerName parameter in the TiledImageLayer (for further usages).
+ * LIBRARY: Added a function in BasicView that enables animation to a specific location.
+ * LIBRARY: Added GPSMarker as a new renderer item, so it is possible to render the user position in 3D.
+ * EXAMPLE: Updated manifest to support more devices (Phones too)
+ * DEMOAPP: Updated APK to latest version (1.0.3) available in Google Play Store too.
+ 
 Version 1.0.1 *(2013-11-22)*
 ----------------------------
 
