@@ -638,6 +638,25 @@ public class Matrix
         return this;
     }
 
+	/**
+	 * Sets the four columns of this {@link Matrix} which correspond to the x-, y-, and z-
+	 * axis of the vector space this {@link Matrix} creates as well as the 4th column representing
+	 * the translation of any point that is multiplied by this {@link Matrix}.
+	 *
+	 * @param xAxis {@link Vec4} The x axis.
+	 * @param yAxis {@link Vec4} The y axis.
+	 * @param zAxis {@link Vec4} The z axis.
+	 * @param pos {@link Vec4} The translation vector.
+	 * @return A reference to this {@link Matrix} to facilitate chaining.
+	 */
+	public Matrix setAll(final Vec4 xAxis, final Vec4 yAxis, final Vec4 zAxis, final Vec4 pos) {
+		m[M00] = xAxis.x;	m[M01] = yAxis.x;	m[M02] = zAxis.x;	m[M03] = pos.x;
+		m[M10] = xAxis.y; 	m[M11] = yAxis.y;	m[M12] = zAxis.y;	m[M13] = pos.y;
+		m[M20] = xAxis.z;	m[M21] = yAxis.z;	m[M22] = zAxis.z;	m[M23] = pos.z;
+		m[M30] = 0;			m[M31] = 0;			m[M32] = 0;			m[M33] = 1;
+		return this;
+	}
+
     public Matrix set(double[] array, int offset)
     {
         if (array == null)

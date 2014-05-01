@@ -458,6 +458,7 @@ public class BasicView extends WWObjectImpl implements View {
 		this.lookAtPosition.set(position);
 		this.lookAtPosition.set(BasicOrbitViewLimits.limitLookAtPosition(this.lookAtPosition, this.getOrbitViewLimits()));
 		resolveCollisionsWithCenterPosition();
+		firePropertyChange(AVKey.VIEW, null, this);
 	}
 
 	public double getRange() {
@@ -476,6 +477,7 @@ public class BasicView extends WWObjectImpl implements View {
 		if(isZoomingIn) {
 			resolveCollisionsWithCenterPosition();
 		}
+		firePropertyChange(AVKey.VIEW, null, this);
 	}
 
 	public Angle getHeading() {
@@ -492,6 +494,7 @@ public class BasicView extends WWObjectImpl implements View {
 		this.heading.set(angle);
 		this.heading.set(BasicOrbitViewLimits.limitHeading(this.heading, this.getOrbitViewLimits()));
 		resolveCollisionsWithPitch();
+		firePropertyChange(AVKey.VIEW, null, this);
 	}
 
 	public Angle getTilt() {
@@ -508,6 +511,7 @@ public class BasicView extends WWObjectImpl implements View {
 		this.tilt.set(angle);
 		this.tilt.set(BasicOrbitViewLimits.limitPitch(this.tilt, this.getOrbitViewLimits()));
 		resolveCollisionsWithPitch();
+		firePropertyChange(AVKey.VIEW, null, this);
 	}
 
 	public Angle getRoll() {
@@ -522,6 +526,7 @@ public class BasicView extends WWObjectImpl implements View {
 		}
 
 		this.roll.set(angle);
+		firePropertyChange(AVKey.VIEW, null, this);
 	}
 
 	/**

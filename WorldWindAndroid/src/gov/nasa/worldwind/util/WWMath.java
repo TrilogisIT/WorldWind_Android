@@ -22,17 +22,23 @@ import java.util.*;
 public class WWMath
 {
     /** The ratio of milliseconds per second. Used to convert time in seconds to time in milliseconds. */
-    protected static final double SECOND_TO_MILLIS = 1000.0;
+    public static final double SECOND_TO_MILLIS = 1000.0;
     /** The ratio of milliseconds per minute. Used to convert time in minutes to time in milliseconds. */
-    protected static final double MINUTE_TO_MILLIS = 60.0 * SECOND_TO_MILLIS;
+	public static final double MINUTE_TO_MILLIS = 60.0 * SECOND_TO_MILLIS;
     /** The ratio of milliseconds per hour. Used to convert time in hours to time in milliseconds. */
-    protected static final double HOUR_TO_MILLIS = 60.0 * MINUTE_TO_MILLIS;
+	public static final double HOUR_TO_MILLIS = 60.0 * MINUTE_TO_MILLIS;
 
 	public static final double METERS_TO_KILOMETERS = 1e-3;
 	public static final double METERS_TO_MILES = 0.000621371192;
 	public static final double METERS_TO_NAUTICAL_MILES = 0.000539956803;
 	public static final double METERS_TO_YARDS = 1.0936133;
 	public static final double METERS_TO_FEET = 3.280839895;
+
+	public static final double KILOMETERS_TO_METERS = 1/METERS_TO_KILOMETERS;
+	public static final double MILES_TO_METERS = 1/METERS_TO_MILES;
+	public static final double NAUTICAL_MILES_TO_METERS = 1/METERS_TO_NAUTICAL_MILES;
+	public static final double YARDS_TO_METERS = 1/METERS_TO_YARDS;
+	public static final double FEET_TO_METERS = 1/METERS_TO_FEET;
 
     // Temporary properties used to avoid constant reallocation of primitive types.
     protected static Vec4 point1 = new Vec4();

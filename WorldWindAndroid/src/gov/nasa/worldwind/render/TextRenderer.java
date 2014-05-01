@@ -1,19 +1,20 @@
 package gov.nasa.worldwind.render;
 
-import gov.nasa.worldwind.R;
-import gov.nasa.worldwind.WorldWindowGLSurfaceView;
-import gov.nasa.worldwind.cache.GpuResourceCache;
-import gov.nasa.worldwind.geom.Matrix;
-import gov.nasa.worldwind.geom.Rect;
-import gov.nasa.worldwind.util.Logging;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
-import java.util.HashMap;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.opengl.GLES20;
+import gov.nasa.worldwind.R;
+import gov.nasa.worldwind.WorldWindowImpl;
+import gov.nasa.worldwind.cache.GpuResourceCache;
+import gov.nasa.worldwind.geom.Matrix;
+import gov.nasa.worldwind.geom.Rect;
+import gov.nasa.worldwind.util.Logging;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
+import java.util.HashMap;
 
 /**
  * Class used to render text on view
@@ -61,7 +62,7 @@ public class TextRenderer {
 		program.loadUniformMatrix("mvpMatrix", mvp);
 
 		GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-		WorldWindowGLSurfaceView.glCheckError("glActiveTexture");
+		WorldWindowImpl.glCheckError("glActiveTexture");
 
 		GpuTexture texture = getGpuTexture(text);
 		texture.bind();
@@ -71,36 +72,36 @@ public class TextRenderer {
 		float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
 		int pointLocation = program.getAttribLocation("vertexPoint");
 		GLES20.glEnableVertexAttribArray(pointLocation);
-		WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 
 		FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 		vertexBuf.put(unitQuadVerts);
 		vertexBuf.rewind();
 		GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
-		WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+		WorldWindowImpl.glCheckError("glVertexAttribPointer");
 
 		float[] textureVerts = new float[] { 0, 1, 1, 1, 1, 0, 0, 0 };
 		int textureLocation = program.getAttribLocation("aTextureCoord");
 		GLES20.glEnableVertexAttribArray(textureLocation);
 
-		WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 		FloatBuffer textureBuf = ByteBuffer.allocateDirect(textureVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 		textureBuf.put(textureVerts);
 		textureBuf.rewind();
 		GLES20.glVertexAttribPointer(textureLocation, 2, GLES20.GL_FLOAT, false, 0, textureBuf);
-		WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+		WorldWindowImpl.glCheckError("glVertexAttribPointer");
 
 		GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
-		WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+		WorldWindowImpl.glCheckError("glDrawArrays");
 
 		GLES20.glDisableVertexAttribArray(pointLocation);
-		WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+		WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 
 		GLES20.glDisableVertexAttribArray(textureLocation);
-		WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+		WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 
 		GLES20.glUseProgram(0);
-		WorldWindowGLSurfaceView.glCheckError("glUseProgram");
+		WorldWindowImpl.glCheckError("glUseProgram");
 	}
 
 	protected GpuTexture getGpuTexture(String text) {

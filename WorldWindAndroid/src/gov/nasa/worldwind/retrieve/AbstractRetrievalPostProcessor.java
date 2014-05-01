@@ -8,13 +8,20 @@ package gov.nasa.worldwind.retrieve;
 
 import android.graphics.Bitmap;
 import android.opengl.ETC1Util;
-import gov.nasa.worldwind.WorldWindow;
-import gov.nasa.worldwind.avlist.*;
-import gov.nasa.worldwind.util.*;
+import gov.nasa.worldwind.WorldWindowImpl;
+import gov.nasa.worldwind.avlist.AVKey;
+import gov.nasa.worldwind.avlist.AVList;
+import gov.nasa.worldwind.util.ImageUtil;
+import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.WWIO;
+import gov.nasa.worldwind.util.WWUtil;
 import gov.nasa.worldwind.util.dds.DDSCompressor;
 import gov.nasa.worldwind.util.pkm.ETC1Compressor;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedByInterruptException;
@@ -659,14 +666,14 @@ public abstract class AbstractRetrievalPostProcessor implements RetrievalPostPro
 	 */
 	protected ByteBuffer savePKM() throws IOException
 	{
-		if(WorldWindow.DEBUG)
+		if(WorldWindowImpl.DEBUG)
 			Logging.verbose("Converting PKM file: " + getOutputFile().toString());
 
 		ByteBuffer buffer = this.getRetriever().getBuffer();
 		try {
 			if (!this.getRetriever().getContentType().contains("pkm")) {
 				ETC1Util.ETC1Texture etc1 = this.convertToPKM();
-				if (WorldWindow.DEBUG)
+				if (WorldWindowImpl.DEBUG)
 					Logging.verbose("Conversion finished. Saving PKM file: " + getOutputFile().toString());
 
 				FileOutputStream fis = new FileOutputStream(getOutputFile());

@@ -11,7 +11,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.opengl.ETC1Util;
-import gov.nasa.worldwind.WorldWindow;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.util.Logging;
 import gov.nasa.worldwind.util.WWIO;
 
@@ -30,7 +30,7 @@ public class ETC1Compressor {
 	}
 
 	public static ETC1Util.ETC1Texture compressImage(Bitmap image) {
-		if(WorldWindow.DEBUG)
+		if(WorldWindowImpl.DEBUG)
 			Logging.verbose("Compressing ETC1 texture ");
 		Bitmap bitmap565 = convert(image, Bitmap.Config.RGB_565);
 		int size = bitmap565.getRowBytes() * bitmap565.getHeight();

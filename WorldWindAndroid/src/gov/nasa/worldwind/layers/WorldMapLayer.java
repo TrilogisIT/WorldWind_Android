@@ -49,9 +49,9 @@ public class WorldMapLayer extends AbstractLayer {
 	protected static final int VERTEX_SHADER_PATH_COLOR = R.raw.worldmaplayercolorvert;
 	protected static final int FRAGMENT_SHADER_PATH_COLOR = R.raw.worldmaplayercolorfrag;
 	protected static final int VERTEX_SHADER_PATH_TEXTURE = R.raw.worldmaplayertexturevert;
-	protected static final int FRAGMENT_SHADER_PATH_TEXTURE = R.raw.worldmaplayertexturefrag;
+	protected static final int FRAGMENT_SHADER_PATH_TEXTURE = R.raw.etc1alphafrag;
 
-	protected String iconFilePath = "images/earth-map-512x256.png";;
+	protected String iconFilePath = "images/earth-map-512x256.pkm";;
 	protected double toViewportScale = 0.2;
 	protected double iconScale = 0.5;
 	protected int borderWidth = 20;
@@ -351,7 +351,7 @@ public class WorldMapLayer extends AbstractLayer {
 
 			GLES20.glDisable(GLES20.GL_DEPTH_TEST);
 
-			WorldWindowGLSurfaceView.glCheckError("glDisable");
+			WorldWindowImpl.glCheckError("glDisable");
 
 			// iconWidth = 512;
 			double width = this.getScaledIconWidth();
@@ -377,10 +377,10 @@ public class WorldMapLayer extends AbstractLayer {
 
 			if (!dc.isPickingMode()) {
 				GLES20.glEnable(GLES20.GL_BLEND);
-				WorldWindowGLSurfaceView.glCheckError("glEnable:GL_BLEND");
+				WorldWindowImpl.glCheckError("glEnable:GL_BLEND");
 
 				GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
-				WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+				WorldWindowImpl.glCheckError("glBlendFunc");
 
 				GpuProgram colorProgram = this.getGpuProgram(dc.getGpuResourceCache(), programColorKey, VERTEX_SHADER_PATH_COLOR, FRAGMENT_SHADER_PATH_COLOR);
 				// Draw background color behind the map
@@ -393,22 +393,22 @@ public class WorldMapLayer extends AbstractLayer {
 					int pointLocation = colorProgram.getAttribLocation("vertexPoint");
 					GLES20.glEnableVertexAttribArray(pointLocation);
 
-					WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 					FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 					vertexBuf.put(unitQuadVerts);
 					vertexBuf.rewind();
 					GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
 
-					WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+					WorldWindowImpl.glCheckError("glVertexAttribPointer");
 					GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
 
-					WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+					WorldWindowImpl.glCheckError("glDrawArrays");
 					GLES20.glDisableVertexAttribArray(pointLocation);
 
-					WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 					GLES20.glUseProgram(0);
 
-					WorldWindowGLSurfaceView.glCheckError("glUseProgram");
+					WorldWindowImpl.glCheckError("glUseProgram");
 				}
 
 				// Draw world map icon
@@ -416,45 +416,43 @@ public class WorldMapLayer extends AbstractLayer {
 				if (textureProgram != null) {
 					textureProgram.bind();
 					textureProgram.loadUniformMatrix("mvpMatrix", mvp);
-					GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-					WorldWindowGLSurfaceView.glCheckError("glActiveTexture");
-
 					iconTexture.bind();
 					textureProgram.loadUniformSampler("sTexture", 0);
+					textureProgram.loadUniformSampler("aTexture", 1);
 
 					float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
 					int pointLocation = textureProgram.getAttribLocation("vertexPoint");
 					GLES20.glEnableVertexAttribArray(pointLocation);
-					WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 
 					FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 					vertexBuf.put(unitQuadVerts);
 					vertexBuf.rewind();
 					GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
-					WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+					WorldWindowImpl.glCheckError("glVertexAttribPointer");
 
 					float[] textureVerts = new float[] { 0, 1, 1, 1, 1, 0, 0, 0 };
 					int textureLocation = textureProgram.getAttribLocation("aTextureCoord");
 					GLES20.glEnableVertexAttribArray(textureLocation);
-					WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 
 					FloatBuffer textureBuf = ByteBuffer.allocateDirect(textureVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 					textureBuf.put(textureVerts);
 					textureBuf.rewind();
 					GLES20.glVertexAttribPointer(textureLocation, 2, GLES20.GL_FLOAT, false, 0, textureBuf);
-					WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+					WorldWindowImpl.glCheckError("glVertexAttribPointer");
 
 					GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
-					WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+					WorldWindowImpl.glCheckError("glDrawArrays");
 
 					GLES20.glDisableVertexAttribArray(pointLocation);
-					WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 
 					GLES20.glDisableVertexAttribArray(textureLocation);
-					WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 
 					GLES20.glUseProgram(0);
-					WorldWindowGLSurfaceView.glCheckError("glUseProgram");
+					WorldWindowImpl.glCheckError("glUseProgram");
 				}
 				// Draw crosshair for current location
 				modelview = Matrix.fromIdentity();
@@ -477,26 +475,26 @@ public class WorldMapLayer extends AbstractLayer {
 						int pointLocation = colorProgram.getAttribLocation("vertexPoint");
 						GLES20.glEnableVertexAttribArray(pointLocation);
 
-						WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+						WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 						float[] verts = new float[] { x - w, y, 0, x + w + 1, y, 0 };
 						FloatBuffer vertBuf = createBuffer(verts);
 						GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertBuf);
 
-						WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+						WorldWindowImpl.glCheckError("glVertexAttribPointer");
 						GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, verts.length / 3);
 
-						WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+						WorldWindowImpl.glCheckError("glDrawArrays");
 						verts = new float[] { x, y - w, 0, x, y + w + 1, 0 };
 						vertBuf = createBuffer(verts);
 						GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertBuf);
 
-						WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+						WorldWindowImpl.glCheckError("glVertexAttribPointer");
 						GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, verts.length / 3);
 
-						WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+						WorldWindowImpl.glCheckError("glDrawArrays");
 						GLES20.glDisableVertexAttribArray(pointLocation);
 
-						WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+						WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 					}
 				}
 				// Draw view footprint in map icon space
@@ -530,20 +528,20 @@ public class WorldMapLayer extends AbstractLayer {
 						int pointLocation = colorProgram.getAttribLocation("vertexPoint");
 						GLES20.glEnableVertexAttribArray(pointLocation);
 
-						WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+						WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 						for (ArrayList<Float> lineStrip : lineStrips) {
 							float[] verts = convertToArray(lineStrip);
 							FloatBuffer vertBuf = createBuffer(verts);
 							GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertBuf);
 
-							WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+							WorldWindowImpl.glCheckError("glVertexAttribPointer");
 							GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, verts.length / 3);
 
-							WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+							WorldWindowImpl.glCheckError("glDrawArrays");
 						}
 						GLES20.glDisableVertexAttribArray(pointLocation);
 
-						WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+						WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 					}
 				}
 				// Draw 1px border around and inside the map
@@ -551,18 +549,18 @@ public class WorldMapLayer extends AbstractLayer {
 					int pointLocation = colorProgram.getAttribLocation("vertexPoint");
 					GLES20.glEnableVertexAttribArray(pointLocation);
 
-					WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 					float[] vertices = new float[] { 0, 0, 0, (float) width, 0, 0, (float) width, (float) (height - 1), 0, 0, (float) (height - 1), 0, 0, 0, 0 };
 					FloatBuffer vertBuf = createBuffer(vertices);
 					GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertBuf);
 
-					WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+					WorldWindowImpl.glCheckError("glVertexAttribPointer");
 					GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, vertices.length / 3);
 
-					WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+					WorldWindowImpl.glCheckError("glDrawArrays");
 					GLES20.glDisableVertexAttribArray(pointLocation);
 
-					WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 				}
 			} else {
 				// Picking TODO Copied from compass layer and not tested
@@ -581,19 +579,19 @@ public class WorldMapLayer extends AbstractLayer {
 				int pointLocation = textureProgram.getAttribLocation("vertexPoint");
 				GLES20.glEnableVertexAttribArray(pointLocation);
 
-				WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+				WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 				GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
 
-				WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+				WorldWindowImpl.glCheckError("glVertexAttribPointer");
 				GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
 
-				WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+				WorldWindowImpl.glCheckError("glDrawArrays");
 				GLES20.glDisableVertexAttribArray(pointLocation);
 
-				WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+				WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 				GLES20.glUseProgram(0);
 
-				WorldWindowGLSurfaceView.glCheckError("glUseProgram");
+				WorldWindowImpl.glCheckError("glUseProgram");
 				this.pickSupport.endPicking(dc);
 				this.pickSupport.resolvePick(dc, dc.getPickPoint(), this);
 			}
@@ -603,7 +601,7 @@ public class WorldMapLayer extends AbstractLayer {
 		} finally {
 			GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 
-			WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+			WorldWindowImpl.glCheckError("glBlendFunc");
 		}
 	}
 
@@ -712,7 +710,7 @@ public class WorldMapLayer extends AbstractLayer {
 					iconStream = new FileInputStream(iconFile);
 				}
 			}
-			iconTexture = GpuTexture.createTexture(dc, GpuTextureData.createTextureData(iconStream, iconFilePath, "image/png", false));// TextureIO.newTexture(iconStream, false, null);
+			iconTexture = GpuTexture.createTexture(dc, GpuTextureData.createTextureData(iconStream, iconFilePath, "image/pkm", false));
 			iconTexture.bind();
 			this.iconWidth = iconTexture.getWidth();
 			this.iconHeight = iconTexture.getHeight();
@@ -785,7 +783,7 @@ public class WorldMapLayer extends AbstractLayer {
 	 */
 	protected ArrayList<LatLon> computeViewFootPrint(DrawContext dc, int steps) {
 		ArrayList<LatLon> positions = new ArrayList<LatLon>();
-		Position eyePos = dc.getView().getEyePosition(dc.getGlobe());
+		Position eyePos = dc.getView().getEyePosition();
 		Angle distance = Angle.fromRadians(Math.asin(dc.getView().getFarClipDistance() / (dc.getGlobe().getRadius() + eyePos.elevation)));
 		if (distance.degrees > 10) {
 			double headStep = 360d / steps;

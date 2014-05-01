@@ -7,38 +7,30 @@ package gov.nasa.worldwind.layers;
 
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Point;
 import android.opengl.GLES20;
 import gov.nasa.worldwind.Configuration;
 import gov.nasa.worldwind.WorldWind;
-import gov.nasa.worldwind.WorldWindow;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.avlist.AVList;
 import gov.nasa.worldwind.avlist.AVListImpl;
 import gov.nasa.worldwind.cache.BasicMemoryCache;
 import gov.nasa.worldwind.cache.FileStore;
 import gov.nasa.worldwind.cache.MemoryCache;
-import gov.nasa.worldwind.event.BulkRetrievalListener;
 import gov.nasa.worldwind.geom.*;
-import gov.nasa.worldwind.render.*;
-import gov.nasa.worldwind.retrieve.AbstractRetrievalPostProcessor;
-import gov.nasa.worldwind.retrieve.BulkRetrievable;
-import gov.nasa.worldwind.retrieve.BulkRetrievalThread;
-import gov.nasa.worldwind.retrieve.Retriever;
-import gov.nasa.worldwind.retrieve.URLRetriever;
+import gov.nasa.worldwind.render.DrawContext;
+import gov.nasa.worldwind.render.GpuTextureTile;
+import gov.nasa.worldwind.render.Renderable;
+import gov.nasa.worldwind.render.TextRenderer;
 import gov.nasa.worldwind.util.*;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.ByteBuffer;
+import javax.xml.xpath.XPath;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.PriorityBlockingQueue;
-import javax.xml.xpath.XPath;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import android.graphics.Point;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -447,7 +439,7 @@ public abstract class TiledImageLayer extends AbstractLayer implements Tile.Tile
 
 	protected void loadAllTopLevelTextures(DrawContext dc)
 	{
-		if(WorldWindow.DEBUG)
+		if(WorldWindowImpl.DEBUG)
 			Logging.verbose(getName() + "- Creating Top Level Tiles");
 		for (GpuTextureTile tile : this.getTopLevels())
 		{

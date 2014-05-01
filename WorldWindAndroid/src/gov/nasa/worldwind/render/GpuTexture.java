@@ -5,14 +5,14 @@
  */
 package gov.nasa.worldwind.render;
 
-import gov.nasa.worldwind.Disposable;
-import gov.nasa.worldwind.WorldWindowGLSurfaceView;
-import gov.nasa.worldwind.cache.Cacheable;
-import gov.nasa.worldwind.geom.Matrix;
-import gov.nasa.worldwind.util.Logging;
 import android.graphics.Bitmap;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
+import gov.nasa.worldwind.Disposable;
+import gov.nasa.worldwind.WorldWindowImpl;
+import gov.nasa.worldwind.cache.Cacheable;
+import gov.nasa.worldwind.geom.Matrix;
+import gov.nasa.worldwind.util.Logging;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -58,7 +58,7 @@ public class GpuTexture implements Cacheable, Disposable {
 		int[] texture = new int[1];
 		try {
 			GLES20.glGenTextures(1, texture, 0);
-			WorldWindowGLSurfaceView.glCheckError("glGenTextures");
+			WorldWindowImpl.glCheckError("glGenTextures");
 			if (texture[0] <= 0) {
 				String msg = Logging.getMessage("GL.UnableToCreateObject", Logging.getMessage("term.Texture"));
 				Logging.error(msg);
@@ -68,28 +68,28 @@ public class GpuTexture implements Cacheable, Disposable {
 			// OpenGL ES provides support for non-power-of-two textures, including its associated mipmaps, provided that
 			// the s and t wrap modes are both GL_CLAMP_TO_EDGE.
 			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture[0]);
-			WorldWindowGLSurfaceView.glCheckError("glBindTexture");
+			WorldWindowImpl.glCheckError("glBindTexture");
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR_MIPMAP_LINEAR);
-			WorldWindowGLSurfaceView.glCheckError("glTexParameteri");
+			WorldWindowImpl.glCheckError("glTexParameteri");
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-			WorldWindowGLSurfaceView.glCheckError("glTexParameteri");
+			WorldWindowImpl.glCheckError("glTexParameteri");
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-			WorldWindowGLSurfaceView.glCheckError("glTexParameteri");
+			WorldWindowImpl.glCheckError("glTexParameteri");
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-			WorldWindowGLSurfaceView.glCheckError("glTexParameteri");
+			WorldWindowImpl.glCheckError("glTexParameteri");
 
 			GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
-			WorldWindowGLSurfaceView.glCheckError("texImage2D");
+			WorldWindowImpl.glCheckError("texImage2D");
 
 			GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
-			WorldWindowGLSurfaceView.glCheckError("glGenerateMipmap");
+			WorldWindowImpl.glCheckError("glGenerateMipmap");
 		} catch (Exception e) {
 			GLES20.glDeleteTextures(1, texture, 0);
-			WorldWindowGLSurfaceView.glCheckError("glDeleteTextures");
+			WorldWindowImpl.glCheckError("glDeleteTextures");
 			throw e;
 		} finally {
 			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
-			WorldWindowGLSurfaceView.glCheckError("glBindTexture");
+			WorldWindowImpl.glCheckError("glBindTexture");
 		}
 
 		return new GpuTexture(GLES20.GL_TEXTURE_2D, texture, bitmap.getWidth(), bitmap.getHeight(), data.getSizeInBytes(), createVerticalFlipTransform());
@@ -103,7 +103,7 @@ public class GpuTexture implements Cacheable, Disposable {
 		int[] texture = alphaData!=null ? new int[2] : new int[1];
 		try {
 			GLES20.glGenTextures(texture.length, texture, 0);
-			WorldWindowGLSurfaceView.glCheckError("glGenTextures");
+			WorldWindowImpl.glCheckError("glGenTextures");
 			if (texture[0] <= 0) {
 				String msg = Logging.getMessage("GL.UnableToCreateObject", Logging.getMessage("term.Texture"));
 				Logging.error(msg);
@@ -113,51 +113,51 @@ public class GpuTexture implements Cacheable, Disposable {
 			// OpenGL ES provides support for non-power-of-two textures, including its associated mipmaps, provided that
 			// the s and t wrap modes are both GL_CLAMP_TO_EDGE.
 			GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-			WorldWindowGLSurfaceView.glCheckError("glActiveTexture");
+			WorldWindowImpl.glCheckError("glActiveTexture");
 			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture[0]);
-			WorldWindowGLSurfaceView.glCheckError("glBindTexture");
+			WorldWindowImpl.glCheckError("glBindTexture");
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, levelData.length > 1 ? GLES20.GL_LINEAR_MIPMAP_LINEAR : GLES20.GL_LINEAR);
-			WorldWindowGLSurfaceView.glCheckError("glTexParameteri");
+			WorldWindowImpl.glCheckError("glTexParameteri");
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-			WorldWindowGLSurfaceView.glCheckError("glTexParameteri");
+			WorldWindowImpl.glCheckError("glTexParameteri");
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-			WorldWindowGLSurfaceView.glCheckError("glTexParameteri");
+			WorldWindowImpl.glCheckError("glTexParameteri");
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-			WorldWindowGLSurfaceView.glCheckError("glTexParameteri");
+			WorldWindowImpl.glCheckError("glTexParameteri");
 
 			for (int levelNum = 0; levelNum < levelData.length; levelNum++) {
 				GpuTextureData.MipmapData level = levelData[levelNum];
 				GLES20.glCompressedTexImage2D(GLES20.GL_TEXTURE_2D, levelNum, format, level.width, level.height, 0, level.buffer.remaining(), level.buffer);
-				WorldWindowGLSurfaceView.glCheckError("glCompressedTexImage2D");
+				WorldWindowImpl.glCheckError("glCompressedTexImage2D");
 			}
 
 			if(alphaData!=null) {
 				GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
-				WorldWindowGLSurfaceView.glCheckError("glActiveTexture");
+				WorldWindowImpl.glCheckError("glActiveTexture");
 				GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture[1]);
-				WorldWindowGLSurfaceView.glCheckError("glBindTexture");
+				WorldWindowImpl.glCheckError("glBindTexture");
 				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, alphaData.length > 1 ? GLES20.GL_LINEAR_MIPMAP_LINEAR : GLES20.GL_LINEAR);
-				WorldWindowGLSurfaceView.glCheckError("glTexParameteri");
+				WorldWindowImpl.glCheckError("glTexParameteri");
 				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-				WorldWindowGLSurfaceView.glCheckError("glTexParameteri");
+				WorldWindowImpl.glCheckError("glTexParameteri");
 				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-				WorldWindowGLSurfaceView.glCheckError("glTexParameteri");
+				WorldWindowImpl.glCheckError("glTexParameteri");
 				GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-				WorldWindowGLSurfaceView.glCheckError("glTexParameteri");
+				WorldWindowImpl.glCheckError("glTexParameteri");
 
 				for (int levelNum = 0; levelNum < alphaData.length; levelNum++) {
 					GpuTextureData.MipmapData level = alphaData[levelNum];
 					GLES20.glCompressedTexImage2D(GLES20.GL_TEXTURE_2D, levelNum, format, level.width, level.height, 0, level.buffer.remaining(), level.buffer);
-					WorldWindowGLSurfaceView.glCheckError("glCompressedTexImage2D");
+					WorldWindowImpl.glCheckError("glCompressedTexImage2D");
 				}
 			}
 		} catch (Exception e) {
 			GLES20.glDeleteTextures(texture.length, texture, 0);
-			WorldWindowGLSurfaceView.glCheckError("glDeleteTextures");
+			WorldWindowImpl.glCheckError("glDeleteTextures");
 			throw e;
 		} finally {
 			GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
-			WorldWindowGLSurfaceView.glCheckError("glBindTexture");
+			WorldWindowImpl.glCheckError("glBindTexture");
 		}
 
 		return new GpuTexture(GLES20.GL_TEXTURE_2D, texture, levelData[0].width, levelData[0].height, data.getSizeInBytes(), createVerticalFlipTransform());
@@ -254,15 +254,15 @@ public class GpuTexture implements Cacheable, Disposable {
 	public void bind() {
 		for(int i=0; i<textureId.length; i++) {
 			GLES20.glActiveTexture(GLES20.GL_TEXTURE0+i);
-			WorldWindowGLSurfaceView.glCheckError("glActiveTexture");
+			WorldWindowImpl.glCheckError("glActiveTexture");
 			GLES20.glBindTexture(this.target, this.textureId[i]);
-			WorldWindowGLSurfaceView.glCheckError("glBindTexture");
+			WorldWindowImpl.glCheckError("glBindTexture");
 		}
 	}
 
 	public void dispose() {
 		GLES20.glDeleteTextures(textureId.length, textureId, 0);
-		WorldWindowGLSurfaceView.glCheckError("glDeleteTextures");
+		WorldWindowImpl.glCheckError("glDeleteTextures");
 	}
 
 	public void applyInternalTransform(DrawContext dc, Matrix matrix) {

@@ -7,6 +7,7 @@ package gov.nasa.worldwind.layers;
 
 import gov.nasa.worldwind.R;
 import gov.nasa.worldwind.WorldWindowGLSurfaceView;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.geom.Angle;
@@ -314,7 +315,7 @@ public class ScalebarLayer extends AbstractLayer {
 	/**
 	 * Set the scalebar legend Fon
 	 *
-	 * @param font
+	 * @param paint
 	 *            the scalebar legend Font
 	 */
 	public void setPaint(Paint paint) {
@@ -345,8 +346,7 @@ public class ScalebarLayer extends AbstractLayer {
 		try {
 
 			GLES20.glDisable(GLES20.GL_DEPTH_TEST);
-
-			WorldWindowGLSurfaceView.glCheckError("glDisable");
+			WorldWindowImpl.glCheckError("glDisable(GL_DEPTH_TEST)");
 
 			double width = this.size.width;
 			double height = this.size.height;
@@ -407,10 +407,10 @@ public class ScalebarLayer extends AbstractLayer {
 					if (!dc.isPickingMode()) {
 						GLES20.glEnable(GLES20.GL_BLEND);
 
-						WorldWindowGLSurfaceView.glCheckError("glEnable");
+						WorldWindowImpl.glCheckError("glEnable");
 						GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 
-						WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+						WorldWindowImpl.glCheckError("glBlendFunc");
 						GpuProgram colorProgram = this.getGpuProgram(dc.getGpuResourceCache(), programColorKey, VERTEX_SHADER_PATH_COLOR, FRAGMENT_SHADER_PATH_COLOR);
 						if (colorProgram != null) {
 							// Set color using current layer opacity
@@ -423,7 +423,7 @@ public class ScalebarLayer extends AbstractLayer {
 							int pointLocation = colorProgram.getAttribLocation("vertexPoint");
 							GLES20.glEnableVertexAttribArray(pointLocation);
 
-							WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+							WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 							this.drawScale(dc, divWidth, height, pointLocation);
 
 							colorProgram.loadUniform4f("uColor", color[0], color[1], color[2], this.getOpacity());
@@ -458,7 +458,7 @@ public class ScalebarLayer extends AbstractLayer {
 		} finally {
 			GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 
-			WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+			WorldWindowImpl.glCheckError("glBlendFunc");
 		}
 	}
 
@@ -515,18 +515,18 @@ public class ScalebarLayer extends AbstractLayer {
 		FloatBuffer vertBuf = createBuffer(verts);
 		GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertBuf);
 
-		WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+		WorldWindowImpl.glCheckError("glVertexAttribPointer");
 		GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, verts.length / 3);
 
-		WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+		WorldWindowImpl.glCheckError("glDrawArrays");
 		verts = new float[] { (float) (width / 2), 0, 0, (float) (width / 2), (float) (height / 2), 0 };
 		vertBuf = createBuffer(verts);
 		GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertBuf);
 
-		WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+		WorldWindowImpl.glCheckError("glVertexAttribPointer");
 		GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, verts.length / 3);
 
-		WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+		WorldWindowImpl.glCheckError("glDrawArrays");
 	}
 
 	protected FloatBuffer createBuffer(float[] array) {

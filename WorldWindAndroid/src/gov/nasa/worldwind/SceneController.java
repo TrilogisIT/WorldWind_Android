@@ -5,9 +5,13 @@
  */
 package gov.nasa.worldwind;
 
+import android.graphics.Point;
+import android.opengl.GLES20;
+import android.os.SystemClock;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.layers.Layer;
+import gov.nasa.worldwind.pick.PickSupport;
 import gov.nasa.worldwind.pick.PickedObject;
 import gov.nasa.worldwind.pick.PickedObjectList;
 import gov.nasa.worldwind.render.Color;
@@ -16,11 +20,10 @@ import gov.nasa.worldwind.render.OrderedRenderable;
 import gov.nasa.worldwind.terrain.SectorGeometry;
 import gov.nasa.worldwind.terrain.SectorGeometryList;
 import gov.nasa.worldwind.util.Logging;
-import android.graphics.Point;
-import android.opengl.GLES20;
 import gov.nasa.worldwind.util.PerformanceStatistic;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -36,20 +39,23 @@ public class SceneController extends WWObjectImpl {
 	protected Color clearColor = new Color();
 	protected GpuResourceCache gpuResourceCache;
 	protected boolean deepPick;
+	protected PickSupport pickSupport;
 	protected Point pickPoint;
 	protected PickedObjectList objectsAtPickPoint = new PickedObjectList();
 
 	protected Set<String> perFrameStatisticsKeys = new HashSet<String>();
-	protected final Map<String, PerformanceStatistic> perFrameStatistics = new HashMap<String, PerformanceStatistic>();
-	protected long frame = 0;
-	protected long timebase = System.currentTimeMillis();
-	protected double framesPerSecond;
-	protected double frameTime;
-	protected double pickTime;
+	protected final Map<String, PerformanceStatistic> perFrameStatistics = Collections.synchronizedMap(new ConcurrentHashMap<String, PerformanceStatistic>());
 
 	protected SceneController() {
 		this.setVerticalExaggeration(Configuration.getDoubleValue(AVKey.VERTICAL_EXAGGERATION));
 		this.dc = this.createDrawContext();
+	}
+
+	protected PickSupport getPickSupport() {
+		if(pickSupport==null) {
+			pickSupport = new PickSupport((int)view.getViewport().width, (int)view.getViewport().height);
+		}
+		return pickSupport;
 	}
 
 	protected DrawContext createDrawContext() {
@@ -199,16 +205,6 @@ public class SceneController extends WWObjectImpl {
 		return this.objectsAtPickPoint;
 	}
 
-	public double getFramesPerSecond()
-	{
-		return this.framesPerSecond;
-	}
-
-	public double getFrameTime()
-	{
-		return this.frameTime;
-	}
-
 	public void setPerFrameStatisticsKeys(Set<String> keys)
 	{
 		this.perFrameStatisticsKeys.clear();
@@ -237,9 +233,9 @@ public class SceneController extends WWObjectImpl {
 	 *            the height of the current viewport this scene controller is associated with, in pixels.
 	 *            Must not be less than zero.
 	 * @throws IllegalArgumentException
-	 *             if either viewportWidth or viewportHeight are less than zero.
+	 *             if either viewportWidth or viewportHeight are last ess than zero.
 	 */
-	public void drawFrame(int viewportWidth, int viewportHeight) {
+	public void drawFrame(double deltaTime, int viewportWidth, int viewportHeight) {
 		if (viewportWidth < 0) {
 			String msg = Logging.getMessage("generic.WidthIsInvalid", viewportWidth);
 			Logging.error(msg);
@@ -252,25 +248,14 @@ public class SceneController extends WWObjectImpl {
 			throw new IllegalArgumentException(msg);
 		}
 
-		perFrameStatistics.clear();
+//		perFrameStatistics.clear();
 		// Prepare the drawing context for a new frame then cause this scene controller to draw its content. There is no
 		// need to explicitly swap the front and back buffers here, as the owner WorldWindow does this for us. In the
 		// case of WorldWindowGLSurfaceView, the GLSurfaceView automatically swaps the front and back buffers for us.
 		this.initializeDrawContext(this.dc, viewportWidth, viewportHeight);
-		this.doDrawFrame(this.dc);
+		dc.setDeltaTime(deltaTime);
 
-		++this.frame;
-		long time = System.currentTimeMillis();
-		this.frameTime = System.currentTimeMillis() - this.frameTime;
-		if (time - this.timebase > 2000) // recalculate every two seconds
-		{
-			this.framesPerSecond = frame * 1000d / (time - timebase);
-			this.timebase = time;
-			this.frame = 0;
-		}
-		this.dc.setPerFrameStatistic(PerformanceStatistic.FRAME_TIME, "Frame Time (ms)", (int) this.frameTime);
-		this.dc.setPerFrameStatistic(PerformanceStatistic.FRAME_RATE, "Frame Rate (fps)", (int) this.framesPerSecond);
-		this.dc.setPerFrameStatistic(PerformanceStatistic.PICK_TIME, "Pick Time (ms)", (int) this.pickTime);
+		this.doDrawFrame(this.dc);
 
 		Set<String> perfKeys = dc.getPerFrameStatisticsKeys();
 
@@ -303,8 +288,8 @@ public class SceneController extends WWObjectImpl {
 			this.applyView(dc);
 			this.createPickFrustum(dc);
 			this.createTerrain(dc);
-			this.clearFrame(dc);
-			this.pick(dc);
+//			this.clearFrame(dc);
+//			this.pick(dc);
 			this.clearFrame(dc);
 			this.draw(dc);
 		} finally {
@@ -313,46 +298,44 @@ public class SceneController extends WWObjectImpl {
 	}
 
 	protected void initializeDrawContext(DrawContext dc, int viewportWidth, int viewportHeight) {
-		long timeStamp = System.currentTimeMillis();
-
 		dc.initialize(viewportWidth, viewportHeight);
+		dc.setFrameTimeStamp(SystemClock.elapsedRealtime());
 		dc.setModel(this.model);
 		dc.setView(this.view);
 		dc.setVerticalExaggeration(this.verticalExaggeration);
 		dc.setGpuResourceCache(this.gpuResourceCache);
-		dc.setFrameTimeStamp(timeStamp);
 		dc.setPickPoint(this.pickPoint);
 		dc.setPerFrameStatisticsKeys(this.perFrameStatisticsKeys, this.perFrameStatistics);
 	}
 
 	protected void initializeFrame(DrawContext dc) {
 		GLES20.glEnable(GLES20.GL_BLEND);
-		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_BLEND");
+		WorldWindowImpl.glCheckError("glEnable: GL_BLEND");
 		GLES20.glEnable(GLES20.GL_CULL_FACE);
-		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_CULL_FACE");
+		WorldWindowImpl.glCheckError("glEnable: GL_CULL_FACE");
 		GLES20.glEnable(GLES20.GL_DEPTH_TEST);
-		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_DEPTH_TEST");
+		WorldWindowImpl.glCheckError("glEnable: GL_DEPTH_TEST");
 		GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA); // Blend in premultiplied alpha mode. 
-		WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+		WorldWindowImpl.glCheckError("glBlendFunc");
 		GLES20.glDepthFunc(GLES20.GL_LEQUAL);
-		WorldWindowGLSurfaceView.glCheckError("glDepthFunc");
+		WorldWindowImpl.glCheckError("glDepthFunc");
 		// We do not specify glCullFace, because the default cull face state GL_BACK is appropriate for our needs.
 	}
 
 	protected void finalizeFrame(DrawContext dc) {
 		// Restore the default GL state values we modified in initializeFrame.
 		GLES20.glDisable(GLES20.GL_BLEND);
-		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_BLEND");
+		WorldWindowImpl.glCheckError("glDisable: GL_BLEND");
 		GLES20.glDisable(GLES20.GL_CULL_FACE);
-		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_CULL_FACE");
+		WorldWindowImpl.glCheckError("glDisable: GL_CULL_FACE");
 		GLES20.glDisable(GLES20.GL_DEPTH_TEST);
-		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_DEPTH_TEST");
+		WorldWindowImpl.glCheckError("glDisable: GL_DEPTH_TEST");
 		GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ZERO);
-		WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+		WorldWindowImpl.glCheckError("glBlendFunc");
 		GLES20.glDepthFunc(GLES20.GL_LESS);
-		WorldWindowGLSurfaceView.glCheckError("glDepthFunc");
+		WorldWindowImpl.glCheckError("glDepthFunc");
 		GLES20.glClearColor(0f, 0f, 0f, 0f);
-		WorldWindowGLSurfaceView.glCheckError("glClearColor");
+		WorldWindowImpl.glCheckError("glClearColor");
 	}
 
 	protected void clearFrame(DrawContext dc) {
@@ -361,9 +344,9 @@ public class SceneController extends WWObjectImpl {
 		// Set the DrawContext's clear color, then clear the framebuffer's color buffer and depth buffer. This fills
 		// the color buffer with the background color, and fills the depth buffer with 1 (the default).
 		GLES20.glClearColor((float) this.clearColor.r, (float) this.clearColor.g, (float) this.clearColor.b, (float) this.clearColor.a);
-		WorldWindowGLSurfaceView.glCheckError("glClearColor");
+		WorldWindowImpl.glCheckError("glClearColor");
 		GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
-		WorldWindowGLSurfaceView.glCheckError("glClear");
+		WorldWindowImpl.glCheckError("glClear");
 	}
 
 	protected void applyView(DrawContext dc) {
@@ -453,10 +436,10 @@ public class SceneController extends WWObjectImpl {
 
 	protected void pick(DrawContext dc) {
 		try {
-			this.beginPicking(dc);
+			getPickSupport().beginPicking(dc);
 			this.doPick(dc);
 		} finally {
-			this.endPicking(dc);
+			getPickSupport().endPicking(dc);
 		}
 	}
 
@@ -464,45 +447,6 @@ public class SceneController extends WWObjectImpl {
 	{
 		dc.addPickPointFrustum();
 //		dc.addPickRectangleFrustum();
-	}
-
-	/**
-	 * Configures the draw context and GL state for picking. This ensures that pick colors are drawn into the
-	 * framebuffer as specified, and are not modified by any GL state. This makes the following GL state changes:
-	 * <ul>
-	 * <li>Disable blending</li>
-	 * <li>Disable dithering</li>
-	 * </ul>
-	 *
-	 * @param dc
-	 *            the draw context to configure.
-	 */
-	protected void beginPicking(DrawContext dc) {
-		dc.setPickingMode(true);
-		GLES20.glDisable(GLES20.GL_BLEND); // Blending is disabled by default, but is enabled in initializeFrame. 
-		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_BLEND");
-		GLES20.glDisable(GLES20.GL_DITHER); // Dithering is enabled by default. 
-		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_DITHER");
-		//TODO bind texture framebuffer
-	}
-
-	/**
-	 * Restores the draw context and GL state modified in beginPicking. This makes the following GL state changes:
-	 * <ul>
-	 * <li>Enable blending</li>
-	 * <li>Enable dithering</li>
-	 * </ul>
-	 *
-	 * @param dc
-	 *            the draw context on which to restore state.
-	 */
-	protected void endPicking(DrawContext dc) {
-		//TODO unbind texture framebuffer
-		dc.setPickingMode(false);
-		GLES20.glEnable(GLES20.GL_BLEND); // Blending is disabled by default, but is enabled in initializeFrame. 
-		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_BLEND");
-		GLES20.glEnable(GLES20.GL_DITHER); // Dithering is enabled by default. 
-		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_DITHER");
 	}
 
 	protected void doPick(DrawContext dc) {
@@ -609,7 +553,7 @@ public class SceneController extends WWObjectImpl {
 	protected void beginDeepPicking(DrawContext dc) {
 		dc.setDeepPickingEnabled(true);
 		GLES20.glDisable(GLES20.GL_DEPTH_TEST); // Depth test is disabled by default, but enabled in initializeFrame. 
-		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_DEPTH_TEST");
+		WorldWindowImpl.glCheckError("glDisable: GL_DEPTH_TEST");
 	}
 
 	/**
@@ -625,7 +569,7 @@ public class SceneController extends WWObjectImpl {
 	protected void endDeepPicking(DrawContext dc) {
 		dc.setDeepPickingEnabled(false);
 		GLES20.glEnable(GLES20.GL_DEPTH_TEST); // Depth test is disabled by default, but enabled in initializeFrame. 
-		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_DEPTH_TEST");
+		WorldWindowImpl.glCheckError("glEnable: GL_DEPTH_TEST");
 	}
 
 	protected PickedObjectList mergePickedObjectLists(PickedObjectList listA, PickedObjectList listB) {

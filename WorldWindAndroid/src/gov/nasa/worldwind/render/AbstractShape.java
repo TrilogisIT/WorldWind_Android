@@ -4,30 +4,24 @@ All Rights Reserved.
  */
 package gov.nasa.worldwind.render;
 
+import android.graphics.Point;
+import android.opengl.GLES20;
 import gov.nasa.worldwind.Movable;
 import gov.nasa.worldwind.R;
 import gov.nasa.worldwind.WWObjectImpl;
-import gov.nasa.worldwind.WorldWindowGLSurfaceView;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.cache.ShapeDataCache;
-import gov.nasa.worldwind.geom.Extent;
-import gov.nasa.worldwind.geom.Intersection;
-import gov.nasa.worldwind.geom.LatLon;
-import gov.nasa.worldwind.geom.Line;
-import gov.nasa.worldwind.geom.Matrix;
-import gov.nasa.worldwind.geom.Position;
-import gov.nasa.worldwind.geom.Sector;
-import gov.nasa.worldwind.geom.Vec4;
+import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.layers.Layer;
 import gov.nasa.worldwind.pick.PickSupport;
 import gov.nasa.worldwind.pick.PickedObject;
 import gov.nasa.worldwind.terrain.Terrain;
 import gov.nasa.worldwind.util.Logging;
+
 import java.util.List;
-import android.graphics.Point;
-import android.opengl.GLES20;
 
 /**
  * Provides a base class form several geometric {@link gov.nasa.worldwind.render.Renderable}s. Implements common
@@ -967,11 +961,11 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 		// each shape.
 		int attribLocation = program.getAttribLocation("vertexPoint");
 		if (attribLocation >= 0) GLES20.glEnableVertexAttribArray(attribLocation);
-		WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 
 		// Set the OpenGL state that this shape depends on.
 		GLES20.glDisable(GLES20.GL_CULL_FACE);
-		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_CULL_FACE");
+		WorldWindowImpl.glCheckError("glDisable: GL_CULL_FACE");
 	}
 
 	/**
@@ -991,26 +985,26 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 		// the current OpenGL program state.
 		int location = program.getAttribLocation("vertexPoint");
 		if (location >= 0) GLES20.glDisableVertexAttribArray(location);
-		WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+		WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 
 		// Restore the previous OpenGL program state.
 		dc.setCurrentProgram(null);
 		GLES20.glUseProgram(0);
-		WorldWindowGLSurfaceView.glCheckError("glUseProgram");
+		WorldWindowImpl.glCheckError("glUseProgram");
 
 		// Restore the OpenGL array and element array buffer bindings to 0.
 		GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
-		WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+		WorldWindowImpl.glCheckError("glBindBuffer");
 		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
-		WorldWindowGLSurfaceView.glCheckError("glBindBuffer");
+		WorldWindowImpl.glCheckError("glBindBuffer");
 
 		// Restore the remaining OpenGL state values to their defaults.
 		GLES20.glEnable(GLES20.GL_CULL_FACE);
-		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_CULL_FACE");
+		WorldWindowImpl.glCheckError("glEnable: GL_CULL_FACE");
 		GLES20.glDepthMask(true);
-		WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+		WorldWindowImpl.glCheckError("glDepthMask");
 		GLES20.glLineWidth(1f);
-		WorldWindowGLSurfaceView.glCheckError("glLineWidth");
+		WorldWindowImpl.glCheckError("glLineWidth");
 	}
 
 	protected GpuProgram getDefaultGpuProgram(GpuResourceCache cache) {
@@ -1154,7 +1148,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 			// Disable writing the shape's interior fragments to the OpenGL depth buffer when the interior is
 			// semi-transparent.
 			if (color.a < 1) GLES20.glDepthMask(false);
-			WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+			WorldWindowImpl.glCheckError("glDepthMask");
 
 			// Load the current interior color into the gpu program's color uniform variable. We first copy the outline
 			// color into the current color so we can premultiply it. The SceneController configures the OpenGL blending
@@ -1207,7 +1201,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 
 		if (dc.isPickingMode() && activeAttrs.getOutlineWidth() < this.getOutlinePickWidth()) GLES20.glLineWidth(this.getOutlinePickWidth());
 		else GLES20.glLineWidth((float) activeAttrs.getOutlineWidth());
-		WorldWindowGLSurfaceView.glCheckError("glLineWidth");
+		WorldWindowImpl.glCheckError("glLineWidth");
 	}
 
 	/**
@@ -1298,17 +1292,17 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 		for (int i = 0; i < prims.size(); i++) {
 			switch (primTypes.get(i)) {
 				case GLES20.GL_TRIANGLES:
-					WorldWindowGLSurfaceView.glCheckError("GL_TRIANGLES");
+					WorldWindowImpl.glCheckError("GL_TRIANGLES");
 					numVertices += prims.get(i).size();
 					break;
 
 				case GLES20.GL_TRIANGLE_FAN:
-					WorldWindowGLSurfaceView.glCheckError("GL_TRIANGLE_FAN");
+					WorldWindowImpl.glCheckError("GL_TRIANGLE_FAN");
 					numVertices += (prims.get(i).size() - 2) * 3; // N tris from N + 2 vertices
 					break;
 
 				case GLES20.GL_TRIANGLE_STRIP:
-					WorldWindowGLSurfaceView.glCheckError("GL_TRIANGLE_STRIP");
+					WorldWindowImpl.glCheckError("GL_TRIANGLE_STRIP");
 					numVertices += (prims.get(i).size() - 2) * 3; // N tris from N + 2 vertices
 					break;
 			}

@@ -7,13 +7,16 @@ package gov.nasa.worldwind.render;
 
 import android.opengl.GLES20;
 import gov.nasa.worldwind.R;
-import gov.nasa.worldwind.WorldWindowGLSurfaceView;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.cache.GpuResourceCache;
-import gov.nasa.worldwind.geom.*;
-import gov.nasa.worldwind.terrain.*;
+import gov.nasa.worldwind.geom.Matrix;
+import gov.nasa.worldwind.geom.Sector;
+import gov.nasa.worldwind.terrain.SectorGeometry;
+import gov.nasa.worldwind.terrain.SectorGeometryList;
 import gov.nasa.worldwind.util.Logging;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author dcollins
@@ -176,7 +179,7 @@ public class SurfaceTileRenderer
 		dc.setCurrentProgram(program);
 		// Specify that the tile textures are bound to texture unit GL_TEXTURE0.
 		GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-		WorldWindowGLSurfaceView.glCheckError("glActiveTexture");
+		WorldWindowImpl.glCheckError("glActiveTexture");
 		program.loadUniformSampler("tileTexture", 0);
 	}
 
@@ -185,9 +188,9 @@ public class SurfaceTileRenderer
 		dc.setCurrentProgram(null);
 		// Restore the current program to 0 and the active texture unit to GL_TEXTURE0.
 		GLES20.glUseProgram(0);
-		WorldWindowGLSurfaceView.glCheckError("glUseProgram");
+		WorldWindowImpl.glCheckError("glUseProgram");
 		GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-		WorldWindowGLSurfaceView.glCheckError("glActiveTexture");
+		WorldWindowImpl.glCheckError("glActiveTexture");
 
 		// Clear the list of intersecting tiles to avoid keeping references to caller specified tiles.
 		this.intersectingTiles.clear();

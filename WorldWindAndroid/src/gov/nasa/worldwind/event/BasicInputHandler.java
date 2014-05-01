@@ -6,6 +6,8 @@
 package gov.nasa.worldwind.event;
 
 import android.graphics.Point;
+import android.os.*;
+import android.os.Message;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
@@ -55,6 +57,19 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
 	protected ScaleGestureDetector scaleGestureDetector;
 	private GestureDetector gestureDetector;
 	private Position selectedPosition;
+
+	private static final int WHAT_STOP_ANIMATIONS = 0;
+
+	private Handler animationHandler = new Handler() {
+		@Override
+		public void handleMessage(Message msg) {
+			switch(msg.what) {
+				case WHAT_STOP_ANIMATIONS:
+					((BasicView) eventSource.getView()).stopAnimations();
+					break;
+			}
+		}
+	};
 
 	public BasicInputHandler()
     {
@@ -124,8 +139,8 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
     public void setEventSource(WorldWindow eventSource)
     {
 		this.eventSource = eventSource;
-		scaleGestureDetector = new ScaleGestureDetector(((View)eventSource).getContext(), this);
-		gestureDetector = new GestureDetector(((View)eventSource).getContext(), new GestureDetector.SimpleOnGestureListener() {
+		scaleGestureDetector = new ScaleGestureDetector(eventSource.getContext(), this);
+		gestureDetector = new GestureDetector(eventSource.getContext(), new GestureDetector.SimpleOnGestureListener() {
 
 			@Override
 			public void onLongPress(MotionEvent e) {
@@ -409,12 +424,13 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler, Sca
     }
 
 	private void stopAnimations() {
-		((View)eventSource).post(new Runnable() {
-			@Override
-			public void run() {
-				((BasicView) eventSource.getView()).stopAnimations();
-			}
-		});
+		animationHandler.sendEmptyMessage(WHAT_STOP_ANIMATIONS);
+//		((View)eventSource).post(new Runnable() {
+//			@Override
+//			public void run() {
+//				((BasicView) eventSource.getView()).stopAnimations();
+//			}
+//		});
 	}
 
 	protected Position getSelectedPosition()

@@ -6,12 +6,11 @@
 package gov.nasa.worldwind.layers;
 
 import gov.nasa.worldwind.WorldWind;
-import gov.nasa.worldwind.WorldWindow;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.avlist.AVList;
 import gov.nasa.worldwind.avlist.AVListImpl;
 import gov.nasa.worldwind.cache.FileStore;
-import gov.nasa.worldwind.cache.MemoryCache;
 import gov.nasa.worldwind.event.BulkRetrievalListener;
 import gov.nasa.worldwind.exception.WWRuntimeException;
 import gov.nasa.worldwind.geom.Angle;
@@ -22,11 +21,9 @@ import gov.nasa.worldwind.render.DrawContext;
 import gov.nasa.worldwind.render.GpuTextureData;
 import gov.nasa.worldwind.render.GpuTextureTile;
 import gov.nasa.worldwind.retrieve.*;
-import gov.nasa.worldwind.util.AbsentResourceList;
-import gov.nasa.worldwind.util.DataConfigurationUtils;
-import gov.nasa.worldwind.util.LevelSet;
-import gov.nasa.worldwind.util.Logging;
-import gov.nasa.worldwind.util.WWXML;
+import gov.nasa.worldwind.util.*;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,8 +32,6 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -837,7 +832,7 @@ public class BasicTiledImageLayer extends TiledImageLayer implements BulkRetriev
 	}
 
 	protected void doWriteConfigurationParams(FileStore fileStore, String fileName, AVList params) {
-		if(WorldWindow.DEBUG)
+		if(WorldWindowImpl.DEBUG)
 			Logging.verbose(getName() + " writing layer configuration file");
 
 		java.io.File file = fileStore.newFile(fileName);

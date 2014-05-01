@@ -5,19 +5,18 @@ All Rights Reserved.
 package gov.nasa.worldwind.pick;
 
 import android.graphics.Color;
-import gov.nasa.worldwind.WorldWindowGLSurfaceView;
-import gov.nasa.worldwind.exception.WWRuntimeException;
+import android.graphics.Point;
+import android.opengl.GLES20;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.layers.Layer;
 import gov.nasa.worldwind.render.DrawContext;
+import gov.nasa.worldwind.util.Logging;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
-import android.graphics.Point;
-import android.opengl.GLES20;
-import gov.nasa.worldwind.util.Logging;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -32,8 +31,8 @@ public class PickSupport {
 	private int mDepthBufferHandle = -1;
 	private boolean mIsInitialized = false;
 	private int mTextureId = -1;
-	private int mViewportWidth;
-	private int mViewportHeight;
+	private int mViewportWidth = -1;
+	private int mViewportHeight = -1;
 	private int mTextureWidth;
 	private int mTextureHeight;
 
@@ -94,41 +93,45 @@ public class PickSupport {
 		return pickedObject;
 	}
 
-	// ARE THESE NECESSARY???
 	public void beginPicking(DrawContext dc) {
+		dc.setPickingMode(true);
 		GLES20.glDisable(GLES20.GL_DITHER);
-		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_DITHER");
+		WorldWindowImpl.glCheckError("glDisable: GL_DITHER");
 
 		GLES20.glDisable(GLES20.GL_BLEND);
-		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_BLEND");
+		WorldWindowImpl.glCheckError("glDisable: GL_BLEND");
 
 		if (dc.isDeepPickingEnabled()) {
 			GLES20.glDisable(GLES20.GL_DEPTH_TEST);
-			WorldWindowGLSurfaceView.glCheckError("glDisable: GL_DEPTH_TEST");
+			WorldWindowImpl.glCheckError("glDisable: GL_DEPTH_TEST");
 			GLES20.glDepthMask(false);
+			WorldWindowImpl.glCheckError("glDepthMask(false)");
 		}
+		bindFrameBuffer();
 	}
 
 	public void endPicking(DrawContext dc) {
+		dc.setPickingMode(false);
+		GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+		GLES20.glBindRenderbuffer(GLES20.GL_RENDERBUFFER, 0);
+
 		GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ZERO);
-		WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+		WorldWindowImpl.glCheckError("glBlendFunc");
 
 		GLES20.glDisable(GLES20.GL_BLEND);
-		WorldWindowGLSurfaceView.glCheckError("glDisable: GL_BLEND");
+		WorldWindowImpl.glCheckError("glDisable: GL_BLEND");
 
 		GLES20.glEnable(GLES20.GL_DEPTH_TEST);
-		WorldWindowGLSurfaceView.glCheckError("glEnable: GL_DEPTH_TEST");
+		WorldWindowImpl.glCheckError("glEnable: GL_DEPTH_TEST");
 
 		GLES20.glDepthMask(true);
-		WorldWindowGLSurfaceView.glCheckError("glDepthMask");
+		WorldWindowImpl.glCheckError("glDepthMask(true)");
 	}
 
 	public void initialize() {
 		mTextureWidth=mTextureHeight= Math.max(mViewportWidth, mViewportHeight);
 		genTexture();
-		
 		genBuffers();
-
 		mIsInitialized = true;
 	}
 
@@ -182,7 +185,6 @@ public class PickSupport {
 		if (!mIsInitialized)
 		{
 			initialize();
-			return;
 		}
 		GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, mFrameBufferHandle);
 		GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0,
@@ -196,14 +198,8 @@ public class PickSupport {
 				GLES20.GL_RENDERBUFFER, mDepthBufferHandle);
 	}
 
-	public void unbindFrameBuffer() {
-		GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
-		GLES20.glBindRenderbuffer(GLES20.GL_RENDERBUFFER, 0);
-	}
-
 	public int getPickColor(int x, int y) {
-		final ByteBuffer pixelBuffer = ByteBuffer.allocateDirect(4);
-		pixelBuffer.order(ByteOrder.nativeOrder());
+		final ByteBuffer pixelBuffer = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder());
 
 		GLES20.glReadPixels(x, mViewportHeight - y, 1, 1, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE,
 				pixelBuffer);
@@ -215,6 +211,4 @@ public class PickSupport {
 		final int a = pixelBuffer.get(3) & 0xff;
 		return Color.argb(a, r, g, b);
 	}
-
-
 }

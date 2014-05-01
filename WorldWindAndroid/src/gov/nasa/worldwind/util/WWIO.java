@@ -18,6 +18,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.ref.WeakReference;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.SocketAddress;
@@ -45,7 +46,7 @@ public class WWIO {
 	protected static final int DEFAULT_PAGE_SIZE = 2 << 15;
 	protected static final Map<String, String> mimeTypeToSuffixMap = new HashMap<String, String>();
 	protected static final Map<String, String> suffixToMimeTypeMap = new HashMap<String, String>();
-    protected static Context context;
+    protected static WeakReference<Context> context;
 
 	static {
 		mimeTypeToSuffixMap.put("application/acad", "dwg");
@@ -143,11 +144,11 @@ public class WWIO {
 	}
 
     public static void setContext(Context c) {
-        context = c;
+        context = new WeakReference<Context>(c);
     }
 
     public static Context getContext() {
-        return context;
+        return context.get();
     }
 
 	public static String formPath(String... pathParts) {

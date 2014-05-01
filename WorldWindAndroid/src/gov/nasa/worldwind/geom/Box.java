@@ -685,7 +685,7 @@ public class Box implements Extent, Renderable
 		return String.format("Box @(%s) r: %s, s: %s, t: %s", center.toString(), r.toString(), s.toString(), t.toString());
 	}
 
-	private FloatBuffer vBuf = ByteBuffer.allocateDirect(6 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();;
+	private FloatBuffer vBuf = ByteBuffer.allocateDirect(6 * 3 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();;
 	private IntBuffer iBuf = ByteBuffer.allocateDirect(4 * 4).order(ByteOrder.nativeOrder()).asIntBuffer();
 	protected final Object programKey = new Object();
 	protected boolean programCreationFailed;
@@ -748,15 +748,28 @@ public class Box implements Extent, Renderable
 		Vec4 f = d.add3(this.r);
 		vBuf.rewind();
 		vBuf.put((float)a.x);
+		vBuf.put((float)a.y);
+		vBuf.put((float)a.z);
 		vBuf.put((float)b.x);
+		vBuf.put((float)b.y);
+		vBuf.put((float)b.z);
 		vBuf.put((float)c.x);
+		vBuf.put((float)c.y);
+		vBuf.put((float)c.z);
 		vBuf.put((float)d.x);
+		vBuf.put((float)d.y);
+		vBuf.put((float)d.z);
 		vBuf.put((float)e.x);
+		vBuf.put((float)e.y);
+		vBuf.put((float)e.z);
 		vBuf.put((float)f.x);
+		vBuf.put((float)f.y);
+		vBuf.put((float)f.z);
 
 		Matrix matrix = Matrix.fromIdentity();
 		matrix.multiplyAndSet(dc.getView().getModelviewProjectionMatrix(),
-				Matrix.fromTranslation(this.bottomCenter));
+				Matrix.fromIdentity());
+//				Matrix.fromTranslation(this.bottomCenter));
 
 		dc.getCurrentProgram().loadUniformMatrix("mvpMatrix", matrix);
 
@@ -797,7 +810,7 @@ public class Box implements Extent, Renderable
 		iBuf.put(c);
 		iBuf.put(d);
 		int maPositionHandle = dc.getCurrentProgram().getAttribLocation("vertexPoint");
-		GLES20.glVertexAttribPointer(maPositionHandle, 3, GLES20.GL_FLOAT, false, 4*3, vBuf.rewind());
+		GLES20.glVertexAttribPointer(maPositionHandle, 3, GLES20.GL_FLOAT, false, 3, vBuf.rewind());
 		GLES20.glDrawElements(GLES20.GL_LINE_LOOP, 4, GLES20.GL_UNSIGNED_INT, iBuf.rewind());
 	}
 

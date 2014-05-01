@@ -5,10 +5,12 @@
  */
 package gov.nasa.worldwind.layers;
 
+import android.graphics.Point;
+import android.opengl.GLES20;
 import gov.nasa.worldwind.BasicView;
 import gov.nasa.worldwind.R;
 import gov.nasa.worldwind.View;
-import gov.nasa.worldwind.WorldWindowGLSurfaceView;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.exception.WWRuntimeException;
@@ -18,12 +20,9 @@ import gov.nasa.worldwind.geom.Rect;
 import gov.nasa.worldwind.geom.Vec4;
 import gov.nasa.worldwind.pick.PickSupport;
 import gov.nasa.worldwind.pick.PickedObject;
-import gov.nasa.worldwind.render.DrawContext;
-import gov.nasa.worldwind.render.GpuProgram;
-import gov.nasa.worldwind.render.GpuTexture;
-import gov.nasa.worldwind.render.GpuTextureData;
-import gov.nasa.worldwind.render.OrderedRenderable;
+import gov.nasa.worldwind.render.*;
 import gov.nasa.worldwind.util.Logging;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -31,8 +30,6 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
-import android.graphics.Point;
-import android.opengl.GLES20;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -43,8 +40,6 @@ import android.opengl.GLES20;
 public class CompassLayer extends AbstractLayer {
 	protected static final int VERTEX_SHADER_PATH_TEXTURE = R.raw.compasslayertexturevert;
 	protected static final int FRAGMENT_SHADER_PATH_TEXTURE = R.raw.etc1alphafrag;
-//	protected String iconFilePath = "images/notched-compass.png"; // TODO: make configurable
-//	protected static final int FRAGMENT_SHADER_PATH_TEXTURE = R.raw.etc1alphafrag;
 	protected String iconFilePath = "images/notched-compass_mip_0.pkm"; // TODO: make configurable
 	protected double compassToViewportScale = 0.2; // TODO: make configurable
 	protected final Object programTextureKey = new Object();
@@ -293,7 +288,7 @@ public class CompassLayer extends AbstractLayer {
 
 		try {
 			GLES20.glDisable(GLES20.GL_DEPTH_TEST);
-			WorldWindowGLSurfaceView.glCheckError("glDisable");
+			WorldWindowImpl.glCheckError("glDisable");
 
 			double width = this.getScaledIconWidth();
 			double height = this.getScaledIconHeight();
@@ -342,7 +337,7 @@ public class CompassLayer extends AbstractLayer {
 					textureProgram.loadUniformMatrix("mvpMatrix", mvp);
 
 					GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-					WorldWindowGLSurfaceView.glCheckError("glActiveTexture");
+					WorldWindowImpl.glCheckError("glActiveTexture");
 					iconTexture.bind();
 					textureProgram.loadUniformSampler("sTexture", 0);
 					textureProgram.loadUniformSampler("aTexture", 1);
@@ -352,36 +347,36 @@ public class CompassLayer extends AbstractLayer {
 					textureProgram.loadUniformMatrix("texMatrix", texMatrix);
 
 					GLES20.glEnable(GLES20.GL_BLEND);
-					WorldWindowGLSurfaceView.glCheckError("glEnable: GL_BLEND");
+					WorldWindowImpl.glCheckError("glEnable: GL_BLEND");
 					GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
-					WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+					WorldWindowImpl.glCheckError("glBlendFunc");
 
 					float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
 					int pointLocation = textureProgram.getAttribLocation("vertexPoint");
 					GLES20.glEnableVertexAttribArray(pointLocation);
-					WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 					FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 					vertexBuf.put(unitQuadVerts);
 					vertexBuf.rewind();
 					GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
-					WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+					WorldWindowImpl.glCheckError("glVertexAttribPointer");
 					float[] textureVerts = new float[] { 0, 1, 1, 1, 1, 0, 0, 0 };
 					int textureLocation = textureProgram.getAttribLocation("aTextureCoord");
 					GLES20.glEnableVertexAttribArray(textureLocation);
-					WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 					FloatBuffer textureBuf = ByteBuffer.allocateDirect(textureVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 					textureBuf.put(textureVerts);
 					textureBuf.rewind();
 					GLES20.glVertexAttribPointer(textureLocation, 2, GLES20.GL_FLOAT, false, 0, textureBuf);
-					WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+					WorldWindowImpl.glCheckError("glVertexAttribPointer");
 					GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
-					WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+					WorldWindowImpl.glCheckError("glDrawArrays");
 					GLES20.glDisableVertexAttribArray(pointLocation);
-					WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 					GLES20.glDisableVertexAttribArray(textureLocation);
-					WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 					GLES20.glUseProgram(0);
-					WorldWindowGLSurfaceView.glCheckError("glUseProgram");
+					WorldWindowImpl.glCheckError("glUseProgram");
 				}
 			} else {
 				// Picking - XXX This else has not been tested, it could make rendering crash! Be aware!
@@ -415,15 +410,15 @@ public class CompassLayer extends AbstractLayer {
 					vertexBuf.rewind();
 					int pointLocation = textureProgram.getAttribLocation("vertexPoint");
 					GLES20.glEnableVertexAttribArray(pointLocation);
-					WorldWindowGLSurfaceView.glCheckError("glEnableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 					GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
-					WorldWindowGLSurfaceView.glCheckError("glVertexAttribPointer");
+					WorldWindowImpl.glCheckError("glVertexAttribPointer");
 					GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
-					WorldWindowGLSurfaceView.glCheckError("glDrawArrays");
+					WorldWindowImpl.glCheckError("glDrawArrays");
 					GLES20.glDisableVertexAttribArray(pointLocation);
-					WorldWindowGLSurfaceView.glCheckError("glDisableVertexAttribArray");
+					WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 					GLES20.glUseProgram(0);
-					WorldWindowGLSurfaceView.glCheckError("glUseProgram");
+					WorldWindowImpl.glCheckError("glUseProgram");
 					// dc.drawUnitQuad();
 				} finally {
 					// Done picking
@@ -435,9 +430,9 @@ public class CompassLayer extends AbstractLayer {
 
 			if (!dc.isPickingMode()) {
 				GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
-				WorldWindowGLSurfaceView.glCheckError("glBindTexture");
+				WorldWindowImpl.glCheckError("glBindTexture");
 				GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA);
-				WorldWindowGLSurfaceView.glCheckError("glBlendFunc");
+				WorldWindowImpl.glCheckError("glBlendFunc");
 			}
 		}
 	}
@@ -570,7 +565,6 @@ public class CompassLayer extends AbstractLayer {
 			}
 
 			iconTexture = GpuTexture.createTexture(dc, GpuTextureData.createTextureData(iconStream, getIconFilePath(), "image/pkm", false));
-//			iconTexture = GpuTexture.createTexture(dc, GpuTextureData.createTextureData(iconStream, getIconFilePath(), "image/png", false));
 			iconTexture.bind();
 			this.iconWidth = iconTexture.getWidth();
 			this.iconHeight = iconTexture.getHeight();

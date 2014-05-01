@@ -6,13 +6,13 @@
 
 package gov.nasa.worldwind.cache;
 
+import android.opengl.GLES20;
 import gov.nasa.worldwind.Disposable;
-import gov.nasa.worldwind.WorldWindowGLSurfaceView;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.render.GpuProgram;
 import gov.nasa.worldwind.render.GpuTexture;
 import gov.nasa.worldwind.util.Logging;
 import gov.nasa.worldwind.util.WWUtil;
-import android.opengl.GLES20;
 
 /**
  * Provides the interface for caching of OpenGL resources that are stored on or registered with a GL context. This cache
@@ -82,7 +82,7 @@ public class BasicGpuResourceCache implements GpuResourceCache {
 		} else if (entry.resourceType.equals(VBO_BUFFERS)) {
 			int[] ids = (int[]) entry.resource;
 			GLES20.glDeleteBuffers(ids.length, ids, 0);
-			WorldWindowGLSurfaceView.glCheckError("glDeleteBuffers");
+			WorldWindowImpl.glCheckError("glDeleteBuffers");
 		}
 	}
 

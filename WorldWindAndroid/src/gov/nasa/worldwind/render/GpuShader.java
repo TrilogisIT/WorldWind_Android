@@ -7,10 +7,11 @@ package gov.nasa.worldwind.render;
 
 import android.opengl.GLES20;
 import gov.nasa.worldwind.Disposable;
-import gov.nasa.worldwind.WorldWindowGLSurfaceView;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.cache.Cacheable;
 import gov.nasa.worldwind.exception.WWRuntimeException;
-import gov.nasa.worldwind.util.*;
+import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.WWUtil;
 
 /**
  * @author dcollins
@@ -39,7 +40,7 @@ public class GpuShader implements Cacheable, Disposable
 		}
 
 		int shader = GLES20.glCreateShader(type);
-		WorldWindowGLSurfaceView.glCheckError("glCreateShader");
+		WorldWindowImpl.glCheckError("glCreateShader");
 		if (shader <= 0)
 		{
 			String msg = Logging.getMessage("GL.UnableToCreateObject", this.nameFromShaderType(type));
@@ -51,9 +52,9 @@ public class GpuShader implements Cacheable, Disposable
 		{
 			// Get the info log before deleting the shader object.
 			String infoLog = GLES20.glGetShaderInfoLog(shader);
-			WorldWindowGLSurfaceView.glCheckError("glGetShaderInfoLog");
+			WorldWindowImpl.glCheckError("glGetShaderInfoLog");
 			GLES20.glDeleteShader(shader);
-			WorldWindowGLSurfaceView.glCheckError("glDeleteShader");
+			WorldWindowImpl.glCheckError("glDeleteShader");
 
 			String msg = Logging.getMessage("GL.UnableToCompileShader", this.nameFromShaderType(type), infoLog);
 			Logging.error(msg);
@@ -113,7 +114,7 @@ public class GpuShader implements Cacheable, Disposable
 		if (this.shaderId != 0)
 		{
 			GLES20.glDeleteShader(this.shaderId);
-			WorldWindowGLSurfaceView.glCheckError("glDeleteShader");
+			WorldWindowImpl.glCheckError("glDeleteShader");
 			this.shaderId = 0;
 		}
 	}
@@ -123,11 +124,11 @@ public class GpuShader implements Cacheable, Disposable
 		int[] compileStatus = new int[1];
 
 		GLES20.glShaderSource(shader, source);
-		WorldWindowGLSurfaceView.glCheckError("glShaderSource");
+		WorldWindowImpl.glCheckError("glShaderSource");
 		GLES20.glCompileShader(shader);
-		WorldWindowGLSurfaceView.glCheckError("glCompileShader");
+		WorldWindowImpl.glCheckError("glCompileShader");
 		GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compileStatus, 0);
-		WorldWindowGLSurfaceView.glCheckError("glGetShaderiv");
+		WorldWindowImpl.glCheckError("glGetShaderiv");
 
 		return compileStatus[0] == GLES20.GL_TRUE;
 	}

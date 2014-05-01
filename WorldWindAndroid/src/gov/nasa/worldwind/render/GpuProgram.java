@@ -6,14 +6,19 @@ package gov.nasa.worldwind.render;
 
 import android.opengl.GLES20;
 import gov.nasa.worldwind.Disposable;
-import gov.nasa.worldwind.WorldWindowGLSurfaceView;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.cache.Cacheable;
 import gov.nasa.worldwind.exception.WWRuntimeException;
-import gov.nasa.worldwind.geom.*;
-import gov.nasa.worldwind.util.*;
+import gov.nasa.worldwind.geom.Matrix;
+import gov.nasa.worldwind.geom.Vec4;
+import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.WWIO;
+import gov.nasa.worldwind.util.WWUtil;
 
-import java.io.*;
-import java.util.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -130,20 +135,20 @@ public class GpuProgram implements Cacheable, Disposable {
 		}
 
 		GLES20.glAttachShader(program, vertexShader.getShaderId());
-		WorldWindowGLSurfaceView.glCheckError("glAttachShader");
+		WorldWindowImpl.glCheckError("glAttachShader");
 		GLES20.glAttachShader(program, fragmentShader.getShaderId());
-		WorldWindowGLSurfaceView.glCheckError("glAttachShader");
+		WorldWindowImpl.glCheckError("glAttachShader");
 
 		if (!this.link(program)) {
 			// Get the info log before deleting the program object.
 			String infoLog = GLES20.glGetProgramInfoLog(program);
-			WorldWindowGLSurfaceView.glCheckError("glGetProgramInfoLog");
+			WorldWindowImpl.glCheckError("glGetProgramInfoLog");
 			GLES20.glDetachShader(program, vertexShader.getShaderId());
-			WorldWindowGLSurfaceView.glCheckError("glDetachShader");
+			WorldWindowImpl.glCheckError("glDetachShader");
 			GLES20.glDetachShader(program, fragmentShader.getShaderId());
-			WorldWindowGLSurfaceView.glCheckError("glDetachShader");
+			WorldWindowImpl.glCheckError("glDetachShader");
 			GLES20.glDeleteProgram(program);
-			WorldWindowGLSurfaceView.glCheckError("glDeleteProgram");
+			WorldWindowImpl.glCheckError("glDeleteProgram");
 			vertexShader.dispose();
 			fragmentShader.dispose();
 
@@ -164,7 +169,9 @@ public class GpuProgram implements Cacheable, Disposable {
 	}
 
 	public static GpuProgramSource readProgramSource(Object vertexSource, Object fragmentSource) throws IOException {
-		Logging.info(String.format("Loading Program source: %s, %s", vertexSource, fragmentSource));
+		if(WorldWindowImpl.DEBUG)
+			Logging.info(String.format("Loading Program source: %s, %s", vertexSource, fragmentSource));
+
 		if (WWUtil.isEmpty(vertexSource)) {
 			String msg = Logging.getMessage("nullValue.VertexSourceIsNull");
 			throw new IllegalArgumentException(msg);
@@ -226,18 +233,18 @@ public class GpuProgram implements Cacheable, Disposable {
 
 	public void bind() {
 		GLES20.glUseProgram(this.programId);
-		WorldWindowGLSurfaceView.glCheckError("glUseProgram");
+		WorldWindowImpl.glCheckError("glUseProgram");
 	}
 
 	public void dispose() {
 		if (this.programId != 0) {
 			if (this.vertexShader != null) GLES20.glDetachShader(this.programId, this.vertexShader.getShaderId());
-			WorldWindowGLSurfaceView.glCheckError("glDetachShader");
+			WorldWindowImpl.glCheckError("glDetachShader");
 			if (this.fragmentShader != null) GLES20.glDetachShader(this.programId, this.fragmentShader.getShaderId());
-			WorldWindowGLSurfaceView.glCheckError("glDetachShader");
+			WorldWindowImpl.glCheckError("glDetachShader");
 
 			GLES20.glDeleteProgram(this.programId);
-			WorldWindowGLSurfaceView.glCheckError("glDeleteProgram");
+			WorldWindowImpl.glCheckError("glDeleteProgram");
 			this.programId = 0;
 		}
 
@@ -265,7 +272,7 @@ public class GpuProgram implements Cacheable, Disposable {
 			// starts with "gl_". In either case, we store the value -1 in our map since the return value does not
 			// change until the program is linked again.
 			location = GLES20.glGetAttribLocation(this.programId, name);
-			WorldWindowGLSurfaceView.glCheckError("glGetAttribLocation");
+			WorldWindowImpl.glCheckError("glGetAttribLocation");
 			this.attribLocations.put(name, location);
 		}
 
@@ -285,7 +292,7 @@ public class GpuProgram implements Cacheable, Disposable {
 			// name starts with "gl_". In either case, we store the value -1 in our map since the return value does not
 			// change until the program is linked again.
 			location = GLES20.glGetUniformLocation(this.programId, name);
-			WorldWindowGLSurfaceView.glCheckError("glGetUniformLocation");
+			WorldWindowImpl.glCheckError("glGetUniformLocation");
 			this.uniformLocations.put(name, location);
 		}
 
@@ -307,7 +314,7 @@ public class GpuProgram implements Cacheable, Disposable {
 		}
 
 		GLES20.glUniform1f(location, (float) x);
-		WorldWindowGLSurfaceView.glCheckError("glUniform1f");
+		WorldWindowImpl.glCheckError("glUniform1f");
 	}
 
 	public void loadUniform2f(String name, double x, double y) {
@@ -325,7 +332,7 @@ public class GpuProgram implements Cacheable, Disposable {
 		}
 
 		GLES20.glUniform2f(location, (float) x, (float) y);
-		WorldWindowGLSurfaceView.glCheckError("glUniform2f");
+		WorldWindowImpl.glCheckError("glUniform2f");
 	}
 
 	public void loadUniform3f(String name, double x, double y, double z) {
@@ -343,7 +350,7 @@ public class GpuProgram implements Cacheable, Disposable {
 		}
 
 		GLES20.glUniform3f(location, (float) x, (float) y, (float) z);
-		WorldWindowGLSurfaceView.glCheckError("glUniform3f");
+		WorldWindowImpl.glCheckError("glUniform3f");
 	}
 
 	public void loadUniform4f(String name, double x, double y, double z, double w) {
@@ -361,7 +368,7 @@ public class GpuProgram implements Cacheable, Disposable {
 		}
 
 		GLES20.glUniform4f(location, (float) x, (float) y, (float) z, (float) w);
-		WorldWindowGLSurfaceView.glCheckError("glUniform4f");
+		WorldWindowImpl.glCheckError("glUniform4f");
 	}
 
 	public void loadUniformVec4(String name, Vec4 vec) {
@@ -385,7 +392,7 @@ public class GpuProgram implements Cacheable, Disposable {
 		}
 
 		GLES20.glUniform4f(location, (float) vec.x, (float) vec.y, (float) vec.z, (float) vec.w);
-		WorldWindowGLSurfaceView.glCheckError("glUniform4f");
+		WorldWindowImpl.glCheckError("glUniform4f");
 	}
 
 	public void loadUniformMatrix(String name, Matrix matrix) {
@@ -433,7 +440,7 @@ public class GpuProgram implements Cacheable, Disposable {
 		m[15] = (float) matrix.m[15];
 
 		GLES20.glUniformMatrix4fv(location, 1, false, m, 0);
-		WorldWindowGLSurfaceView.glCheckError("glUniformMatrix4fv");
+		WorldWindowImpl.glCheckError("glUniformMatrix4fv");
 	}
 
 	public void loadUniformColor(String name, Color color) {
@@ -451,7 +458,7 @@ public class GpuProgram implements Cacheable, Disposable {
 		}
 
 		GLES20.glUniform4f(location, (float) color.r, (float) color.g, (float) color.b, (float) color.a);
-		WorldWindowGLSurfaceView.glCheckError("glUniform4f");
+		WorldWindowImpl.glCheckError("glUniform4f");
 	}
 
 	public void loadUniformSampler(String name, int value) {
@@ -469,16 +476,16 @@ public class GpuProgram implements Cacheable, Disposable {
 		}
 
 		GLES20.glUniform1i(location, value);
-		WorldWindowGLSurfaceView.glCheckError("glUniform1i");
+		WorldWindowImpl.glCheckError("glUniform1i");
 	}
 
 	protected boolean link(int program) {
 		int[] linkStatus = new int[1];
 
 		GLES20.glLinkProgram(program);
-		WorldWindowGLSurfaceView.glCheckError("glLinkProgram");
+		WorldWindowImpl.glCheckError("glLinkProgram");
 		GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, linkStatus, 0);
-		WorldWindowGLSurfaceView.glCheckError("glGetProgramiv");
+		WorldWindowImpl.glCheckError("glGetProgramiv");
 
 		return linkStatus[0] == GLES20.GL_TRUE;
 	}

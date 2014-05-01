@@ -5,6 +5,7 @@
  */
 package gov.nasa.worldwind;
 
+import android.content.Context;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.event.*;
 import gov.nasa.worldwind.geom.Position;
@@ -21,7 +22,7 @@ import java.util.Set;
  */
 public interface WorldWindow extends WWObject
 {
-	public static boolean DEBUG = true;
+	public Context getContext();
 
     /**
      * Returns the window's current model.
@@ -188,4 +189,8 @@ public interface WorldWindow extends WWObject
 	 */
 	Map<String, PerformanceStatistic> getPerFrameStatistics(); // TODO: move the constants from AVKey to this interface.
 
+	public void onSurfaceDestroyed();
+
+	public void onPause();
+	public void onResume();
 }

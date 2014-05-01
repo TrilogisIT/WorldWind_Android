@@ -5,17 +5,25 @@
  */
 package gov.nasa.worldwind.render;
 
-import android.graphics.*;
-import android.opengl.*;
-import gov.nasa.worldwind.WorldWindow;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.opengl.ETC1;
+import android.opengl.ETC1Util;
+import android.opengl.GLES20;
+import android.opengl.GLUtils;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.cache.Cacheable;
-import gov.nasa.worldwind.util.*;
+import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.WWIO;
+import gov.nasa.worldwind.util.WWUtil;
 import gov.nasa.worldwind.util.dds.DDSCompressor;
 import gov.nasa.worldwind.util.dds.DDSTextureReader;
 import gov.nasa.worldwind.util.dds.DXTCompressionAttributes;
 import gov.nasa.worldwind.util.pkm.ETC1Compressor;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 /**
@@ -160,7 +168,7 @@ public class GpuTextureData implements Cacheable
 
 		if ("image/dds".equalsIgnoreCase(textureFormat) && !url.toString().toLowerCase().endsWith("dds"))
 		{
-			if(WorldWindow.DEBUG)
+			if(WorldWindowImpl.DEBUG)
 				Logging.verbose("Compressing DDS texture " + url);
 			// Configure a DDS compressor to generate mipmaps based according to the 'useMipMaps' parameter, and
 			// convert the image URL to a compressed DDS format.
@@ -169,18 +177,18 @@ public class GpuTextureData implements Cacheable
 			DDSTextureReader ddsReader = new DDSTextureReader();
 			return ddsReader.read(WWIO.getInputStreamFromByteBuffer(DDSCompressor.compressImageStream(stream, attributes)));
 		} else if("image/dds".equalsIgnoreCase(textureFormat)) {
-			if(WorldWindow.DEBUG)
+			if(WorldWindowImpl.DEBUG)
 				Logging.verbose("Loading DDS texture " + url);
 			DDSTextureReader ddsReader = new DDSTextureReader();
 			return ddsReader.read(stream);
 		} else if ("image/pkm".equalsIgnoreCase(textureFormat) && !url.toString().toLowerCase().endsWith("pkm")) {
-			if(WorldWindow.DEBUG)
+			if(WorldWindowImpl.DEBUG)
 				Logging.verbose("Compressing ETC1 texture " + url);
 			ETC1Util.ETC1Texture etc1tex = ETC1Compressor.compressImage(BitmapFactory.decodeStream(stream));
 			MipmapData mipmapData = new MipmapData(etc1tex.getWidth(), etc1tex.getHeight(), etc1tex.getData());
 			return new GpuTextureData(ETC1.ETC1_RGB8_OES, new MipmapData[] {mipmapData}, etc1tex.getData().remaining());
 		} else if ("image/pkm".equalsIgnoreCase(textureFormat)) {
-			if(WorldWindow.DEBUG)
+			if(WorldWindowImpl.DEBUG)
 				Logging.verbose("Loading ETC1 texture " + url);
 			ETC1Util.ETC1Texture etc1tex = ETC1Util.createTexture(stream);
 			MipmapData mipmapData = new MipmapData(etc1tex.getWidth(), etc1tex.getHeight(), etc1tex.getData());
@@ -188,7 +196,7 @@ public class GpuTextureData implements Cacheable
 			MipmapData []alphaMipmap = null;
 			InputStream is = WWIO.getFileOrResourceAsStream(alphaURL, GpuTextureData.class);
 			if(is!=null) {
-				if(WorldWindow.DEBUG)
+				if(WorldWindowImpl.DEBUG)
 					Logging.verbose("Loading ETC1 texture alpha channel" + alphaURL);
 				ETC1Util.ETC1Texture alphaTex = ETC1Util.createTexture(is);
 				alphaMipmap = new MipmapData[] {new MipmapData(alphaTex.getWidth(), alphaTex.getHeight(), alphaTex.getData())};
@@ -197,10 +205,22 @@ public class GpuTextureData implements Cacheable
 			return new GpuTextureData(ETC1.ETC1_RGB8_OES, new MipmapData[] {mipmapData},
 					alphaMipmap, etc1tex.getData().remaining());
 		} else {
-			if(WorldWindow.DEBUG)
+			if(WorldWindowImpl.DEBUG)
 				Logging.verbose("Loading bitmap texture "+ url);
 			Bitmap bitmap = BitmapFactory.decodeStream(stream);
 			return bitmap != null ? new GpuTextureData(bitmap, estimateMemorySize(bitmap)) : null;
+		}
+	}
+
+	public static MipmapData readETC1(String url) throws IOException {
+		InputStream is = WWIO.getFileOrResourceAsStream(url, GpuTextureData.class);
+		if(is==null)
+			return null;
+		try {
+			ETC1Util.ETC1Texture alphaTex = ETC1Util.createTexture(is);
+			return new MipmapData(alphaTex.getWidth(), alphaTex.getHeight(), alphaTex.getData());
+		} finally {
+			WWIO.closeStream(is, url);
 		}
 	}
 

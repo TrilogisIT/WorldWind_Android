@@ -28,7 +28,7 @@ import java.util.Iterator;
 import java.util.List;
 import android.opengl.GLES20;
 
-import static gov.nasa.worldwind.WorldWindowGLSurfaceView.glCheckError;
+import static gov.nasa.worldwind.WorldWindowImpl.glCheckError;
 
 // TODO: Measurement (getLength), Texture, lighting
 
