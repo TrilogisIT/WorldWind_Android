@@ -25,6 +25,8 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * @author dcollins
@@ -32,6 +34,8 @@ import java.nio.ByteBuffer;
  */
 public class GpuTextureData implements Cacheable
 {
+	private static final int MAX_MIP_LEVELS = 12;
+
     public static class BitmapData
     {
         public final Bitmap bitmap;
@@ -110,7 +114,14 @@ public class GpuTextureData implements Cacheable
     }
 
 
-
+	/**
+	 * Create GpuTextureData
+	 * @param source	Bitmap, InputStream, URL, or String path
+	 * @param url		Filename, if applicable.  Used for format detection and alpha/mip location
+	 * @param textureFormat	Desired texture format.  If input is uncompressed and format is compressed, compression will be performed
+	 * @param useMipMaps	Whether to load/create mipmaps
+	 * @return	The GpuTextureData
+	 */
     public static GpuTextureData createTextureData(Object source, String url, String textureFormat, boolean useMipMaps)
     {
         if (WWUtil.isEmpty(source))
@@ -133,7 +144,7 @@ public class GpuTextureData implements Cacheable
                 // Attempt to open the source as an InputStream. This handle URLs, Files, InputStreams, a String
                 // containing a valid URL, a String path to a file on the local file system, and a String path to a
                 // class path resource.
-                InputStream stream = WWIO.openStream(source);
+                InputStream stream = WWIO.openBufferedStream(source);
                 try
                 {
                     if (stream != null)
@@ -141,8 +152,6 @@ public class GpuTextureData implements Cacheable
                         // Wrap the stream in a BufferedInputStream to provide the mark/reset capability required to
                         // avoid destroying the stream when it is read more than once. BufferedInputStream also improves
                         // file read performance.
-                        if (!(stream instanceof BufferedInputStream))
-                            stream = new BufferedInputStream(stream);
                         data = fromStream(stream, url, textureFormat, useMipMaps);
                     }
                 }
@@ -166,7 +175,11 @@ public class GpuTextureData implements Cacheable
 		GpuTextureData data = null;
 		stream.mark(DEFAULT_MARK_LIMIT);
 
-		if ("image/dds".equalsIgnoreCase(textureFormat) && !url.toString().toLowerCase().endsWith("dds"))
+		if(textureFormat==null)
+//			textureFormat = "image/"+WWIO.getFileExtension(url);
+			textureFormat = WWIO.makeMimeTypeForSuffix(WWIO.getSuffix(url));
+
+		if ("image/dds".equalsIgnoreCase(textureFormat) && url!=null && !url.toString().toLowerCase().endsWith("dds"))
 		{
 			if(WorldWindowImpl.DEBUG)
 				Logging.verbose("Compressing DDS texture " + url);
@@ -176,34 +189,58 @@ public class GpuTextureData implements Cacheable
 			attributes.setBuildMipmaps(useMipMaps);
 			DDSTextureReader ddsReader = new DDSTextureReader();
 			return ddsReader.read(WWIO.getInputStreamFromByteBuffer(DDSCompressor.compressImageStream(stream, attributes)));
-		} else if("image/dds".equalsIgnoreCase(textureFormat)) {
+		}
+		else if("image/dds".equalsIgnoreCase(textureFormat))
+		{
 			if(WorldWindowImpl.DEBUG)
 				Logging.verbose("Loading DDS texture " + url);
 			DDSTextureReader ddsReader = new DDSTextureReader();
 			return ddsReader.read(stream);
-		} else if ("image/pkm".equalsIgnoreCase(textureFormat) && !url.toString().toLowerCase().endsWith("pkm")) {
+		}
+		else if ("image/pkm".equalsIgnoreCase(textureFormat) && url!=null && !url.toString().toLowerCase().endsWith("pkm"))
+		{
 			if(WorldWindowImpl.DEBUG)
 				Logging.verbose("Compressing ETC1 texture " + url);
-			ETC1Util.ETC1Texture etc1tex = ETC1Compressor.compressImage(BitmapFactory.decodeStream(stream));
-			MipmapData mipmapData = new MipmapData(etc1tex.getWidth(), etc1tex.getHeight(), etc1tex.getData());
-			return new GpuTextureData(ETC1.ETC1_RGB8_OES, new MipmapData[] {mipmapData}, etc1tex.getData().remaining());
-		} else if ("image/pkm".equalsIgnoreCase(textureFormat)) {
+			ETC1Util.ETC1Texture[] etc1tex = ETC1Compressor.compressImage(BitmapFactory.decodeStream(stream));
+
+			MipmapData mipmapData = new MipmapData(etc1tex[0].getWidth(), etc1tex[0].getHeight(), etc1tex[0].getData());
+			MipmapData []alphaMipmap = etc1tex.length==1 ? null :
+				new MipmapData[] {new MipmapData(etc1tex[1].getWidth(), etc1tex[1].getHeight(), etc1tex[1].getData())};
+
+			return new GpuTextureData(ETC1.ETC1_RGB8_OES, new MipmapData[] {mipmapData}, alphaMipmap, etc1tex[0].getData().remaining());
+		}
+		else if ("image/pkm".equalsIgnoreCase(textureFormat))
+		{
 			if(WorldWindowImpl.DEBUG)
 				Logging.verbose("Loading ETC1 texture " + url);
+
+			List<MipmapData> colorData = new LinkedList<MipmapData>();
+			List<MipmapData> alphaData = new LinkedList<MipmapData>();
+
 			ETC1Util.ETC1Texture etc1tex = ETC1Util.createTexture(stream);
 			MipmapData mipmapData = new MipmapData(etc1tex.getWidth(), etc1tex.getHeight(), etc1tex.getData());
-			String alphaURL = url.substring(0, url.lastIndexOf(".pkm")) + "_alpha.pkm";
-			MipmapData []alphaMipmap = null;
-			InputStream is = WWIO.getFileOrResourceAsStream(alphaURL, GpuTextureData.class);
-			if(is!=null) {
-				if(WorldWindowImpl.DEBUG)
-					Logging.verbose("Loading ETC1 texture alpha channel" + alphaURL);
-				ETC1Util.ETC1Texture alphaTex = ETC1Util.createTexture(is);
-				alphaMipmap = new MipmapData[] {new MipmapData(alphaTex.getWidth(), alphaTex.getHeight(), alphaTex.getData())};
-				WWIO.closeStream(is, alphaURL);
+			colorData.add(mipmapData);
+
+			MipmapData alphaLevel0 = readETC1(url.substring(0, url.lastIndexOf(".pkm")) + "_alpha.pkm");
+			if(alphaLevel0 != null)
+				alphaData.add(alphaLevel0);
+
+			if(useMipMaps) {
+				for(int i=0; i<MAX_MIP_LEVELS; i++) {
+					String mipUrl = url.replace("mip_0", "mip_"+i);
+					MipmapData mipData = readETC1(mipUrl);
+					if(mipData==null)
+						break;
+					colorData.add(mipData);
+
+					mipData = readETC1(mipUrl.substring(0, mipUrl.lastIndexOf(".pkm")) + "_alpha.pkm");
+					if(mipData!=null)
+						alphaData.add(mipData);
+				}
 			}
-			return new GpuTextureData(ETC1.ETC1_RGB8_OES, new MipmapData[] {mipmapData},
-					alphaMipmap, etc1tex.getData().remaining());
+			MipmapData[] colors = colorData.isEmpty() ? null : colorData.toArray(new MipmapData[colorData.size()]);
+			MipmapData[] alphas = alphaData.isEmpty() ? null : alphaData.toArray(new MipmapData[alphaData.size()]);
+			return new GpuTextureData(ETC1.ETC1_RGB8_OES, colors, alphas, etc1tex.getData().remaining());
 		} else {
 			if(WorldWindowImpl.DEBUG)
 				Logging.verbose("Loading bitmap texture "+ url);
@@ -213,12 +250,15 @@ public class GpuTextureData implements Cacheable
 	}
 
 	public static MipmapData readETC1(String url) throws IOException {
-		InputStream is = WWIO.getFileOrResourceAsStream(url, GpuTextureData.class);
+		if(WorldWindowImpl.DEBUG)
+			Logging.verbose("Loading ETC1 texture " + url);
+
+		InputStream is = WWIO.getFileOrResourceAsBufferedStream(url, GpuTextureData.class);
 		if(is==null)
 			return null;
 		try {
-			ETC1Util.ETC1Texture alphaTex = ETC1Util.createTexture(is);
-			return new MipmapData(alphaTex.getWidth(), alphaTex.getHeight(), alphaTex.getData());
+			ETC1Util.ETC1Texture tex = ETC1Util.createTexture(is);
+			return new MipmapData(tex.getWidth(), tex.getHeight(), tex.getData());
 		} finally {
 			WWIO.closeStream(is, url);
 		}
