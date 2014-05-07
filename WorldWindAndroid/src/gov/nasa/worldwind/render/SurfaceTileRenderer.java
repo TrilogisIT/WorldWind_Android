@@ -181,6 +181,7 @@ public class SurfaceTileRenderer
 		GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
 		WorldWindowImpl.glCheckError("glActiveTexture");
 		program.loadUniformSampler("tileTexture", 0);
+		program.loadUniform1f("uOpacity", dc.isPickingMode() ? 1f : dc.getCurrentLayer().getOpacity());
 	}
 
 	protected void endRendering(DrawContext dc)

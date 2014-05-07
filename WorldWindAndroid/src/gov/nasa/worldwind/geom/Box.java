@@ -703,6 +703,8 @@ public class Box implements Extent, Renderable
 		dc.setCurrentProgram(program);
 		program.bind();
 
+		program.loadUniform1f("opacity", dc.isPickingMode() ? 1f : dc.getCurrentLayer().getOpacity());
+
 		int attribLocation = program.getAttribLocation("vertexPoint");
 		if (attribLocation >= 0) GLES20.glEnableVertexAttribArray(attribLocation);
 
@@ -822,11 +824,11 @@ public class Box implements Extent, Renderable
 
 		if (program == null) {
 			try {
-				GpuProgram.GpuProgramSource source = GpuProgram.readProgramSource(R.raw.abstractshapevert, R.raw.abstractshapefrag);
+				GpuProgram.GpuProgramSource source = GpuProgram.readProgramSource(R.raw.simple_vert, R.raw.uniform_color_frag);
 				program = new GpuProgram(source);
 				cache.put(this.programKey, program);
 			} catch (Exception e) {
-				String msg = Logging.getMessage("GL.ExceptionLoadingProgram", R.raw.abstractshapevert, R.raw.abstractshapefrag);
+				String msg = Logging.getMessage("GL.ExceptionLoadingProgram", R.raw.simple_vert, R.raw.uniform_color_frag);
 				Logging.error(msg);
 				this.programCreationFailed = true;
 			}

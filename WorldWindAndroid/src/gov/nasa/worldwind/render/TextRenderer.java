@@ -33,9 +33,18 @@ public class TextRenderer {
 	private Paint paint;
 	private float[] color = new float[] { 1, 1, 1, 1 };
 
+	float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
+	float[] textureVerts = new float[] { 0, 1, 1, 1, 1, 0, 0, 0 };
+	FloatBuffer vertexBuf;
+	FloatBuffer textureBuf;
+
 	public TextRenderer(DrawContext dc, Paint paint) {
 		this.drawContext = dc;
 		this.paint = paint;
+		vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder())
+				.asFloatBuffer().put(unitQuadVerts);
+		textureBuf = ByteBuffer.allocateDirect(textureVerts.length * 4).order(ByteOrder.nativeOrder())
+				.asFloatBuffer().put(textureVerts);
 	}
 
 	public Rect getBounds(String text) {
@@ -66,29 +75,21 @@ public class TextRenderer {
 
 		GpuTexture texture = getGpuTexture(text);
 		texture.bind();
-		program.loadUniform4f("uTextureColor", color[0], color[1], color[2], color[3]);
+		program.loadUniform4f("uTextureColor", color[0], color[1], color[2], color[3]*drawContext.getCurrentLayer().getOpacity());
 		program.loadUniformSampler("sTexture", 0);
 
-		float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
 		int pointLocation = program.getAttribLocation("vertexPoint");
 		GLES20.glEnableVertexAttribArray(pointLocation);
 		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 
-		FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-		vertexBuf.put(unitQuadVerts);
-		vertexBuf.rewind();
-		GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
+		GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf.rewind());
 		WorldWindowImpl.glCheckError("glVertexAttribPointer");
 
-		float[] textureVerts = new float[] { 0, 1, 1, 1, 1, 0, 0, 0 };
 		int textureLocation = program.getAttribLocation("aTextureCoord");
 		GLES20.glEnableVertexAttribArray(textureLocation);
-
 		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
-		FloatBuffer textureBuf = ByteBuffer.allocateDirect(textureVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-		textureBuf.put(textureVerts);
-		textureBuf.rewind();
-		GLES20.glVertexAttribPointer(textureLocation, 2, GLES20.GL_FLOAT, false, 0, textureBuf);
+
+		GLES20.glVertexAttribPointer(textureLocation, 2, GLES20.GL_FLOAT, false, 0, textureBuf.rewind());
 		WorldWindowImpl.glCheckError("glVertexAttribPointer");
 
 		GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);

@@ -4,6 +4,7 @@
  */
 attribute vec4 vertexPoint;
 attribute vec4 aTextureCoord;
+
 /*
  * Input uniform matrix defining the current modelview-projection transform matrix. Maps model coordinates to eye
  * coordinates.

@@ -46,9 +46,9 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	/** The default geometry regeneration interval. */
 	protected static final int DEFAULT_GEOMETRY_GENERATION_INTERVAL = 3000;
 	/** The default vertex shader path. This specifies the location of a file within the World Wind archive. */
-	protected static final int DEFAULT_VERTEX_SHADER_PATH = R.raw.abstractshapevert;
+	protected static final int DEFAULT_VERTEX_SHADER_PATH = R.raw.simple_vert;
 	/** The default fragment shader path. This specifies the location of a file within the World Wind archive. */
-	protected static final int DEFAULT_FRAGMENT_SHADER_PATH = R.raw.abstractshapefrag;
+	protected static final int DEFAULT_FRAGMENT_SHADER_PATH = R.raw.uniform_color_frag;
 
 	/** The attributes used if attributes are not specified. */
 	protected static ShapeAttributes defaultAttributes;
@@ -190,6 +190,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 	protected Color currentColor = new Color();
 	protected PickSupport pickSupport = new PickSupport();
 	protected Layer pickLayer;
+	protected Layer layer;
 
 	/** Holds globe-dependent computed data. One entry per globe encountered during {@link #render(DrawContext)}. */
 	protected ShapeDataCache shapeDataCache = new ShapeDataCache(60000);
@@ -563,6 +564,11 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 		this.reset();
 	}
 
+	@Override
+	public Layer getLayer() {
+		return this.layer;
+	}
+
 	public Object getDelegateOwner() {
 		return delegateOwner;
 	}
@@ -711,6 +717,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 			return;
 		}
 
+		this.layer = dc.getCurrentLayer();
 		if (dc.isPickingMode()) this.pickLayer = dc.getCurrentLayer();
 
 		this.addOrderedRenderable(dc);
@@ -963,6 +970,8 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 		if (attribLocation >= 0) GLES20.glEnableVertexAttribArray(attribLocation);
 		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 
+		program.loadUniform1f("uOpacity", dc.isPickingMode() ? 1f : this.layer.getOpacity());
+
 		// Set the OpenGL state that this shape depends on.
 		GLES20.glDisable(GLES20.GL_CULL_FACE);
 		WorldWindowImpl.glCheckError("glDisable: GL_CULL_FACE");
@@ -1085,7 +1094,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 		if (dc.isPickingMode()) {
 			int color = dc.getUniquePickColor();
 			pickCandidates.addPickableObject(this.createPickedObject(color));
-			dc.getCurrentProgram().loadUniformColor("color", this.currentColor.set(color, false)); // Ignore alpha.
+			dc.getCurrentProgram().loadUniformColor("uColor", this.currentColor.set(color, false)); // Ignore alpha.
 		}
 
 		this.applyModelviewProjectionMatrix(dc);
@@ -1154,7 +1163,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 			// color into the current color so we can premultiply it. The SceneController configures the OpenGL blending
 			// mode for premultiplied alpha colors.
 			this.currentColor.set(color).premultiply();
-			dc.getCurrentProgram().loadUniformColor("color", this.currentColor);
+			dc.getCurrentProgram().loadUniformColor("uColor", this.currentColor);
 		}
 	}
 
@@ -1196,7 +1205,7 @@ public abstract class AbstractShape extends WWObjectImpl implements OrderedRende
 			// color into the current color so we can premultiply it. The SceneController configures the OpenGL blending
 			// mode for premultiplied alpha colors.
 			this.currentColor.set(color).premultiply();
-			dc.getCurrentProgram().loadUniformColor("color", this.currentColor);
+			dc.getCurrentProgram().loadUniformColor("uColor", this.currentColor);
 		}
 
 		if (dc.isPickingMode() && activeAttrs.getOutlineWidth() < this.getOutlinePickWidth()) GLES20.glLineWidth(this.getOutlinePickWidth());

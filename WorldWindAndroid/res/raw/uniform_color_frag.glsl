@@ -16,12 +16,14 @@ precision mediump float;
  * Input uniform vec4 defining the current color. Every fragment rasterized by this fragment shader is displayed in this
  * color.
  */
-uniform vec4 color;
+uniform vec4 uColor;
+
+uniform lowp float uOpacity;
 
 /*
  * OpenGL ES fragment shader entry point. Called for each fragment rasterized when this shader's program is bound.
  */
 void main()
 {
-    gl_FragColor = color;
+    gl_FragColor = vec4(uColor.rgb, uColor.a * uOpacity);
 }

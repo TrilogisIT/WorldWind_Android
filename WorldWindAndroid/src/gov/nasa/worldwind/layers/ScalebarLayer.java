@@ -37,8 +37,8 @@ import android.opengl.GLES20;
  * @version $Id: ScalebarLayer.java 508 2012-04-06 01:05:50Z tgaskins $
  */
 public class ScalebarLayer extends AbstractLayer {
-	protected static final int VERTEX_SHADER_PATH_COLOR = R.raw.scalebarlayercolorvert;
-	protected static final int FRAGMENT_SHADER_PATH_COLOR = R.raw.scalebarlayercolorfrag;
+	protected static final int VERTEX_SHADER_PATH_COLOR = R.raw.simple_vert;
+	protected static final int FRAGMENT_SHADER_PATH_COLOR = R.raw.uniform_color_frag;
 	// Units constants
 	public final static String UNIT_METRIC = "gov.nasa.worldwind.ScalebarLayer.Metric";
 	public final static String UNIT_IMPERIAL = "gov.nasa.worldwind.ScalebarLayer.Imperial";
@@ -68,6 +68,11 @@ public class ScalebarLayer extends AbstractLayer {
 	private TextRenderer textRenderer;
 
 	private class OrderedIcon implements OrderedRenderable {
+		@Override
+		public Layer getLayer() {
+			return ScalebarLayer.this;
+		}
+
 		public double getDistanceFromEye() {
 			return 0;
 		}
@@ -416,7 +421,8 @@ public class ScalebarLayer extends AbstractLayer {
 							// Set color using current layer opacity
 							float[] backColor = this.getBackgroundColor(this.color);
 							colorProgram.bind();
-							colorProgram.loadUniform4f("uColor", backColor[0], backColor[1], backColor[2], backColor[3] * this.getOpacity());
+							colorProgram.loadUniform1f("uOpacity", getOpacity());
+							colorProgram.loadUniform4f("uColor", backColor[0], backColor[1], backColor[2], backColor[3]);
 							modelview.multiplyAndSet(Matrix.fromTranslation((width - divWidth) / 2, 0d, 0d));
 							Matrix mvp = Matrix.fromIdentity().multiplyAndSet(projection, modelview);
 							colorProgram.loadUniformMatrix("mvpMatrix", mvp);

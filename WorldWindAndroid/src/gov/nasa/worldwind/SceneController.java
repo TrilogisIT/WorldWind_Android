@@ -11,12 +11,14 @@ import android.os.SystemClock;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.layers.Layer;
+import gov.nasa.worldwind.pick.DepthBufferSupport;
 import gov.nasa.worldwind.pick.PickSupport;
 import gov.nasa.worldwind.pick.PickedObject;
 import gov.nasa.worldwind.pick.PickedObjectList;
 import gov.nasa.worldwind.render.Color;
 import gov.nasa.worldwind.render.DrawContext;
 import gov.nasa.worldwind.render.OrderedRenderable;
+import gov.nasa.worldwind.terrain.ElevationModel;
 import gov.nasa.worldwind.terrain.SectorGeometry;
 import gov.nasa.worldwind.terrain.SectorGeometryList;
 import gov.nasa.worldwind.util.Logging;
@@ -38,8 +40,9 @@ public class SceneController extends WWObjectImpl {
 	protected DrawContext dc;
 	protected Color clearColor = new Color();
 	protected GpuResourceCache gpuResourceCache;
+	protected DepthBufferSupport mDepthSupport = new DepthBufferSupport();
 	protected boolean deepPick;
-	protected PickSupport pickSupport;
+	protected PickSupport pickSupport = new PickSupport();
 	protected Point pickPoint;
 	protected PickedObjectList objectsAtPickPoint = new PickedObjectList();
 
@@ -52,10 +55,13 @@ public class SceneController extends WWObjectImpl {
 	}
 
 	protected PickSupport getPickSupport() {
-		if(pickSupport==null) {
-			pickSupport = new PickSupport((int)view.getViewport().width, (int)view.getViewport().height);
-		}
+		pickSupport.setup((int)view.getViewport().width, (int)view.getViewport().height);
 		return pickSupport;
+	}
+
+	protected DepthBufferSupport getDepthBufferSupport() {
+		mDepthSupport.setup((int)view.getViewport().width, (int)view.getViewport().height);
+		return mDepthSupport;
 	}
 
 	protected DrawContext createDrawContext() {
@@ -128,9 +134,11 @@ public class SceneController extends WWObjectImpl {
 	 *            the vertical exaggeration to apply.
 	 */
 	public void setVerticalExaggeration(double verticalExaggeration) {
-		Double oldVE = this.verticalExaggeration;
-		this.verticalExaggeration = verticalExaggeration;
-		this.firePropertyChange(AVKey.VERTICAL_EXAGGERATION, oldVE, verticalExaggeration);
+		if(this.verticalExaggeration != verticalExaggeration) {
+			double oldVE = this.verticalExaggeration;
+			this.verticalExaggeration = verticalExaggeration;
+			this.firePropertyChange(AVKey.VERTICAL_EXAGGERATION, oldVE, this.verticalExaggeration);
+		}
 	}
 
 	/**
@@ -253,6 +261,8 @@ public class SceneController extends WWObjectImpl {
 		// need to explicitly swap the front and back buffers here, as the owner WorldWindow does this for us. In the
 		// case of WorldWindowGLSurfaceView, the GLSurfaceView automatically swaps the front and back buffers for us.
 		this.initializeDrawContext(this.dc, viewportWidth, viewportHeight);
+		pickSupport.setup(viewportWidth, viewportHeight);
+		mDepthSupport.setup(viewportWidth, viewportHeight);
 		dc.setDeltaTime(deltaTime);
 
 		this.doDrawFrame(this.dc);
@@ -402,7 +412,9 @@ public class SceneController extends WWObjectImpl {
 			OrderedRenderable or = dc.pollOrderedRenderables();
 
 			try {
+				dc.setCurrentLayer(or.getLayer());
 				or.render(dc);
+				dc.setCurrentLayer(null);
 			} catch (Exception e) {
 				String msg = Logging.getMessage("generic.ExceptionRenderingOrderedRenderable", or);
 				Logging.error(msg, e);
@@ -436,9 +448,13 @@ public class SceneController extends WWObjectImpl {
 
 	protected void pick(DrawContext dc) {
 		try {
+			dc.setPickingMode(true);
 			getPickSupport().beginPicking(dc);
+			getPickSupport().bindFrameBuffer();
 			this.doPick(dc);
 		} finally {
+			getPickSupport().unbindFrameBuffer();
+			dc.setPickingMode(false);
 			getPickSupport().endPicking(dc);
 		}
 	}

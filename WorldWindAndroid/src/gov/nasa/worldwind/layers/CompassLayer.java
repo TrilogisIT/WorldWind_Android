@@ -6,6 +6,7 @@
 package gov.nasa.worldwind.layers;
 
 import android.graphics.Point;
+import android.opengl.ETC1Util;
 import android.opengl.GLES20;
 import gov.nasa.worldwind.BasicView;
 import gov.nasa.worldwind.R;
@@ -38,9 +39,9 @@ import java.nio.FloatBuffer;
  * @version $Id: CompassLayer.java 1 2013-08-08 $
  */
 public class CompassLayer extends AbstractLayer {
-	protected static final int VERTEX_SHADER_PATH_TEXTURE = R.raw.compasslayertexturevert;
+	protected static final int VERTEX_SHADER_PATH_TEXTURE = R.raw.diffuse_tex_vert;
 	protected static final int FRAGMENT_SHADER_PATH_TEXTURE = R.raw.etc1alphafrag;
-	protected String iconFilePath = "images/notched-compass_mip_0.pkm"; // TODO: make configurable
+	protected String iconFilePath; // TODO: make configurable
 	protected double compassToViewportScale = 0.2; // TODO: make configurable
 	protected final Object programTextureKey = new Object();
 	protected double iconScale = 0.5;
@@ -53,19 +54,28 @@ public class CompassLayer extends AbstractLayer {
 	protected Vec4 locationOffset = null;
 	protected boolean showTilt = true;
 	protected PickSupport pickSupport = new PickSupport();
+	private Matrix texMatrix = Matrix.fromIdentity();
 
 	// Draw it as ordered with an eye distance of 0 so that it shows up in front of most other things.
 	protected OrderedIcon orderedImage = new OrderedIcon();
 
 	protected class OrderedIcon implements OrderedRenderable {
+		@Override
+		public Layer getLayer() {
+			return CompassLayer.this;
+		}
+
+		@Override
 		public double getDistanceFromEye() {
 			return 0;
 		}
 
+		@Override
 		public void pick(DrawContext dc, Point pickPoint) {
 			CompassLayer.this.draw(dc);
 		}
 
+		@Override
 		public void render(DrawContext dc) {
 			CompassLayer.this.draw(dc);
 		}
@@ -88,6 +98,9 @@ public class CompassLayer extends AbstractLayer {
 	 * @return the icon file path
 	 */
 	public String getIconFilePath() {
+		if(iconFilePath==null || iconFilePath.isEmpty())
+			iconFilePath = ETC1Util.isETC1Supported() ? "images/notched-compass_mip_0.pkm" :
+					"images/notched-compass.png";
 		return iconFilePath;
 	}
 
@@ -342,9 +355,10 @@ public class CompassLayer extends AbstractLayer {
 					textureProgram.loadUniformSampler("sTexture", 0);
 					textureProgram.loadUniformSampler("aTexture", 1);
 
-					Matrix texMatrix = Matrix.fromIdentity();
 //					iconTexture.applyInternalTransform(dc, texMatrix);
 					textureProgram.loadUniformMatrix("texMatrix", texMatrix);
+
+					textureProgram.loadUniform1f("uOpacity", this.getOpacity());
 
 					GLES20.glEnable(GLES20.GL_BLEND);
 					WorldWindowImpl.glCheckError("glEnable: GL_BLEND");
@@ -402,7 +416,8 @@ public class CompassLayer extends AbstractLayer {
 					// Draw the compass in the unique pick color. gl.glColor3ub((byte) color.getRed(), (byte) color.getGreen(), (byte) color.getBlue());
 					GpuProgram textureProgram = this.getGpuProgram(dc.getGpuResourceCache(), programTextureKey, VERTEX_SHADER_PATH_TEXTURE, FRAGMENT_SHADER_PATH_TEXTURE);
 					textureProgram.bind();
-
+					textureProgram.loadUniform1f("uOpacity", 1);
+					textureProgram.loadUniformMatrix("texMatrix", texMatrix);
 					modelview.multiplyAndSet(Matrix.fromScale(width, height, 1d));
 					float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
 					FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
@@ -563,8 +578,8 @@ public class CompassLayer extends AbstractLayer {
 					iconStream = new FileInputStream(iconFile);
 				}
 			}
-
-			iconTexture = GpuTexture.createTexture(dc, GpuTextureData.createTextureData(iconStream, getIconFilePath(), "image/pkm", false));
+			String textureMime = ETC1Util.isETC1Supported() ? "image/pkm" : null;
+			iconTexture = GpuTexture.createTexture(dc, GpuTextureData.createTextureData(iconStream, getIconFilePath(), textureMime, true));
 			iconTexture.bind();
 			this.iconWidth = iconTexture.getWidth();
 			this.iconHeight = iconTexture.getHeight();

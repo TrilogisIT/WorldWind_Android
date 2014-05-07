@@ -5,6 +5,7 @@
  */
 package gov.nasa.worldwind.layers;
 
+import android.opengl.ETC1Util;
 import gov.nasa.worldwind.*;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
@@ -46,12 +47,12 @@ import android.opengl.GLES20;
  * @version $Id: WorldMapLayer.java 1 2011-07-16 23:22:47Z dcollins $
  */
 public class WorldMapLayer extends AbstractLayer {
-	protected static final int VERTEX_SHADER_PATH_COLOR = R.raw.worldmaplayercolorvert;
-	protected static final int FRAGMENT_SHADER_PATH_COLOR = R.raw.worldmaplayercolorfrag;
-	protected static final int VERTEX_SHADER_PATH_TEXTURE = R.raw.worldmaplayertexturevert;
+	protected static final int VERTEX_SHADER_PATH_COLOR = R.raw.simple_vert;
+	protected static final int FRAGMENT_SHADER_PATH_COLOR = R.raw.uniform_color_frag;
+	protected static final int VERTEX_SHADER_PATH_TEXTURE = R.raw.diffuse_tex_vert;
 	protected static final int FRAGMENT_SHADER_PATH_TEXTURE = R.raw.etc1alphafrag;
 
-	protected String iconFilePath = "images/earth-map-512x256.pkm";;
+	protected String iconFilePath;
 	protected double toViewportScale = 0.2;
 	protected double iconScale = 0.5;
 	protected int borderWidth = 20;
@@ -70,16 +71,30 @@ public class WorldMapLayer extends AbstractLayer {
 	protected final Object programTextureKey = new Object();
 	// Draw it as ordered with an eye distance of 0 so that it shows up in front of most other things.
 	protected OrderedIcon orderedImage = new OrderedIcon();
+	private Matrix texMatrix = Matrix.fromIdentity();
+
+	private float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
+	private FloatBuffer vertexBuf = createBuffer(unitQuadVerts);
+	private float[] textureVerts = new float[] { 0, 1, 1, 1, 1, 0, 0, 0 };
+	private FloatBuffer textureBuf = createBuffer(textureVerts);
 
 	protected class OrderedIcon implements OrderedRenderable {
+		@Override
+		public Layer getLayer() {
+			return WorldMapLayer.this;
+		}
+
+		@Override
 		public double getDistanceFromEye() {
 			return 0;
 		}
 
+		@Override
 		public void pick(DrawContext dc, Point pickPoint) {
 			WorldMapLayer.this.drawIcon(dc);
 		}
 
+		@Override
 		public void render(DrawContext dc) {
 			WorldMapLayer.this.drawIcon(dc);
 		}
@@ -113,6 +128,8 @@ public class WorldMapLayer extends AbstractLayer {
 	 * @return the icon file path
 	 */
 	public String getIconFilePath() {
+		if(iconFilePath==null || iconFilePath.isEmpty())
+			iconFilePath = ETC1Util.isETC1Supported() ? "images/earth-map-512x256.pkm" : "images/earth-map-512x256.png";
 		return iconFilePath;
 	}
 
@@ -387,7 +404,8 @@ public class WorldMapLayer extends AbstractLayer {
 				if (colorProgram != null) {
 					colorProgram.bind();
 					colorProgram.loadUniformMatrix("mvpMatrix", mvp);
-					colorProgram.loadUniform4f("uColor", backColor[0], backColor[1], backColor[2], backColor[3] * this.getOpacity());
+					colorProgram.loadUniform1f("uOpacity", this.getOpacity());
+					colorProgram.loadUniform4f("uColor", backColor[0], backColor[1], backColor[2], backColor[3]);
 					float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
 
 					int pointLocation = colorProgram.getAttribLocation("vertexPoint");
@@ -419,27 +437,21 @@ public class WorldMapLayer extends AbstractLayer {
 					iconTexture.bind();
 					textureProgram.loadUniformSampler("sTexture", 0);
 					textureProgram.loadUniformSampler("aTexture", 1);
+					textureProgram.loadUniform1f("uOpacity", this.getOpacity());
+					textureProgram.loadUniformMatrix("texMatrix", texMatrix);
 
-					float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
 					int pointLocation = textureProgram.getAttribLocation("vertexPoint");
 					GLES20.glEnableVertexAttribArray(pointLocation);
 					WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 
-					FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-					vertexBuf.put(unitQuadVerts);
-					vertexBuf.rewind();
-					GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
+					GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf.rewind());
 					WorldWindowImpl.glCheckError("glVertexAttribPointer");
 
-					float[] textureVerts = new float[] { 0, 1, 1, 1, 1, 0, 0, 0 };
 					int textureLocation = textureProgram.getAttribLocation("aTextureCoord");
 					GLES20.glEnableVertexAttribArray(textureLocation);
 					WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 
-					FloatBuffer textureBuf = ByteBuffer.allocateDirect(textureVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-					textureBuf.put(textureVerts);
-					textureBuf.rewind();
-					GLES20.glVertexAttribPointer(textureLocation, 2, GLES20.GL_FLOAT, false, 0, textureBuf);
+					GLES20.glVertexAttribPointer(textureLocation, 2, GLES20.GL_FLOAT, false, 0, textureBuf.rewind());
 					WorldWindowImpl.glCheckError("glVertexAttribPointer");
 
 					GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
@@ -464,7 +476,8 @@ public class WorldMapLayer extends AbstractLayer {
 					colorProgram.bind();
 					colorProgram.loadUniformMatrix("mvpMatrix", mvp);
 					// Set color
-					colorProgram.loadUniform4f("uColor", color[0], color[1], color[2], this.getOpacity());
+					colorProgram.loadUniform1f("uOpacity", this.getOpacity());
+					colorProgram.loadUniform4f("uColor", color[0], color[1], color[2], 1);
 					// Draw crosshair
 					Position groundPos = this.computeGroundPosition(dc, dc.getView());
 					if (groundPos != null) {
@@ -572,15 +585,14 @@ public class WorldMapLayer extends AbstractLayer {
 				this.pickSupport.addPickableObject(colorCode, this, pickPosition, false);
 				GpuProgram textureProgram = this.getGpuProgram(dc.getGpuResourceCache(), programTextureKey, VERTEX_SHADER_PATH_TEXTURE, FRAGMENT_SHADER_PATH_TEXTURE);
 				textureProgram.bind();
-				float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
-				FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-				vertexBuf.put(unitQuadVerts);
-				vertexBuf.rewind();
+				textureProgram.loadUniform1f("uOpacity", 1);
+				textureProgram.loadUniformMatrix("texMatrix", texMatrix);
+
 				int pointLocation = textureProgram.getAttribLocation("vertexPoint");
 				GLES20.glEnableVertexAttribArray(pointLocation);
 
 				WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
-				GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
+				GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf.rewind());
 
 				WorldWindowImpl.glCheckError("glVertexAttribPointer");
 				GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
@@ -616,10 +628,8 @@ public class WorldMapLayer extends AbstractLayer {
 	}
 
 	protected FloatBuffer createBuffer(float[] array) {
-		FloatBuffer retval = ByteBuffer.allocateDirect(array.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-		retval.put(array);
-		retval.rewind();
-		return retval;
+		return (FloatBuffer) ByteBuffer.allocateDirect(array.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
+					.put(array).rewind();
 	}
 
 	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, int shaderPath, int fragmentPath) {
@@ -710,7 +720,8 @@ public class WorldMapLayer extends AbstractLayer {
 					iconStream = new FileInputStream(iconFile);
 				}
 			}
-			iconTexture = GpuTexture.createTexture(dc, GpuTextureData.createTextureData(iconStream, iconFilePath, "image/pkm", false));
+			String imageMimeType = ETC1Util.isETC1Supported() ? "image/pkm" : "image/png";
+			iconTexture = GpuTexture.createTexture(dc, GpuTextureData.createTextureData(iconStream, iconFilePath, imageMimeType, false));
 			iconTexture.bind();
 			this.iconWidth = iconTexture.getWidth();
 			this.iconHeight = iconTexture.getHeight();

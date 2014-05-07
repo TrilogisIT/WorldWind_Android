@@ -31,6 +31,8 @@ varying vec2 tileCoord;
  */
 varying vec2 texCoord;
 
+uniform lowp float uOpacity;
+
 /*
  * Local function that returns the tile's RGBA color at the specified texture coordinate. The tile coordinate vector is
  * used to determine if the current fragment is inside or outside the tile's sector. This returns transparent black
@@ -60,4 +62,5 @@ void main()
     /* because calling discard in a branch has been shown to increase the frame time by 3x on the Samsung Galaxy Tab */
     /* 10.1. */
     gl_FragColor = tileColor(tileTexture, tileCoord, texCoord);
+    gl_FragColor = vec4(gl_FragColor.rgb, gl_FragColor.a * uOpacity);
 }

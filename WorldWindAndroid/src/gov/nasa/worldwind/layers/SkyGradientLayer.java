@@ -31,8 +31,8 @@ import android.opengl.GLES20;
  * @version $Id: SkyGradientLayer.java 1 2011-07-16 23:22:47Z dcollins $
  */
 public class SkyGradientLayer extends AbstractLayer {
-	protected static final String VERTEX_SHADER_PATH = "shaders/SkyGradientLayer.vert";
-	protected static final String FRAGMENT_SHADER_PATH = "shaders/SkyGradientLayer.frag";
+	protected static final int VERTEX_SHADER_PATH = R.raw.vertex_color_vert;
+	protected static final int FRAGMENT_SHADER_PATH = R.raw.vertex_color_frag;
 	protected final static int STACKS = 12;
 	protected final static int SLICES = 64;
 
@@ -146,6 +146,8 @@ public class SkyGradientLayer extends AbstractLayer {
 			GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 			WorldWindowImpl.glCheckError("glBlendFunc");
 
+			program.loadUniform1f("uOpacity", this.getOpacity());
+
 			Matrix projection = this.createProjectionMatrix(dc);
 			// this.applyDrawProjection(dc);
 			Matrix modelview = this.createModelViewMatrix(dc);
@@ -171,7 +173,7 @@ public class SkyGradientLayer extends AbstractLayer {
 
 		if (program == null) {
 			try {
-				GpuProgram.GpuProgramSource source = GpuProgram.readProgramSource(R.raw.skygradientlayervert, R.raw.skygradientlayerfrag);
+				GpuProgram.GpuProgramSource source = GpuProgram.readProgramSource(VERTEX_SHADER_PATH, FRAGMENT_SHADER_PATH);
 				program = new GpuProgram(source);
 				cache.put(this.programKey, program);
 			} catch (Exception e) {
