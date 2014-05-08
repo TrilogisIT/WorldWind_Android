@@ -672,13 +672,23 @@ public abstract class AbstractRetrievalPostProcessor implements RetrievalPostPro
 		ByteBuffer buffer = this.getRetriever().getBuffer();
 		try {
 			if (!this.getRetriever().getContentType().contains("pkm")) {
-				ETC1Util.ETC1Texture etc1 = this.convertToPKM();
+				ETC1Util.ETC1Texture[] etc1 = this.convertToPKM();
 				if (WorldWindowImpl.DEBUG)
 					Logging.verbose("Conversion finished. Saving PKM file: " + getOutputFile().toString());
 
 				FileOutputStream fis = new FileOutputStream(getOutputFile());
-				ETC1Util.writeTexture(etc1, fis);
+				ETC1Util.writeTexture(etc1[0], fis);
 				WWIO.closeStream(fis, getOutputFile().getName());
+
+				if(etc1.length>1) {
+					String path = getOutputFile().getPath();
+					path = path.substring(0, path.lastIndexOf(".pkm"))+"_alpha.pkm";
+					if (WorldWindowImpl.DEBUG)
+						Logging.verbose("Conversion finished. Saving PKM Alpha file: " + path);
+					fis = new FileOutputStream(path);
+					ETC1Util.writeTexture(etc1[1], fis);
+					WWIO.closeStream(fis, path);
+				}
 			} else {
 				this.saveBuffer(buffer);
 			}
@@ -696,7 +706,7 @@ public abstract class AbstractRetrievalPostProcessor implements RetrievalPostPro
 	 *
 	 * @throws IOException if an IO error occurs while converting the image.
 	 */
-	protected ETC1Util.ETC1Texture convertToPKM() throws IOException
+	protected ETC1Util.ETC1Texture[] convertToPKM() throws IOException
 	{
 		Bitmap image = this.transformPixels();
 
