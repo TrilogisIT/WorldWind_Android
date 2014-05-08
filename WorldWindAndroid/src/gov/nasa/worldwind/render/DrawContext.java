@@ -10,6 +10,7 @@ import gov.nasa.worldwind.Model;
 import gov.nasa.worldwind.View;
 import gov.nasa.worldwind.WWObjectImpl;
 import gov.nasa.worldwind.WorldWindowImpl;
+import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.globes.Globe;
@@ -229,7 +230,11 @@ public class DrawContext extends WWObjectImpl {
 	 *            the new vertical exaggeration.
 	 */
 	public void setVerticalExaggeration(double verticalExaggeration) {
-		this.verticalExaggeration = verticalExaggeration;
+		if(this.verticalExaggeration != verticalExaggeration) {
+			double oldVE = this.verticalExaggeration;
+			this.verticalExaggeration = verticalExaggeration;
+			firePropertyChange(AVKey.VERTICAL_EXAGGERATION, oldVE, this.verticalExaggeration);
+		}
 	}
 
 	/**

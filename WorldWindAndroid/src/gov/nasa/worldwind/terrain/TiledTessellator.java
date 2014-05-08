@@ -404,6 +404,7 @@ public class TiledTessellator extends WWObjectImpl
 		protected final Object vboCacheKey = new Object();
 		protected boolean mustRegnerateVbos;
 		protected TerrainSharedGeometry sharedGeom;
+		protected double verticalExaggeration;
 
 		public TerrainGeometry() {
 		}
@@ -451,8 +452,8 @@ public class TiledTessellator extends WWObjectImpl
 	protected static final double DEFAULT_DETAIL_HINT_ORIGIN = 1.3;
 	protected static Map<Object, TerrainSharedGeometry> sharedGeometry = new HashMap<Object, TerrainSharedGeometry>();
 	protected static Map<Object, TerrainPickGeometry> pickGeometry = new HashMap<Object, TerrainPickGeometry>();
-	protected static final int PICK_VERTEX_SHADER_PATH = R.raw.tiledtessellatorpickvert ;
-	protected static final int PICK_FRAGMENT_SHADER_PATH = R.raw.tiledtessellatorpickfrag;
+	protected static final int PICK_VERTEX_SHADER_PATH = R.raw.vertex_color_vert ;
+	protected static final int PICK_FRAGMENT_SHADER_PATH = R.raw.vertex_color_frag;
 
 	protected double detailHintOrigin = DEFAULT_DETAIL_HINT_ORIGIN;
 	protected double detailHint;
@@ -532,10 +533,25 @@ public class TiledTessellator extends WWObjectImpl
 		// Listen to the Globe's elevation model for changes in elevation model sectors. We mark these sectors as
 		// expired and regenerate geometry for tiles intersecting these sectors.
 		// noinspection StringEquality
-		if (event != null && event.getPropertyName() == AVKey.ELEVATION_MODEL && event.getNewValue() instanceof Tile) {
-			Sector tileSector = ((Tile) event.getNewValue()).getSector();
-			this.markSectorExpired(tileSector);
-		}
+			if (AVKey.ELEVATION_MODEL.equals(event.getPropertyName()) && event.getNewValue() instanceof Tile)
+			{
+				Logging.info("Marking all tile sector expired for ElevationModel change");
+				Sector tileSector = ((Tile) event.getNewValue()).getSector();
+				this.markSectorExpired(tileSector);
+			}
+			else if (AVKey.ELEVATION_MODEL.equals(event.getPropertyName()) && event.getNewValue() instanceof ElevationModel)
+			{
+				Logging.info("Marking all sectors expired for ElevationModel change");
+				for(SectorGeometry tile : currentTiles) {
+					markSectorExpired(tile.getSector());
+				}
+			}
+			else if(AVKey.VERTICAL_EXAGGERATION.equals(event.getPropertyName()))
+			{
+				Logging.info("Marking all sectors expired for VerticalExaggeration change");
+				for(SectorGeometry tile : currentTiles)
+					markSectorExpired(tile.getSector());
+			}
 	}
 
 	/**
@@ -547,239 +563,243 @@ public class TiledTessellator extends WWObjectImpl
 	 * @return an array of <code>Intersection</code> sorted by increasing distance from the line origin, or null if no
 	 *         intersection was found.
 	 */
-//	protected Intersection[] intersect(TerrainTile tile, Line line)
-//	{
-//		if (line == null)
-//		{
-//			String msg = Logging.getMessage("nullValue.LineIsNull");
-//			Logging.error(msg);
-//			throw new IllegalArgumentException(msg);
-//		}
-//
-//		if (tile.ri.vertices == null)
-//			return null;
-//
-//		// Compute 'vertical' plane perpendicular to the ground, that contains the ray
-//		Vec4 normalV = new Vec4();
-//		globe.computeSurfaceNormalAtPoint(line.getOrigin(), normalV);
-//		line.getDirection().cross3(normalV);
-//		Plane verticalPlane = new Plane(normalV.x, normalV.y, normalV.z, -line.getOrigin().dot3(normalV));
-//		if (!tile.getExtent().intersects(verticalPlane))
-//			return null;
-//
-//		// Compute 'horizontal' plane perpendicular to the vertical plane, that contains the ray
-//		Vec4 normalH = line.getDirection().cross3(normalV);
-//		Plane horizontalPlane = new Plane(normalH.x, normalH.y, normalH.z, -line.getOrigin().dot3(normalH));
-//		if (!tile.getExtent().intersects(horizontalPlane))
-//			return null;
-//
-//		Intersection[] hits;
-//		ArrayList<Intersection> list = new ArrayList<Intersection>();
-//
-//		int[] indices = new int[tile.ri.indices.limit()];
-//		float[] coords = new float[tile.ri.vertices.limit()];
-//		tile.ri.indices.rewind();
-//		tile.ri.vertices.rewind();
-//		tile.ri.indices.get(indices, 0, indices.length);
-//		tile.ri.vertices.get(coords, 0, coords.length);
-//		tile.ri.indices.rewind();
-//		tile.ri.vertices.rewind();
-//
-//		int trianglesNum = tile.ri.indices.capacity() - 2;
-//		double centerX = tile.ri.referenceCenter.x;
-//		double centerY = tile.ri.referenceCenter.y;
-//		double centerZ = tile.ri.referenceCenter.z;
-//
-//		// Compute maximum cell size based on tile delta lat, density and globe radius
-//		double effectiveRadiusVertical = tile.extent.getEffectiveRadius(verticalPlane);
-//		double effectiveRadiusHorizontal = tile.extent.getEffectiveRadius(horizontalPlane);
-//
-//		// Loop through all tile cells - triangle pairs
-//		int startIndex = (density + 2) * 2 + 6; // skip first skirt row and a couple degenerate cells
-//		int endIndex = trianglesNum - startIndex; // ignore last skirt row and a couple degenerate cells
-//		int k = -1;
-//		for (int i = startIndex; i < endIndex; i += 2)
-//		{
-//			// Skip skirts and degenerate triangle cells - based on index sequence.
-//			k = k == density - 1 ? -4 : k + 1; // density x terrain cells interleaved with 4 skirt and degenerate cells.
-//			if (k < 0)
-//				continue;
-//
-//			// Triangle pair diagonal - v1 & v2
-//			int vIndex = 3 * indices[i + 1];
-//			Vec4 v1 = new Vec4(
-//					coords[vIndex++] + centerX,
-//					coords[vIndex++] + centerY,
-//					coords[vIndex] + centerZ);
-//
-//			vIndex = 3 * indices[i + 2];
-//			Vec4 v2 = new Vec4(
-//					coords[vIndex++] + centerX,
-//					coords[vIndex++] + centerY,
-//					coords[vIndex] + centerZ);
-//
-//			Vec4 cellCenter = Vec4.mix3(.5, v1, v2);
-//
-//			// Test cell center distance to vertical plane
-//			if (Math.abs(verticalPlane.distanceTo(cellCenter)) > effectiveRadiusVertical)
-//				continue;
-//
-//			// Test cell center distance to horizontal plane
-//			if (Math.abs(horizontalPlane.distanceTo(cellCenter)) > effectiveRadiusHorizontal)
-//				continue;
-//
-//			// Prepare to test triangles - get other two vertices v0 & v3
-//			Vec4 p;
-//			vIndex = 3 * indices[i];
-//			Vec4 v0 = new Vec4(
-//					coords[vIndex++] + centerX,
-//					coords[vIndex++] + centerY,
-//					coords[vIndex] + centerZ);
-//
-//			vIndex = 3 * indices[i + 3];
-//			Vec4 v3 = new Vec4(
-//					coords[vIndex++] + centerX,
-//					coords[vIndex++] + centerY,
-//					coords[vIndex] + centerZ);
-//
-//			// Test triangle 1 intersection w ray
-//			Triangle t = new Triangle(v0, v1, v2);
-//			if ((p = t.intersect(line)) != null)
-//			{
-//				list.add(new Intersection(p, false));
-//			}
-//
-//			// Test triangle 2 intersection w ray
-//			t = new Triangle(v1, v2, v3);
-//			if ((p = t.intersect(line)) != null)
-//			{
-//				list.add(new Intersection(p, false));
-//			}
-//		}
-//
-//		int numHits = list.size();
-//		if (numHits == 0)
-//			return null;
-//
-//		hits = new Intersection[numHits];
-//		list.toArray(hits);
-//
-//		final Vec4 origin = line.getOrigin();
-//		Arrays.sort(hits, new Comparator<Intersection>()
-//		{
-//			public int compare(Intersection i1, Intersection i2)
-//			{
-//				if (i1 == null && i2 == null)
-//					return 0;
-//				if (i2 == null)
-//					return -1;
-//				if (i1 == null)
-//					return 1;
-//
-//				Vec4 v1 = i1.getIntersectionPoint();
-//				Vec4 v2 = i2.getIntersectionPoint();
-//				double d1 = origin.distanceTo3(v1);
-//				double d2 = origin.distanceTo3(v2);
-//				return Double.compare(d1, d2);
-//			}
-//		});
-//
-//		return hits;
-//	}
+	protected Intersection[] intersect(TerrainTile tile, Line line)
+	{
+		if (line == null)
+		{
+			String msg = Logging.getMessage("nullValue.LineIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
 
-//	protected Intersection[] intersect(TerrainTile tile, double elevation)
-//	{
-//		if (tile.ri.vertices == null)
-//			return null;
-//
-//		// Check whether the tile includes the intersection elevation - assume cylinder as Extent
-//		// TODO: replace this test with a generic test against Extent
-//		if (tile.getExtent() instanceof Cylinder)
-//		{
-//			Cylinder cylinder = ((Cylinder) tile.getExtent());
-//			if (!(globe.isPointAboveElevation(cylinder.getBottomCenter(), elevation)
-//					^ globe.isPointAboveElevation(cylinder.getTopCenter(), elevation)))
-//				return null;
-//		}
-//
-//		Intersection[] hits;
-//		ArrayList<Intersection> list = new ArrayList<Intersection>();
-//
-//		int[] indices = new int[tile.ri.indices.limit()];
-//		float[] coords = new float[tile.ri.vertices.limit()];
-//		tile.ri.indices.rewind();
-//		tile.ri.vertices.rewind();
-//		tile.ri.indices.get(indices, 0, indices.length);
-//		tile.ri.vertices.get(coords, 0, coords.length);
-//		tile.ri.indices.rewind();
-//		tile.ri.vertices.rewind();
-//
-//		int trianglesNum = tile.ri.indices.capacity() - 2;
-//		double centerX = tile.ri.referenceCenter.x;
-//		double centerY = tile.ri.referenceCenter.y;
-//		double centerZ = tile.ri.referenceCenter.z;
-//
-//		// Loop through all tile cells - triangle pairs
-//		int startIndex = (density + 2) * 2 + 6; // skip first skirt row and a couple degenerate cells
-//		int endIndex = trianglesNum - startIndex; // ignore last skirt row and a couple degenerate cells
-//		int k = -1;
-//		for (int i = startIndex; i < endIndex; i += 2)
-//		{
-//			// Skip skirts and degenerate triangle cells - based on indice sequence.
-//			k = k == density - 1 ? -4 : k + 1; // density x terrain cells interleaved with 4 skirt and degenerate cells.
-//			if (k < 0)
-//				continue;
-//
-//			// Get the four cell corners
-//			int vIndex = 3 * indices[i];
-//			Vec4 v0 = new Vec4(
-//					coords[vIndex++] + centerX,
-//					coords[vIndex++] + centerY,
-//					coords[vIndex] + centerZ);
-//
-//			vIndex = 3 * indices[i + 1];
-//			Vec4 v1 = new Vec4(
-//					coords[vIndex++] + centerX,
-//					coords[vIndex++] + centerY,
-//					coords[vIndex] + centerZ);
-//
-//			vIndex = 3 * indices[i + 2];
-//			Vec4 v2 = new Vec4(
-//					coords[vIndex++] + centerX,
-//					coords[vIndex++] + centerY,
-//					coords[vIndex] + centerZ);
-//
-//			vIndex = 3 * indices[i + 3];
-//			Vec4 v3 = new Vec4(
-//					coords[vIndex++] + centerX,
-//					coords[vIndex++] + centerY,
-//					coords[vIndex] + centerZ);
-//
-//			Intersection[] inter;
-//			// Test triangle 1 intersection
-//			if ((inter = globe.intersect(new Triangle(v0, v1, v2), elevation)) != null)
-//			{
-//				list.add(inter[0]);
-//				list.add(inter[1]);
-//			}
-//
-//			// Test triangle 2 intersection
-//			if ((inter = globe.intersect(new Triangle(v1, v2, v3), elevation)) != null)
-//			{
-//				list.add(inter[0]);
-//				list.add(inter[1]);
-//			}
-//		}
-//
-//		int numHits = list.size();
-//		if (numHits == 0)
-//			return null;
-//
-//		hits = new Intersection[numHits];
-//		list.toArray(hits);
-//
-//		return hits;
-//	}
+		TerrainGeometry geometry = tile.getGeometry(getTerrainGeometryCache());
+
+		if (geometry==null || geometry.points==null)
+			return null;
+
+		// Compute 'vertical' plane perpendicular to the ground, that contains the ray
+		Vec4 normalV = new Vec4();
+		globe.computeSurfaceNormalAtPoint(line.getOrigin(), normalV);
+		line.getDirection().cross3(normalV);
+		Plane verticalPlane = new Plane(normalV.x, normalV.y, normalV.z, -line.getOrigin().dot3(normalV));
+		if (!tile.getExtent().intersects(verticalPlane))
+			return null;
+
+		// Compute 'horizontal' plane perpendicular to the vertical plane, that contains the ray
+		Vec4 normalH = line.getDirection().cross3(normalV);
+		Plane horizontalPlane = new Plane(normalH.x, normalH.y, normalH.z, -line.getOrigin().dot3(normalH));
+		if (!tile.getExtent().intersects(horizontalPlane))
+			return null;
+
+		Intersection[] hits;
+		ArrayList<Intersection> list = new ArrayList<Intersection>();
+
+		short[] indices = new short[geometry.sharedGeom.indices.limit()];
+		float[] coords = new float[geometry.points.limit()];
+		geometry.sharedGeom.indices.rewind();
+		geometry.points.rewind();
+		geometry.sharedGeom.indices.get(indices, 0, indices.length);
+		geometry.points.get(coords, 0, coords.length);
+		geometry.sharedGeom.indices.rewind();
+		geometry.points.rewind();
+
+		int trianglesNum = geometry.sharedGeom.indices.capacity() - 2;
+		double centerX = geometry.referenceCenter.x;
+		double centerY = geometry.referenceCenter.y;
+		double centerZ = geometry.referenceCenter.z;
+
+		// Compute maximum cell size based on tile delta lat, density and globe radius
+		double effectiveRadiusVertical = tile.extent.getEffectiveRadius(verticalPlane);
+		double effectiveRadiusHorizontal = tile.extent.getEffectiveRadius(horizontalPlane);
+
+		// Loop through all tile cells - triangle pairs
+		int startIndex = (tile.getWidth() + 2) * 2 + 6; // skip first skirt row and a couple degenerate cells
+		int endIndex = trianglesNum - startIndex; // ignore last skirt row and a couple degenerate cells
+		int k = -1;
+		for (int i = startIndex; i < endIndex; i += 2)
+		{
+			// Skip skirts and degenerate triangle cells - based on index sequence.
+			k = k == tile.getWidth() - 1 ? -4 : k + 1; // density x terrain cells interleaved with 4 skirt and degenerate cells.
+			if (k < 0)
+				continue;
+
+			// Triangle pair diagonal - v1 & v2
+			int vIndex = 3 * indices[i + 1];
+			Vec4 v1 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			vIndex = 3 * indices[i + 2];
+			Vec4 v2 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			Vec4 cellCenter = Vec4.mix3(.5, v1, v2);
+
+			// Test cell center distance to vertical plane
+			if (Math.abs(verticalPlane.distanceTo(cellCenter)) > effectiveRadiusVertical)
+				continue;
+
+			// Test cell center distance to horizontal plane
+			if (Math.abs(horizontalPlane.distanceTo(cellCenter)) > effectiveRadiusHorizontal)
+				continue;
+
+			// Prepare to test triangles - get other two vertices v0 & v3
+			Vec4 p = new Vec4();
+			vIndex = 3 * indices[i];
+			Vec4 v0 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			vIndex = 3 * indices[i + 3];
+			Vec4 v3 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			// Test triangle 1 intersection w ray
+			Triangle t = new Triangle(v0, v1, v2);
+			if (t.intersect(line, p))
+			{
+				list.add(new Intersection(p, false));
+			}
+
+			// Test triangle 2 intersection w ray
+			t = new Triangle(v1, v2, v3);
+			if (t.intersect(line, p))
+			{
+				list.add(new Intersection(p, false));
+			}
+		}
+
+		int numHits = list.size();
+		if (numHits == 0)
+			return null;
+
+		hits = new Intersection[numHits];
+		list.toArray(hits);
+
+		final Vec4 origin = line.getOrigin();
+		Arrays.sort(hits, new Comparator<Intersection>()
+		{
+			public int compare(Intersection i1, Intersection i2)
+			{
+				if (i1 == null && i2 == null)
+					return 0;
+				if (i2 == null)
+					return -1;
+				if (i1 == null)
+					return 1;
+
+				Vec4 v1 = i1.getIntersectionPoint();
+				Vec4 v2 = i2.getIntersectionPoint();
+				double d1 = origin.distanceTo3(v1);
+				double d2 = origin.distanceTo3(v2);
+				return Double.compare(d1, d2);
+			}
+		});
+
+		return hits;
+	}
+
+	protected Intersection[] intersect(TerrainTile tile, double elevation)
+	{
+		TerrainGeometry geometry = tile.getGeometry(getTerrainGeometryCache());
+
+		if (geometry==null || geometry.points==null)
+			return null;
+
+		// Check whether the tile includes the intersection elevation - assume cylinder as Extent
+		// TODO: replace this test with a generic test against Extent
+		if (tile.getExtent() instanceof Cylinder)
+		{
+			Cylinder cylinder = ((Cylinder) tile.getExtent());
+			if (!(globe.isPointAboveElevation(cylinder.getBottomCenter(), elevation)
+					^ globe.isPointAboveElevation(cylinder.getTopCenter(), elevation)))
+				return null;
+		}
+
+		Intersection[] hits;
+		ArrayList<Intersection> list = new ArrayList<Intersection>();
+
+		short[] indices = new short[geometry.sharedGeom.indices.limit()];
+		float[] coords = new float[geometry.points.limit()];
+		geometry.sharedGeom.indices.rewind();
+		geometry.points.rewind();
+		geometry.sharedGeom.indices.get(indices, 0, indices.length);
+		geometry.points.get(coords, 0, coords.length);
+		geometry.sharedGeom.indices.rewind();
+		geometry.points.rewind();
+
+		int trianglesNum = geometry.sharedGeom.indices.capacity() - 2;
+		double centerX = geometry.referenceCenter.x;
+		double centerY = geometry.referenceCenter.y;
+		double centerZ = geometry.referenceCenter.z;
+
+		// Loop through all tile cells - triangle pairs
+		int startIndex = (tile.getWidth() + 2) * 2 + 6; // skip first skirt row and a couple degenerate cells
+		int endIndex = trianglesNum - startIndex; // ignore last skirt row and a couple degenerate cells
+		int k = -1;
+		for (int i = startIndex; i < endIndex; i += 2)
+		{
+			// Skip skirts and degenerate triangle cells - based on indice sequence.
+			k = k == tile.getWidth() - 1 ? -4 : k + 1; // density x terrain cells interleaved with 4 skirt and degenerate cells.
+			if (k < 0)
+				continue;
+
+			// Get the four cell corners
+			int vIndex = 3 * indices[i];
+			Vec4 v0 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			vIndex = 3 * indices[i + 1];
+			Vec4 v1 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			vIndex = 3 * indices[i + 2];
+			Vec4 v2 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			vIndex = 3 * indices[i + 3];
+			Vec4 v3 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			Intersection[] inter;
+			// Test triangle 1 intersection
+			if ((inter = globe.intersect(new Triangle(v0, v1, v2), elevation)) != null)
+			{
+				list.add(inter[0]);
+				list.add(inter[1]);
+			}
+
+			// Test triangle 2 intersection
+			if ((inter = globe.intersect(new Triangle(v1, v2, v3), elevation)) != null)
+			{
+				list.add(inter[0]);
+				list.add(inter[1]);
+			}
+		}
+
+		int numHits = list.size();
+		if (numHits == 0)
+			return null;
+
+		hits = new Intersection[numHits];
+		list.toArray(hits);
+
+		return hits;
+	}
 
 	protected boolean getSurfacePoint(Angle latitude, Angle longitude, Vec4 result) {
 		for (SectorGeometry tile : this.currentTiles) {
@@ -871,7 +891,12 @@ public class TiledTessellator extends WWObjectImpl
 			Logging.warning(Logging.getMessage("generic.FirstLevelIsNull"));
 			return;
 		}
-		this.globe = dc.getGlobe();
+
+		if(globe==null) {
+			this.globe = dc.getGlobe();
+			dc.getGlobe().getElevationModel().addPropertyChangeListener(AVKey.ELEVATION_MODEL, this);
+			dc.addPropertyChangeListener(AVKey.VERTICAL_EXAGGERATION, this);
+		}
 
 		Logging.verbose("Creating top level surface tiles");
 
@@ -981,6 +1006,13 @@ public class TiledTessellator extends WWObjectImpl
 	}
 
 	protected boolean isExpired(DrawContext dc, TerrainTile tile) {
+		TerrainGeometry geom = (TerrainGeometry) getTerrainGeometryCache().get(tile);
+		if(geom==null || geom.verticalExaggeration != dc.getVerticalExaggeration()) {
+			if(WorldWindowImpl.DEBUG)
+				Logging.verbose("Tile has expired due to Vertical Exaggeration");
+			return true;
+		}
+
 		if (this.currentExpiredSectors.isEmpty()) return false;
 
 		Sector tileSector = tile.getSector();
@@ -998,7 +1030,7 @@ public class TiledTessellator extends WWObjectImpl
 
 		this.buildTileVertices(dc, tile, geom);
 		this.buildSharedGeometry(tile, geom);
-
+		geom.verticalExaggeration = dc.getVerticalExaggeration();
 		// Update the geometry's cached size.
 		tile.setGeometry(cache, geom);
 	}
@@ -1036,6 +1068,9 @@ public class TiledTessellator extends WWObjectImpl
 	}
 
 	protected void buildTileVertices(DrawContext dc, TerrainTile tile, TerrainGeometry geom) {
+		if(WorldWindowImpl.DEBUG) {
+			Logging.verbose(String.format("Building tile vertices: v exagg: %.2f ", dc.getVerticalExaggeration()));
+		}
 		// The WWAndroid terrain tessellator attempts to improves upon the WWJ tessellator's vertex construction
 		// performance by exploiting the fact that each terrain tile is a regular geographic grid. The following three
 		// critical differences have improved the performance of buildTileVertices by approximately 10x (from ~8ms to
@@ -2040,7 +2075,7 @@ public class TiledTessellator extends WWObjectImpl
 		float[] points = this.pointBuffer; // Holds up to 12 coordinates.
 		geom.points.position(3 * (si + ti * rowStride)); // lower-left and lower-right vertices.
 		geom.points.get(points, 0, 6);
-		geom.points.position(3 * ((si+1) + (ti + 1) * rowStride)); // upper-left and upper-right vertices.
+		geom.points.position(3 * (si + (ti + 1) * rowStride)); // upper-left and upper-right vertices.
 		geom.points.get(points, 6, 6);
 		geom.points.rewind();
 
@@ -2191,35 +2226,55 @@ public class TiledTessellator extends WWObjectImpl
 	 * @param t
 	 *            a parameterized vertical coordinate within the tile's 2D grid of points as a floating-point value
 	 *            in the range [0, 1].
-	 * @param ll
-	 *            the cell's lower left corner.
-	 * @param lr
-	 *            the cell's lower right corner.
-	 * @param ul
-	 *            the cell's upper left corner.
-	 * @param ur
-	 *            the cell's upper right corner.
+	 * @param llx
+	 *            the X coordinate of the cell's lower left corner.
+	 * @param lly
+	 *            the Y coordinate of the cell's lower left corner.
+	 * @param llz
+	 *            the Z coordinate of the cell's lower left corner.
+	 * @param lrx
+	 *            the X coordinate of the cell's lower right corner.
+	 * @param lry
+	 *            the Y coordinate of the cell's lower right corner.
+	 * @param lrz
+	 *            the Z coordinate of the cell's lower right corner.
+	 * @param ulx
+	 *            the X coordinate of the cell's upper left corner.
+	 * @param uly
+	 *            the Y coordinate of the cell's upper left corner.
+	 * @param ulz
+	 *            the Z coordinate of the cell's upper left corner.
+	 * @param urx
+	 *            the X coordinate of the cell's upper right corner.
+	 * @param ury
+	 *            the Y coordinate of the cell's upper right corner.
+	 * @param urz
+	 *            the Z coordinate of the cell's upper right corner.
 	 * @param result
 	 *            contains the tile local coordinates of the point in the cell after this method returns.
 	 */
-	protected void computePointInCell(double s, double t, Vec4 ll, Vec4 lr, Vec4 ul, Vec4 ur, Vec4 result) {
+	protected void computePointInCellBarycentric(double s, double t, double llx, double lly, double llz, double lrx, double lry, double lrz, double ulx, double uly, double ulz, double urx,
+									  double ury, double urz, Vec4 result) {
 		Vec4 barycentric = new Vec4();
 		if (s < t) // The point is in the lower-right triangle.
 		{
-			barycentric2D(new Vec4(1, 0), new Vec4(1, 1), new Vec4(0, 0), new Vec4(s, t), barycentric);
-			lr.multiply3AndSet(barycentric.x);
-			ur.multiply3AndSet(barycentric.y);
-			ll.multiply3AndSet(barycentric.z);
-			result.add3AndSet(lr, ur).add3AndSet(ll);
+			barycentric2D(LOWER_RIGHT, UPPER_RIGHT, LOWER_LEFT, new Vec4(s, t), barycentric);
+			result.x = lrx*barycentric.x + urx*barycentric.y + llx*barycentric.z;
+			result.y = lry*barycentric.x + ury*barycentric.y + lly*barycentric.z;
+			result.z = lrz*barycentric.x + urz*barycentric.y + llz*barycentric.z;
 		} else // The point is in the upper-left triangle, or on the diagonal between the two triangles.
 		{
-			barycentric2D(new Vec4(0, 1), new Vec4(0, 0), new Vec4(1, 1), new Vec4(s, t), barycentric);
-			ul.multiply3AndSet(barycentric.x);
-			ll.multiply3AndSet(barycentric.y);
-			ur.multiply3AndSet(barycentric.z);
-			result.add3AndSet(ul, ll).add3AndSet(ur);
+			barycentric2D(UPPER_LEFT, LOWER_LEFT, UPPER_RIGHT, new Vec4(s, t), barycentric);
+			result.x = ulx*barycentric.x + llx*barycentric.y + urx*barycentric.z;
+			result.y = uly*barycentric.x + lly*barycentric.y + ury*barycentric.z;
+			result.z = ulz*barycentric.x + llz*barycentric.y + urz*barycentric.z;
 		}
 	}
+
+	private final Vec4 LOWER_LEFT = new Vec4(0, 0);
+	private final Vec4 LOWER_RIGHT = new Vec4(1, 0);
+	private final Vec4 UPPER_RIGHT = new Vec4(1, 1);
+	private final Vec4 UPPER_LEFT = new Vec4(0, 1);
 
 	/**
 	 * Get barycentric coordinate from 2D coordinate in triangle a,b,c

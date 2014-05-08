@@ -946,14 +946,6 @@ public class EllipsoidalGlobe extends AbstractGlobe {
 		return transform;
 	}
 
-	/**
-	 * Determines whether a point is above a given elevation
-	 *
-	 * @param point     the <code>Vec4</code> point to test.
-	 * @param elevation the elevation to test for.
-	 *
-	 * @return true if the given point is above the given elevation.
-	 */
 	public boolean isPointAboveElevation(Vec4 point, double elevation)
 	{
 		if (point == null)

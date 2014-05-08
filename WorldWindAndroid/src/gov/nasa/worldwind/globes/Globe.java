@@ -213,4 +213,14 @@ public interface Globe extends WWObject, Extent {
 	void computeNorthPointingTangentAtLocation(Angle latitude, Angle longitude, Vec4 result);
 
 	Matrix computeViewOrientationAtPosition(Angle latitude, Angle longitude, double metersElevation);
+
+	/**
+	 * Determines whether a point is above a given elevation.
+	 *
+	 * @param point     the <code>Vec4</code> point to test. If null, this method returns false.
+	 * @param elevation the elevation to test for.
+	 *
+	 * @return true if the given point is above the given elevation, otherwise false.
+	 */
+	boolean isPointAboveElevation(Vec4 point, double elevation);
 }
