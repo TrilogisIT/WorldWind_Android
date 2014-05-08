@@ -36,11 +36,22 @@ public class PickSupport {
 	private int mTextureWidth;
 	private int mTextureHeight;
 
-	public PickSupport() {}
+	public void initialize() {
+		mTextureWidth=mTextureHeight= Math.max(mViewportWidth, mViewportHeight);
+		genTexture();
+		genBuffers();
+		mIsInitialized = true;
+	}
 
-	public PickSupport(int viewportWidth, int viewportHeight) {
-		this.mViewportHeight = viewportHeight;
-		this.mViewportWidth = viewportWidth;
+	public void setup(int width, int height) {
+		if(mViewportWidth==width && mViewportHeight==height)
+			return;
+		mViewportWidth=width;
+		mViewportHeight=height;
+		if (mIsInitialized) {
+			destroy();
+		}
+		initialize();
 	}
 
 	public void addPickableObject(PickedObject po) {
@@ -93,7 +104,21 @@ public class PickSupport {
 		return pickedObject;
 	}
 
-	public void beginPicking(DrawContext dc) {
+	public int getPickColor(int x, int y) {
+		final ByteBuffer pixelBuffer = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder());
+
+		GLES20.glReadPixels(x, mViewportHeight - y, 1, 1, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE,
+				pixelBuffer);
+		pixelBuffer.rewind();
+
+		final int r = pixelBuffer.get(0) & 0xff;
+		final int g = pixelBuffer.get(1) & 0xff;
+		final int b = pixelBuffer.get(2) & 0xff;
+		final int a = pixelBuffer.get(3) & 0xff;
+		return Color.argb(a, r, g, b);
+	}
+
+	public void bindBuffer(DrawContext dc) {
 		dc.setPickingMode(true);
 		GLES20.glDisable(GLES20.GL_DITHER);
 		WorldWindowImpl.glCheckError("glDisable: GL_DITHER");
@@ -110,11 +135,23 @@ public class PickSupport {
 		bindFrameBuffer();
 	}
 
-	public void endPicking(DrawContext dc) {
-		dc.setPickingMode(false);
-		GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
-		GLES20.glBindRenderbuffer(GLES20.GL_RENDERBUFFER, 0);
 
+	public void beginPicking(DrawContext dc) {
+		GLES20.glDisable(GLES20.GL_DITHER);
+		WorldWindowImpl.glCheckError("glDisable: GL_DITHER");
+
+		GLES20.glDisable(GLES20.GL_BLEND);
+		WorldWindowImpl.glCheckError("glDisable: GL_BLEND");
+
+		if (dc.isDeepPickingEnabled()) {
+			GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+			WorldWindowImpl.glCheckError("glDisable: GL_DEPTH_TEST");
+			GLES20.glDepthMask(false);
+			WorldWindowImpl.glCheckError("glDepthMask(false)");
+		}
+	}
+
+	public void endPicking(DrawContext dc) {
 		GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ZERO);
 		WorldWindowImpl.glCheckError("glBlendFunc");
 
@@ -128,20 +165,6 @@ public class PickSupport {
 		WorldWindowImpl.glCheckError("glDepthMask(true)");
 	}
 
-	public void initialize() {
-		mTextureWidth=mTextureHeight= Math.max(mViewportWidth, mViewportHeight);
-		genTexture();
-		genBuffers();
-		mIsInitialized = true;
-	}
-
-	public void reload() {
-		if (!mIsInitialized)
-			return;
-
-		genBuffers();
-	}
-
 	private void genTexture() {
 		int[] textures = new int[1];
 		GLES20.glGenTextures(1, textures, 0);
@@ -153,7 +176,6 @@ public class PickSupport {
 			GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT);
 			GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_REPEAT);
-
 			GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, mTextureWidth, mTextureHeight, 0,
 					GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
 
@@ -162,8 +184,10 @@ public class PickSupport {
 		}
 	}
 
-	private void destroyTexture() {
+	private void destroy() {
 		GLES20.glDeleteTextures(1, new int[] { mTextureId }, 0);
+		GLES20.glDeleteRenderbuffers(1, new int[]{mDepthBufferHandle}, 0);
+		GLES20.glDeleteFramebuffers(1, new int[]{mFrameBufferHandle}, 0);
 	}
 
 	public void genBuffers() {
@@ -198,17 +222,8 @@ public class PickSupport {
 				GLES20.GL_RENDERBUFFER, mDepthBufferHandle);
 	}
 
-	public int getPickColor(int x, int y) {
-		final ByteBuffer pixelBuffer = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder());
-
-		GLES20.glReadPixels(x, mViewportHeight - y, 1, 1, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE,
-				pixelBuffer);
-		pixelBuffer.rewind();
-
-		final int r = pixelBuffer.get(0) & 0xff;
-		final int g = pixelBuffer.get(1) & 0xff;
-		final int b = pixelBuffer.get(2) & 0xff;
-		final int a = pixelBuffer.get(3) & 0xff;
-		return Color.argb(a, r, g, b);
+	public void unbindFrameBuffer() {
+		GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+		GLES20.glBindRenderbuffer(GLES20.GL_RENDERBUFFER, 0);
 	}
 }
