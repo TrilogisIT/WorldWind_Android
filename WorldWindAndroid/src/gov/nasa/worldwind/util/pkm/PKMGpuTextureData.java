@@ -17,6 +17,8 @@ import java.io.InputStream;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Bitmap.Config;
+import android.graphics.BitmapFactory.Options;
 import android.opengl.ETC1Util;
 import android.opengl.ETC1Util.ETC1Texture;
 import android.opengl.GLES20;
@@ -151,7 +153,10 @@ public class PKMGpuTextureData extends GpuTextureData
 	            stream.reset(); 
             }
 
-            Bitmap bitmap = BitmapFactory.decodeStream(stream);
+    		Options opts = new BitmapFactory.Options();
+    		opts.inPreferredConfig = Config.RGB_565;
+            
+            Bitmap bitmap = BitmapFactory.decodeStream(stream, null, opts);
             return bitmap != null ? new GpuTextureData(bitmap, estimateMemorySize(bitmap)) : null;
         }
         catch (IOException e)

@@ -5,14 +5,24 @@
  */
 package gov.nasa.worldwind.render;
 
-import android.graphics.*;
-import android.opengl.*;
 import gov.nasa.worldwind.cache.Cacheable;
-import gov.nasa.worldwind.util.*;
+import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.WWIO;
+import gov.nasa.worldwind.util.WWUtil;
 import gov.nasa.worldwind.util.dds.DDSTextureReader;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
+
+import android.graphics.Bitmap;
+import android.graphics.Bitmap.Config;
+import android.graphics.BitmapFactory;
+import android.graphics.BitmapFactory.Options;
+import android.opengl.GLES20;
+import android.opengl.GLUtils;
+
 
 /**
  * @author dcollins
@@ -157,7 +167,10 @@ public class GpuTextureData implements Cacheable
 
             stream.reset();
 
-            Bitmap bitmap = BitmapFactory.decodeStream(stream);
+    		Options opts = new BitmapFactory.Options();
+    		opts.inPreferQualityOverSpeed = false;
+    		opts.inPreferredConfig = Config.RGB_565;
+            Bitmap bitmap = BitmapFactory.decodeStream(stream, null, opts);
             return bitmap != null ? new GpuTextureData(bitmap, estimateMemorySize(bitmap)) : null;
         }
         catch (IOException e)
