@@ -6,9 +6,11 @@
 package gov.nasa.worldwind.util.dds;
 
 import gov.nasa.worldwind.render.GpuTextureData;
-import gov.nasa.worldwind.util.*;
+import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.WWIO;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 /**
@@ -22,6 +24,9 @@ public class DDSTextureReader
     protected static final int GL_COMPRESSED_RGBA_S3TC_DXT1_EXT = 0x83F1;
     protected static final int GL_COMPRESSED_RGBA_S3TC_DXT3_EXT = 0x83F2;
     protected static final int GL_COMPRESSED_RGBA_S3TC_DXT5_EXT = 0x83F3;
+    
+    // ETC1 compression internal formats. See http://www.khronos.org/registry/gles/extensions/OES/OES_compressed_ETC1_RGB8_texture.txt.
+    protected static final int GL_ETC1_RGB8_OES           		= 0x8D64;
 
     public DDSTextureReader()
     {
@@ -114,6 +119,9 @@ public class DDSTextureReader
 
         else if (fourcc == DDSConstants.D3DFMT_DXT4 || fourcc == DDSConstants.D3DFMT_DXT5)
             return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+        
+        else if (fourcc == DDSConstants.D3DFMT_ETC1)
+            return GL_ETC1_RGB8_OES;
 
         return 0;
     }
@@ -128,7 +136,7 @@ public class DDSTextureReader
 
         int fourcc = header.getPixelFormat().getFourCC();
 
-        if (fourcc == DDSConstants.D3DFMT_DXT1)
+        if (fourcc == DDSConstants.D3DFMT_DXT1 || fourcc == DDSConstants.D3DFMT_ETC1)
             return (minWidth * minHeight) / 2;
 
         else if (fourcc == DDSConstants.D3DFMT_DXT2 || fourcc == DDSConstants.D3DFMT_DXT3)
