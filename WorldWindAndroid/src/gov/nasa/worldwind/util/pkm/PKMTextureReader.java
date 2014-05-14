@@ -4,10 +4,11 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import android.opengl.ETC1;
+//import android.opengl.ETC1;
 import android.opengl.ETC1Util;
 import android.opengl.ETC1Util.ETC1Texture;
 
-public class PKMReader {
+public class PKMTextureReader {
 
 	public PKMGpuTextureData read(InputStream stream) throws IOException {
 		try {
@@ -23,12 +24,11 @@ public class PKMReader {
 				return null;
 			}
 		} catch (IOException e) {
-			//stream.reset();
-			//texture = encodeTexture(stream);
+//			stream.reset();
+//			return encodeTexture(stream);
 			e.printStackTrace();
 			System.out.println("Texture PKM failed ");
 			return null;
 		}
 	}
-
 }

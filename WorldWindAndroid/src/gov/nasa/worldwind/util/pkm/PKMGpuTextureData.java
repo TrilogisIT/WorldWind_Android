@@ -143,7 +143,7 @@ public class PKMGpuTextureData extends GpuTextureData
             if(isETC1Supported) {
 	            stream.mark(DEFAULT_MARK_LIMIT);
 	          	 
-	            PKMReader pkmReader = new PKMReader();
+	            PKMTextureReader pkmReader = new PKMTextureReader();
 	            data = pkmReader.read(stream);
 	            if (data != null)
 	                return data;
