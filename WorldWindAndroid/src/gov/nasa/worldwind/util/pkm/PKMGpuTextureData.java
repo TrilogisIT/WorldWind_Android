@@ -43,7 +43,7 @@ public class PKMGpuTextureData extends GpuTextureData
     	return extensions.contains("GL_EXT_texture_compression_s3tc");
 	}
 
-	public static PKMGpuTextureData fromETCCompressedData(ETC1Texture etctex, long estimatedMemorySize)
+	public static PKMGpuTextureData fromPKMETC1CompressedData(ETC1Texture etctex, long estimatedMemorySize)
     {
         if (etctex == null || etctex.getHeight() == 0)
         {

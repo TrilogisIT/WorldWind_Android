@@ -18,7 +18,7 @@ public class PKMTextureReader {
 			if (texture != null) {
 				int estimatedMemorySize = ETC1.ETC_PKM_HEADER_SIZE
 						+ texture.getHeight() * texture.getWidth() / 2;
-				return PKMGpuTextureData.fromETCCompressedData(texture,
+				return PKMGpuTextureData.fromPKMETC1CompressedData(texture,
 						estimatedMemorySize);
 			} else {
 				return null;
