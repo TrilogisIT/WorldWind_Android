@@ -129,7 +129,7 @@ public class PKMGpuTextureData extends GpuTextureData
         GpuTextureData data = null;
         try
         {
-            if(isDXTSupported) {
+            if(isDXTSupported || isETC1Supported) {
                 stream.mark(DEFAULT_MARK_LIMIT);
                 
                 DDSTextureReader ddsReader = new DDSTextureReader();
