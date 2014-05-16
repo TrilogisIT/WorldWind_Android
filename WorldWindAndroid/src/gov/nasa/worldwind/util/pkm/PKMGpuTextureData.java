@@ -15,12 +15,12 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import nicastel.renderscripttexturecompressor.etc1.rs.RsETC1Util.ETC1Texture;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Bitmap.Config;
+import android.graphics.BitmapFactory;
 import android.graphics.BitmapFactory.Options;
 import android.opengl.ETC1Util;
-import android.opengl.ETC1Util.ETC1Texture;
 import android.opengl.GLES20;
 
 /**

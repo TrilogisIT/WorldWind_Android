@@ -152,6 +152,9 @@ public class GpuTextureData implements Cacheable
     }
 
     protected static final int DEFAULT_MARK_LIMIT = 1024;
+    
+//    public static RenderScript rs;
+//    public static ScriptC_etc1compressor script;
 
     protected static GpuTextureData fromStream(InputStream stream)
     {
@@ -165,12 +168,25 @@ public class GpuTextureData implements Cacheable
             if (data != null)
                 return data;
 
-            stream.reset();
+            stream.reset();            
 
     		Options opts = new BitmapFactory.Options();
     		opts.inPreferQualityOverSpeed = false;
     		opts.inPreferredConfig = Config.RGB_565;
             Bitmap bitmap = BitmapFactory.decodeStream(stream, null, opts);
+//            
+//            if(bitmap != null) {
+//            	ETC1Texture texture = RsETC1Util.compressBitmap(rs, script, bitmap);
+//            	if (texture != null) {
+//    				int estimatedMemorySize = ETC1.ETC_PKM_HEADER_SIZE
+//    						+ texture.getHeight() * texture.getWidth() / 2;
+//    				return PKMGpuTextureData.fromPKMETC1CompressedData(texture,
+//    						estimatedMemorySize);
+//    			} else {
+//    				return null;
+//    			}
+//            }
+            
             return bitmap != null ? new GpuTextureData(bitmap, estimateMemorySize(bitmap)) : null;
         }
         catch (IOException e)

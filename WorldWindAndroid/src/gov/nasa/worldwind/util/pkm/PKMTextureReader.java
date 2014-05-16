@@ -3,17 +3,16 @@ package gov.nasa.worldwind.util.pkm;
 import java.io.IOException;
 import java.io.InputStream;
 
+import nicastel.renderscripttexturecompressor.etc1.rs.RsETC1Util;
+import nicastel.renderscripttexturecompressor.etc1.rs.RsETC1Util.ETC1Texture;
 import android.opengl.ETC1;
-//import android.opengl.ETC1;
-import android.opengl.ETC1Util;
-import android.opengl.ETC1Util.ETC1Texture;
 
 public class PKMTextureReader {
 
 	public PKMGpuTextureData read(InputStream stream) throws IOException {
 		try {
 			stream.mark(1024);
-			ETC1Texture texture = ETC1Util.createTexture(stream);
+			ETC1Texture texture = RsETC1Util.createTexture(stream);
 
 			if (texture != null) {
 				int estimatedMemorySize = ETC1.ETC_PKM_HEADER_SIZE

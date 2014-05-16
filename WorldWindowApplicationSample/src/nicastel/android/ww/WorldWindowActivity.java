@@ -25,6 +25,7 @@ import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.layers.Layer;
 import gov.nasa.worldwind.layers.LayerList;
+import gov.nasa.worldwind.util.dds.ETC1Compressor;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,8 +34,11 @@ import java.util.List;
 import nicastel.android.ww.dialogs.AddWMSDialog;
 import nicastel.android.ww.dialogs.AddWMSDialog.OnAddWMSLayersListener;
 import nicastel.android.ww.dialogs.TocDialog;
+import nicastel.renderscripttexturecompressor.etc1.rs.ScriptC_etc1compressor;
 import android.app.Activity;
 import android.os.Bundle;
+import android.support.v8.renderscript.RenderScript;
+import android.support.v8.renderscript.RenderScript.ContextType;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -61,6 +65,9 @@ public class WorldWindowActivity extends Activity {
     private final static double BOLZANO_VIEW_HEADING = 60d;
     private final static double BOLZANO_VIEW_TILT = 60d;
     private final static double BOLZANO_VIEW_DISTANCE_KM = 1300000d;
+    
+	private RenderScript mRS;
+	private ScriptC_etc1compressor script;
 
     protected WorldWindowGLSurfaceView wwd;
 
@@ -73,6 +80,12 @@ public class WorldWindowActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+		mRS = RenderScript.create(this, ContextType.NORMAL);
+		script = new ScriptC_etc1compressor(mRS);
+		
+		ETC1Compressor.rs = mRS;
+		ETC1Compressor.script = script;
 
         // Setting the location of the file store on Android as cache directory. Doing this, when user has no space left
         // on the device, if he asks to the system to free Cache of apps, all the MB/GB of WorldWindApplication will be cleared!
@@ -115,6 +128,8 @@ public class WorldWindowActivity extends Activity {
         this.wwd.setModel((Model) WorldWind.createConfigurationComponent(AVKey.MODEL_CLASS_NAME));
         this.setupView();
         this.setupTextViews();
+        
+
     }
 
     @Override

@@ -10,11 +10,11 @@ import gov.nasa.worldwind.cache.Cacheable;
 import gov.nasa.worldwind.geom.Matrix;
 import gov.nasa.worldwind.util.Logging;
 import gov.nasa.worldwind.util.pkm.PKMGpuTextureData;
+import nicastel.renderscripttexturecompressor.etc1.rs.RsETC1Util.ETC1Texture;
 import android.graphics.Bitmap;
 import android.opengl.ETC1;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
-import android.opengl.ETC1Util.ETC1Texture;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
