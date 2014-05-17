@@ -23,7 +23,9 @@
         <ImageFormat>image/png</ImageFormat>
         <ImageFormat>image/dds</ImageFormat>
     </AvailableImageFormats>
-    <FormatSuffix>.dds</FormatSuffix>
+    <FormatSuffix>.jpg</FormatSuffix>
+    <!-- to activate client side texture compression  
+    <FormatSuffix>.dds</FormatSuffix>-->
     <NumLevels count="6" numEmpty="0"/>
     <TileOrigin>
         <LatLon units="degrees" latitude="-90" longitude="-180"/>
