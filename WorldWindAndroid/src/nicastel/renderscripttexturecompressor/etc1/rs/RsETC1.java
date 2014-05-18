@@ -3,7 +3,6 @@ package nicastel.renderscripttexturecompressor.etc1.rs;
 import java.nio.ByteBuffer;
 
 import nicastel.renderscripttexturecompressor.etc1.rs.ScriptC_etc1compressor;
-
 import android.support.v8.renderscript.RenderScript;
 import android.support.v8.renderscript.Allocation;
 import android.support.v8.renderscript.Element;
@@ -109,7 +108,7 @@ public class RsETC1 {
 
 		// int iOut = 0;
 		
-		int size = width * height / (DECODED_BLOCK_SIZE / 3);
+		int size = Math.max(width * height / (DECODED_BLOCK_SIZE / 3), 1);
 		
 		Allocation p00 = Allocation.createSized(rs, Element.U8(rs), width * height * pixelSize);
 		Allocation aout = Allocation.createSized(rs, Element.U16_4(rs), size);
@@ -131,8 +130,12 @@ public class RsETC1 {
 		System.out.println("tExec : "+tExec+" ms");
 		
 		long tFillOut = java.lang.System.currentTimeMillis();
+		
+		p00.destroy();
+		
 		short[] arrayOut3Temp = new short[4*size];
 		aout.copyTo(arrayOut3Temp);
+		aout.destroy();
 		
 		Allocation aout2 = Allocation.createSized(rs, Element.U8(rs), 8*size);
 		aout2.copyFromUnchecked(arrayOut3Temp);
