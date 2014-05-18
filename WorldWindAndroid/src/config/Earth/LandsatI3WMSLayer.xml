@@ -16,7 +16,7 @@
         <ImageFormat>image/png</ImageFormat>
         <ImageFormat>image/dds</ImageFormat>
     </AvailableImageFormats>
-    <FormatSuffix>.jpg</FormatSuffix>
+    <FormatSuffix>.dds</FormatSuffix>
     <!-- to activate client side texture compression  
     <FormatSuffix>.dds</FormatSuffix>-->
     <NumLevels count="11" numEmpty="5"/>
