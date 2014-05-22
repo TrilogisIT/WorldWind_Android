@@ -79,7 +79,7 @@ public class DDSTextureReader
             throw new IllegalArgumentException(msg);
         }
 
-        int mipmapCount = header.getMipMapCount();
+        int mipmapCount = Math.max(1,header.getMipMapCount());
         long estimatedMemorySize = 0;
 
         ByteBuffer buffer = WWIO.readStreamToBuffer(stream);
