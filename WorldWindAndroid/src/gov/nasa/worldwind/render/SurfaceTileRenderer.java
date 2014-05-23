@@ -181,7 +181,9 @@ public class SurfaceTileRenderer
 		GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
 		WorldWindowImpl.glCheckError("glActiveTexture");
 		program.loadUniformSampler("tileTexture", 0);
-		program.loadUniform1f("uOpacity", dc.isPickingMode() ? 1f : dc.getCurrentLayer().getOpacity());
+		//SurfaceObject tiles are drawn as composite, outside of their parent layer.  In this case layer opacity
+		//is applied to each individual tile when they are created.
+		program.loadUniform1f("uOpacity", (dc.isPickingMode() || dc.getCurrentLayer()==null) ? 1f : dc.getCurrentLayer().getOpacity());
 	}
 
 	protected void endRendering(DrawContext dc)

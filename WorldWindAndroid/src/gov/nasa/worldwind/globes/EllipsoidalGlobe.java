@@ -38,6 +38,14 @@ public class EllipsoidalGlobe extends AbstractGlobe {
 			this.verticalExaggeration = dc.getVerticalExaggeration();
 		}
 
+		public StateKey(Globe globe)
+		{
+			this.globe = globe;
+			this.tessellator = EllipsoidalGlobe.this.tessellator;
+			this.verticalExaggeration = 1;
+			this.elevationModel = this.globe.getElevationModel();
+		}
+
 		public Globe getGlobe() {
 			return this.globe;
 		}
@@ -95,14 +103,63 @@ public class EllipsoidalGlobe extends AbstractGlobe {
 		this.setElevationModel(elevationModel);
 	}
 
+	public Object getStateKey(DrawContext dc)
+	{
+		return this.getGlobeStateKey(dc);
+	}
+
 	/** {@inheritDoc} */
 	public GlobeStateKey getGlobeStateKey(DrawContext dc) {
 		return new StateKey(dc);
 	}
 
+	public GlobeStateKey getGlobeStateKey()
+	{
+		return new StateKey(this);
+	}
+
 	/** {@inheritDoc} */
 	public double getRadius() {
 		return this.equatorialRadius;
+	}
+
+	public double getEquatorialRadius()
+	{
+		return this.equatorialRadius;
+	}
+
+	public double getPolarRadius()
+	{
+		return this.polarRadius;
+	}
+
+	public double getMaximumRadius()
+	{
+		return this.equatorialRadius;
+	}
+
+	public double getRadiusAt(Angle latitude, Angle longitude)
+	{
+		if (latitude == null || longitude == null)
+		{
+			String msg = Logging.getMessage("nullValue.AngleIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		return this.computePointFromPosition(latitude, longitude, 0d).getLength3();
+	}
+
+	public double getRadiusAt(LatLon latLon)
+	{
+		if (latLon == null)
+		{
+			String msg = Logging.getMessage("nullValue.LatLonIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		return this.computePointFromPosition(latLon.getLatitude(), latLon.getLongitude(), 0d).getLength3();
 	}
 
 	public Vec4 getCenter()

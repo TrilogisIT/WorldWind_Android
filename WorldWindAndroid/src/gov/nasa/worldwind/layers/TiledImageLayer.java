@@ -434,7 +434,7 @@ public abstract class TiledImageLayer extends AbstractLayer implements Tile.Tile
 			throw new IllegalArgumentException(msg);
 		}
 
-		return new GpuTextureTile(sector, level, row, column, this.getTextureTileCache());
+		return new GpuTextureTile(sector, level, row, column);
 	}
 
 	protected void loadAllTopLevelTextures(DrawContext dc)
@@ -508,7 +508,7 @@ public abstract class TiledImageLayer extends AbstractLayer implements Tile.Tile
 		// transform is applied during rendering to align the sector's texture coordinates with the appropriate region
 		// of the ancestor's texture.
 
-		MemoryCache cache = this.getTextureTileCache();
+		MemoryCache cache = GpuTextureTile.getMemoryCache();
 		GpuTextureTile ancestorTile = null;
 
 		try {
@@ -516,7 +516,19 @@ public abstract class TiledImageLayer extends AbstractLayer implements Tile.Tile
 				ancestorTile = this.currentAncestorTile;
 				this.currentAncestorTile = tile;
 			}
+			else if (!tile.getLevel().isEmpty())
+			{
+//                this.addTile(dc, tile);
+//                return;
 
+				// Issue a request for the parent before descending to the children.
+//                if (tile.getLevelNumber() < this.levels.getNumLevels())
+//                {
+//                    // Request only tiles with data associated at this level
+//                    if (!this.levels.isResourceAbsent(tile))
+//                        this.requestTexture(dc, tile);
+//                }
+			}
 			Tile[] subTiles = tile.subdivide(this.levels.getLevel(tile.getLevelNumber() + 1), cache, this);
 			for (Tile child : subTiles) {
 				// Put all sub-tiles in the terrain tile cache to avoid repeatedly allocating them each frame. Sub
@@ -623,22 +635,6 @@ public abstract class TiledImageLayer extends AbstractLayer implements Tile.Tile
 
 	protected Extent computeTileExtent(DrawContext dc, GpuTextureTile tile) {
 		return Sector.computeBoundingBox(dc.getGlobe(), dc.getVerticalExaggeration(), tile.getSector());
-	}
-
-	/**
-	 * Returns the memory cache used to cache texture tiles, initializing the cache if it doesn't yet exist.
-	 *
-	 * @return the memory cache associated with texture tiles.
-	 */
-	protected MemoryCache getTextureTileCache() {
-		if (!WorldWind.getMemoryCacheSet().contains(GpuTextureTile.class.getName())) {
-			long size = Configuration.getLongValue(AVKey.GPU_TEXTURE_TILE_CACHE_SIZE);
-			MemoryCache cache = new BasicMemoryCache((long) (0.8 * size), size);
-			cache.setName("Texture Tiles");
-			WorldWind.getMemoryCacheSet().put(GpuTextureTile.class.getName(), cache);
-		}
-
-		return WorldWind.getMemoryCacheSet().get(GpuTextureTile.class.getName());
 	}
 
 

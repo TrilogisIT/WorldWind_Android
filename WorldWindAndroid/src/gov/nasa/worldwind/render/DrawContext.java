@@ -6,10 +6,7 @@ package gov.nasa.worldwind.render;
 
 import android.graphics.Point;
 import android.opengl.GLES20;
-import gov.nasa.worldwind.Model;
-import gov.nasa.worldwind.View;
-import gov.nasa.worldwind.WWObjectImpl;
-import gov.nasa.worldwind.WorldWindowImpl;
+import gov.nasa.worldwind.*;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.geom.*;
@@ -21,16 +18,12 @@ import gov.nasa.worldwind.pick.PickedObjectList;
 import gov.nasa.worldwind.terrain.SectorGeometryList;
 import gov.nasa.worldwind.terrain.Terrain;
 import gov.nasa.worldwind.terrain.VisibleTerrain;
-import gov.nasa.worldwind.util.BufferUtil;
-import gov.nasa.worldwind.util.Logging;
-import gov.nasa.worldwind.util.PerformanceStatistic;
-import gov.nasa.worldwind.util.PickPointFrustumList;
+import gov.nasa.worldwind.util.*;
 
 import java.nio.ByteBuffer;
-import java.util.Collection;
-import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.Set;
+import java.util.*;
+
+import static android.opengl.GLES20.*;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -38,7 +31,8 @@ import java.util.Set;
  * @author dcollins
  * @version $Id: DrawContext.java 834 2012-10-08 22:25:55Z dcollins $
  */
-public class DrawContext extends WWObjectImpl {
+public class DrawContext extends WWObjectImpl implements Disposable {
+
 	protected static class OrderedRenderableEntry implements Comparable<OrderedRenderableEntry> {
 		protected OrderedRenderable or;
 		protected double distanceFromEye;
@@ -79,7 +73,13 @@ public class DrawContext extends WWObjectImpl {
 	protected Layer currentLayer;
 	protected GpuProgram currentProgram;
 	protected boolean orderedRenderingMode;
+	protected boolean preRenderMode = false;
 	protected PriorityQueue<OrderedRenderableEntry> orderedRenderables = new PriorityQueue<OrderedRenderableEntry>(100);
+
+	/** Use a standard Queue to store the ordered surface object renderables. Ordered surface renderables are processed
+	in the order they were submitted. */
+	protected Queue<OrderedRenderable> orderedSurfaceRenderables = new ArrayDeque<OrderedRenderable>();
+
 	protected boolean pickingMode;
 	protected boolean deepPickingMode;
 	protected int uniquePickNumber;
@@ -92,6 +92,24 @@ public class DrawContext extends WWObjectImpl {
 
 	protected Set<String> perFrameStatisticsKeys;
 	protected Map<String, PerformanceStatistic> perFrameStatistics;
+	protected GLRuntimeCapabilities glRuntimeCaps;
+
+	public GLRuntimeCapabilities getGLRuntimeCapabilities()
+	{
+		return this.glRuntimeCaps;
+	}
+
+	public void setGLRuntimeCapabilities(GLRuntimeCapabilities capabilities)
+	{
+		if (capabilities == null)
+		{
+			String message = Logging.getMessage("nullValue.GLRuntimeCapabilitiesIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		this.glRuntimeCaps = capabilities;
+	}
 
 	/**
 	 * Initializes this <code>DrawContext</code>. This method should be called at the beginning of each frame to prepare
@@ -112,10 +130,6 @@ public class DrawContext extends WWObjectImpl {
 
 		this.viewportWidth = viewportWidth;
 		this.viewportHeight = viewportHeight;
-		this.model = null;
-		this.view = null;
-		this.verticalExaggeration = DEFAULT_VERTICAL_EXAGGERATION;
-		this.gpuResourceCache = null;
 		this.frameTimestamp = 0;
 		this.visibleSector = null;
 		this.surfaceGeometry = null;
@@ -123,11 +137,21 @@ public class DrawContext extends WWObjectImpl {
 		this.currentProgram = null;
 		this.orderedRenderingMode = false;
 		this.orderedRenderables.clear();
+		this.orderedSurfaceRenderables.clear();
 		this.pickingMode = false;
 		this.deepPickingMode = false;
 		this.uniquePickNumber = 0;
 		this.pickPoint = null;
 		this.objectsAtPickPoint.clear();
+	}
+
+	/**
+	 * Free internal resources held by this draw context. A GL context must be current when this method is called.
+	 */
+	@Override
+	public void dispose()
+	{
+
 	}
 
 	public int getViewportWidth() {
@@ -432,6 +456,45 @@ public class DrawContext extends WWObjectImpl {
 		this.currentProgram = program;
 	}
 
+	public void restoreDefaultBlending()
+	{
+		glBlendFunc(GL_ONE, GL_ZERO);
+		glDisable(GL_BLEND);
+	}
+
+	public void restoreDefaultCurrentColor()
+	{
+		getCurrentProgram().loadUniformColor("uColor", Color.white());
+	}
+
+	public void restoreDefaultDepthTesting()
+	{
+		glEnable(GL_DEPTH_TEST);
+		glDepthMask(true);
+	}
+
+	/**
+	 * Indicates whether the scene controller is currently pre-rendering.
+	 *
+	 * @return true if pre-rendering, otherwise false.
+	 *
+	 * @see PreRenderable
+	 */
+	public boolean isPreRenderMode() {
+		return preRenderMode;
+	}
+
+	/**
+	 * Specifies whether the scene controller is pre-rendering.
+	 *
+	 * @param preRenderMode true to indicate pre-rendering, otherwise false.
+	 *
+	 * @see PreRenderable
+	 */
+	public void setPreRenderMode(boolean preRenderMode) {
+		this.preRenderMode = preRenderMode;
+	}
+
 	public boolean isOrderedRenderingMode() {
 		return this.orderedRenderingMode;
 	}
@@ -473,6 +536,36 @@ public class DrawContext extends WWObjectImpl {
 		// of Double.MAX_VALUE and ignore the actual eye distance. If multiple ordered renderables are added in this
 		// way, they are drawn according to the order in which they are added.
 		this.orderedRenderables.add(new OrderedRenderableEntry(orderedRenderable, Double.MAX_VALUE, System.nanoTime()));
+	}
+
+	/**
+	 * Adds an {@link gov.nasa.worldwind.render.OrderedRenderable} to the draw context's ordered surface renderable
+	 * queue. This queue is populated during layer rendering with objects to render on the terrain surface, and is
+	 * processed immediately after layer rendering.
+	 *
+	 * @param orderedRenderable the ordered renderable to add.
+	 */
+	public void addOrderedSurfaceRenderable(OrderedRenderable orderedRenderable)
+	{
+		if (orderedRenderable == null)
+		{
+			String msg = Logging.getMessage("nullValue.OrderedRenderable");
+			Logging.warning(msg);
+			return; // benign event
+		}
+
+		this.orderedSurfaceRenderables.add(orderedRenderable);
+	}
+
+	/**
+	 * Returns the draw context's ordered surface renderable queue. This queue is populated during layer rendering with
+	 * objects to render on the terrain surface, and is processed immediately after layer rendering.
+	 *
+	 * @return the draw context's ordered surface renderable queue.
+	 */
+	public Queue<OrderedRenderable> getOrderedSurfaceRenderables()
+	{
+		return this.orderedSurfaceRenderables;
 	}
 
 	public PickPointFrustumList getPickFrustums()

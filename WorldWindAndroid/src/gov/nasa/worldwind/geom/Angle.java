@@ -83,6 +83,44 @@ public class Angle implements Comparable<Angle>, Parcelable
         return new Angle(degrees, DEGREES_TO_RADIANS * degrees);
     }
 
+	private static final double PIOver2 = Math.PI / 2;
+
+	public static Angle fromDegreesLatitude(double degrees)
+	{
+		degrees = degrees < -90 ? -90 : degrees > 90 ? 90 : degrees;
+		double radians = DEGREES_TO_RADIANS * degrees;
+		radians = radians < -PIOver2 ? -PIOver2 : radians > PIOver2 ? PIOver2 : radians;
+
+		return new Angle(degrees, radians);
+	}
+
+	public static Angle fromRadiansLatitude(double radians)
+	{
+		radians = radians < -PIOver2 ? -PIOver2 : radians > PIOver2 ? PIOver2 : radians;
+		double degrees = RADIANS_TO_DEGREES * radians;
+		degrees = degrees < -90 ? -90 : degrees > 90 ? 90 : degrees;
+
+		return new Angle(degrees, radians);
+	}
+
+	public static Angle fromDegreesLongitude(double degrees)
+	{
+		degrees = degrees < -180 ? -180 : degrees > 180 ? 180 : degrees;
+		double radians = DEGREES_TO_RADIANS * degrees;
+		radians = radians < -Math.PI ? -Math.PI : radians > Math.PI ? Math.PI : radians;
+
+		return new Angle(degrees, radians);
+	}
+
+	public static Angle fromRadiansLongitude(double radians)
+	{
+		radians = radians < -Math.PI ? -Math.PI : radians > Math.PI ? Math.PI : radians;
+		double degrees = RADIANS_TO_DEGREES * radians;
+		degrees = degrees < -180 ? -180 : degrees > 180 ? 180 : degrees;
+
+		return new Angle(degrees, radians);
+	}
+
     /**
      * Obtains an angle from a specified number of radians.
      *

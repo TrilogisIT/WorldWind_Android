@@ -29,6 +29,8 @@ attribute vec4 vertexColor;
  */
 uniform mat4 mvpMatrix;
 
+uniform float uPointSize;
+
 /*
  * Output variable vector to TiledTessellatorPick.frag defining the color for each primitive (triangle). This is
  * specified for each vertex and is interpolated for each rasterized fragment of each primitive.
@@ -40,6 +42,8 @@ varying vec4 primColor;
  */
 void main()
 {
+    gl_PointSize = uPointSize;
+
     /* Transform the surface vertex point from model coordinates to eye coordinates. */
     gl_Position = mvpMatrix * vertexPoint;
 

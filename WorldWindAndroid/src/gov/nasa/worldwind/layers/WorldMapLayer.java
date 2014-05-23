@@ -367,7 +367,6 @@ public class WorldMapLayer extends AbstractLayer {
 			}
 
 			GLES20.glDisable(GLES20.GL_DEPTH_TEST);
-
 			WorldWindowImpl.glCheckError("glDisable");
 
 			// iconWidth = 512;

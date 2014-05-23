@@ -18,6 +18,20 @@ import gov.nasa.worldwind.terrain.Tessellator;
  * @version $Id: Globe.java 827 2012-10-08 19:32:08Z tgaskins $
  */
 public interface Globe extends WWObject, Extent {
+
+
+	/**
+	 * Returns a state key identifying this globe's current configuration. Can be used to subsequently determine whether
+	 * the globe's configuration has changed.
+	 *
+	 * @param dc the current draw context.
+	 *
+	 * @return a state key for the globe's current configuration.
+	 *
+	 * @throws IllegalArgumentException if the draw context is null.
+	 */
+	Object getStateKey(DrawContext dc);
+
 	/**
 	 * Returns a typed state key identifying this globe's current configuration. Can be used to subsequently determine
 	 * whether the globe's configuration has changed.
@@ -29,6 +43,16 @@ public interface Globe extends WWObject, Extent {
 	 *             if the draw context is <code>null</code>.
 	 */
 	GlobeStateKey getGlobeStateKey(DrawContext dc);
+
+	/**
+	 * Returns a typed state key identifying this globe's current configuration. Can be used to subsequently determine
+	 * whether the globe's configuration has changed.
+	 *
+	 * @return a state key for the globe's current configuration.
+	 *
+	 * @throws IllegalArgumentException if the draw context is null.
+	 */
+	GlobeStateKey getGlobeStateKey();
 
 	/**
 	 * Indicates this globe's elevation model.
@@ -111,6 +135,46 @@ public interface Globe extends WWObject, Extent {
 	double getMinElevation();
 
 	double getMaxElevation();
+
+	/**
+	 * Indicates the radius of the globe at the equator, in meters.
+	 *
+	 * @return The radius at the equator, in meters.
+	 */
+	double getEquatorialRadius();
+
+	/**
+	 * Indicates the radius of the globe at the poles, in meters.
+	 *
+	 * @return The radius at the poles, in meters.
+	 */
+	double getPolarRadius();
+
+	/**
+	 * Indicates the maximum radius on the globe.
+	 *
+	 * @return The maximum radius, in meters.
+	 */
+	double getMaximumRadius();
+
+	/**
+	 * Indicates the radius of the globe at a location.
+	 *
+	 * @param latitude  Latitude of the location at which to determine radius.
+	 * @param longitude Longitude of the location at which to determine radius.
+	 *
+	 * @return The radius of the globe at the specified location, in meters.
+	 */
+	double getRadiusAt(Angle latitude, Angle longitude);
+
+	/**
+	 * Indicates this globe's radius at a specified location.
+	 *
+	 * @param latLon the location of interest.
+	 *
+	 * @return the globe's radius at that location.
+	 */
+	double getRadiusAt(LatLon latLon);
 
 	/**
 	 * Returns the minimum and maximum elevations within a specified sector on this Globe. This returns a two-element

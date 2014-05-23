@@ -17,6 +17,8 @@ import gov.nasa.worldwind.util.*;
 
 import java.nio.*;
 
+import static android.opengl.GLES20.*;
+
 /**
  * An arbitrarily oriented box, typically used as a oriented bounding volume for a collection of points or shapes. A
  * <code>Box</code> is defined by three orthogonal axes and two positions along each of those axes. Each of the
@@ -465,6 +467,32 @@ public class Box implements Extent, Renderable
         return tLength;
     }
 
+	/**
+	 * Returns the eight corners of the box.
+	 *
+	 * @return the eight box corners in the order bottom-lower-left, bottom-lower-right, bottom-upper-right,
+	 *         bottom-upper-left, top-lower-left, top-lower-right, top-upper-right, top-upper-left.
+	 */
+	public Vec4[] getCorners()
+	{
+		Vec4 ll = this.s.add3(this.t).multiply3(-0.5);     // Lower left.
+		Vec4 lr = this.t.subtract3(this.s).multiply3(0.5); // Lower right.
+		Vec4 ur = this.s.add3(this.t).multiply3(0.5);      // Upper right.
+		Vec4 ul = this.s.subtract3(this.t).multiply3(0.5); // Upper left.
+
+		Vec4[] corners = new Vec4[8];
+		corners[0] = this.bottomCenter.add3(ll);
+		corners[1] = this.bottomCenter.add3(lr);
+		corners[2] = this.bottomCenter.add3(ur);
+		corners[3] = this.bottomCenter.add3(ul);
+		corners[4] = this.topCenter.add3(ll);
+		corners[5] = this.topCenter.add3(lr);
+		corners[6] = this.topCenter.add3(ur);
+		corners[7] = this.topCenter.add3(ul);
+
+		return corners;
+	}
+
     public Box translate(Vec4 point)
     {
         if (point == null)
@@ -697,17 +725,6 @@ public class Box implements Extent, Renderable
 	 */
 	public void render(DrawContext dc)
 	{
-		GpuProgram program = this.getGpuProgram(dc.getGpuResourceCache());
-		if (program == null) return;
-
-		dc.setCurrentProgram(program);
-		program.bind();
-
-		program.loadUniform1f("opacity", dc.isPickingMode() ? 1f : dc.getCurrentLayer().getOpacity());
-
-		int attribLocation = program.getAttribLocation("vertexPoint");
-		if (attribLocation >= 0) GLES20.glEnableVertexAttribArray(attribLocation);
-
 		if (dc == null)
 		{
 			String message = Logging.getMessage("nullValue.DocumentSourceIsNull");
@@ -718,30 +735,48 @@ public class Box implements Extent, Renderable
 		if (dc.isPickingMode())
 			return;
 
+		GpuProgram program = this.getGpuProgram(dc.getGpuResourceCache());
+		if (program == null) return;
+
+		dc.setCurrentProgram(program);
+		program.bind();
+
+		program.loadUniform1f("uOpacity", dc.isPickingMode() ? 1f : dc.getCurrentLayer().getOpacity());
+
+		int attribLocation = program.getAttribLocation("vertexPoint");
+		if (attribLocation >= 0) GLES20.glEnableVertexAttribArray(attribLocation);
+
 		Vec4 a = this.s.add3(this.t).multiply3(-0.5);
 		Vec4 b = this.s.subtract3(this.t).multiply3(0.5);
 		Vec4 c = this.s.add3(this.t).multiply3(0.5);
 		Vec4 d = this.t.subtract3(this.s).multiply3(0.5);
 
-		GLES20.glLineWidth(1f);
-		GLES20.glEnable(GLES20.GL_BLEND);
-//			OGLUtil.applyBlending(gl, false);
-		GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+		OGLStackHandler ogsh = new OGLStackHandler();
+		ogsh.pushAttrib(GL_COLOR_BUFFER_BIT // For alpha enable, blend enable, alpha func, blend func.
+				| GL_DEPTH_BUFFER_BIT); // For depth test enable, depth func.
+		try {
+			GLES20.glLineWidth(1f);
+			GLES20.glEnable(GLES20.GL_BLEND);
+			OGLUtil.applyBlending(false);
+			GLES20.glEnable(GLES20.GL_DEPTH_TEST);
 
-		GLES20.glDepthFunc(GLES20.GL_LEQUAL);
-		dc.getCurrentProgram().loadUniformColor("color", new Color(1d, 1d, 1d, 0.5d));
-		this.drawBox(dc, a, b, c, d);
+			GLES20.glDepthFunc(GLES20.GL_LEQUAL);
+			dc.getCurrentProgram().loadUniformColor("uColor", new Color(1d, 1d, 1d, 0.5d));
+			this.drawBox(dc, a, b, c, d);
 
-		GLES20.glDepthFunc(GLES20.GL_GREATER);
-		dc.getCurrentProgram().loadUniformColor("color", new Color(1d, 0d, 1d, 0.4d));
-		this.drawBox(dc, a, b, c, d);
+			GLES20.glDepthFunc(GLES20.GL_GREATER);
+			dc.getCurrentProgram().loadUniformColor("uColor", new Color(1d, 0d, 1d, 0.4d));
+			this.drawBox(dc, a, b, c, d);
 
-		GLES20.glDisableVertexAttribArray(attribLocation);
+		} finally {
+			ogsh.popAttrib(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			GLES20.glDisableVertexAttribArray(attribLocation);
 
-		dc.setCurrentProgram(null);
-		GLES20.glUseProgram(0);
-		GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
-		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
+			dc.setCurrentProgram(null);
+			GLES20.glUseProgram(0);
+			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+			GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
+		}
 	}
 
 	protected void drawBox(DrawContext dc, Vec4 a, Vec4 b, Vec4 c, Vec4 d)
@@ -770,16 +805,16 @@ public class Box implements Extent, Renderable
 
 		Matrix matrix = Matrix.fromIdentity();
 		matrix.multiplyAndSet(dc.getView().getModelviewProjectionMatrix(),
-				Matrix.fromIdentity());
-//				Matrix.fromTranslation(this.bottomCenter));
+//				Matrix.fromIdentity());
+				Matrix.fromTranslation(this.bottomCenter));
 
 		dc.getCurrentProgram().loadUniformMatrix("mvpMatrix", matrix);
+		Matrix tmpMatrix = matrix.copy();
 
 		// Draw parallel lines in R direction
 		int n = 20;
 		Vec4 dr = this.r.multiply3(1d / (double) n);
 
-		Matrix tmpMatrix = matrix.copy();
 		this.drawOutline(dc, 0, 1, 2, 3);
 		for (int i = 1; i < n; i++)
 		{
@@ -789,13 +824,13 @@ public class Box implements Extent, Renderable
 		}
 
 		dc.getCurrentProgram().loadUniformMatrix("mvpMatrix", matrix);
+		tmpMatrix = matrix.copy();
 
 		// Draw parallel lines in S direction
 		n = 20;
 		Vec4 ds = this.s.multiply3(1d / (double) n);
 
 		this.drawOutline(dc, 0, 4, 5, 3);
-		tmpMatrix = matrix.copy();
 		for (int i = 1; i < n; i++)
 		{
 			tmpMatrix.multiplyAndSet(Matrix.fromTranslation(ds));

@@ -116,6 +116,7 @@ public interface AVKey {
 	final String LINEAR = "gov.nasa.worldwind.avkey.Linear";
 	final String LITTLE_ENDIAN = "gov.nasa.worldwind.avkey.LittleEndian";
 	final String LOGCAT_TAG = "gov.nasa.worldwind.avkey.LogcatTag";
+	final String LOXODROME = "gov.nasa.worldwind.avkey.Loxodrome";
 
 	final String MAP_SCALE = "gov.nasa.worldwind.avkey.MapScale";
 	/**
@@ -149,6 +150,8 @@ public interface AVKey {
 	final String NETWORK_RETRIEVAL_ENABLED = "gov.nasa.worldwind.avkey.NetworkRetrievalEnabled";
 	final String NETWORK_STATUS_CLASS_NAME = "gov.nasa.worldwind.avkey.NetworkStatusClassName";
 	final String NETWORK_STATUS_TEST_SITES = "gov.nasa.worldwind.avkey.NetworkStatusTestSites";
+	final String NORTH = "gov.nasa.worldwind.avkey.North";
+
 	final String NUM_EMPTY_LEVELS = "gov.nasa.worldwind.avkey.NumEmptyLevels";
 	final String NUM_LEVELS = "gov.nasa.worldwind.avkey.NumLevels";
 
@@ -200,7 +203,9 @@ public interface AVKey {
 	final String SERVICE_NAME = "gov.nasa.worldwind.avkey.ServiceName";
 	final String SESSION_CACHE_CLASS_NAME = "gov.nasa.worldwind.avkey.SessionCacheClassName";
 	final String SHORT_DESCRIPTION = "gov.nasa.worldwind.avkey.Server.ShortDescription";
+	final String SOUTH = "gov.nasa.worldwdind.avkey.South";
 	final String STYLE_NAMES = "gov.nasa.worldwind.avkey.StyleNames";
+	final String SURFACE_TILE_DRAW_CONTEXT = "gov.nasa.worldwind.avkey.SurfaceTileDrawContext";
 
 	final String TESSELLATOR_FACTORY = "gov.nasa.worldwind.avkey.TessellatorFactory";
 	final String TESSELLATOR_CONFIG_FILE = "gov.nasa.worldwind.avkey.TessellatorConfigFile";

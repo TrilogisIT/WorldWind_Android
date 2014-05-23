@@ -6,6 +6,7 @@
 package gov.nasa.worldwind.render;
 
 import android.graphics.Bitmap;
+import android.graphics.RectF;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
 import gov.nasa.worldwind.Disposable;
@@ -21,12 +22,12 @@ import gov.nasa.worldwind.util.Logging;
  * @version $Id: GpuTexture.java 762 2012-09-07 00:22:58Z tgaskins $
  */
 public class GpuTexture implements Cacheable, Disposable {
-	public static GpuTexture createTexture(DrawContext dc, GpuTextureData textureData) {
-		if (dc == null) {
-			String msg = Logging.getMessage("nullValue.DrawContextIsNull");
-			throw new IllegalArgumentException(msg);
-		}
 
+	public static GpuTexture createTexture(DrawContext dc, GpuTextureData textureData) {
+		return createTexture(textureData);
+	}
+
+	public static GpuTexture createTexture(GpuTextureData textureData) {
 		if (textureData == null) {
 			String msg = Logging.getMessage("nullValue.TextureDataIsNull");
 			Logging.error(msg);
@@ -37,9 +38,9 @@ public class GpuTexture implements Cacheable, Disposable {
 
 		try {
 			if (textureData.getBitmapData() != null) {
-				texture = doCreateFromBitmapData(dc, textureData);
+				texture = doCreateFromBitmapData(textureData);
 			} else if (textureData.getCompressedData() != null) {
-				texture = doCreateFromCompressedData(dc, textureData);
+				texture = doCreateFromCompressedData(textureData);
 			} else {
 				String msg = Logging.getMessage("generic.TextureDataUnrecognized", textureData);
 				Logging.error(msg);
@@ -52,7 +53,7 @@ public class GpuTexture implements Cacheable, Disposable {
 		return texture;
 	}
 
-	protected static GpuTexture doCreateFromBitmapData(DrawContext dc, GpuTextureData data) throws Exception {
+	protected static GpuTexture doCreateFromBitmapData(GpuTextureData data) throws Exception {
 		Bitmap bitmap = data.getBitmapData().bitmap;
 
 		int[] texture = new int[1];
@@ -95,12 +96,12 @@ public class GpuTexture implements Cacheable, Disposable {
 		return new GpuTexture(GLES20.GL_TEXTURE_2D, texture, bitmap.getWidth(), bitmap.getHeight(), data.getSizeInBytes(), createVerticalFlipTransform());
 	}
 
-	protected static GpuTexture doCreateFromCompressedData(DrawContext dc, GpuTextureData data) throws Exception {
+	protected static GpuTexture doCreateFromCompressedData(GpuTextureData data) throws Exception {
 		int format = data.getCompressedData().format;
 		GpuTextureData.MipmapData[] levelData = data.getCompressedData().levelData;
 		GpuTextureData.MipmapData[] alphaData = data.getCompressedData().alphaData;
 
-		int[] texture = alphaData!=null ? new int[2] : new int[1];
+		int[] texture = alphaData != null ? new int[2] : new int[1];
 		try {
 			GLES20.glGenTextures(texture.length, texture, 0);
 			WorldWindowImpl.glCheckError("glGenTextures");
@@ -131,7 +132,7 @@ public class GpuTexture implements Cacheable, Disposable {
 				WorldWindowImpl.glCheckError("glCompressedTexImage2D");
 			}
 
-			if(alphaData!=null) {
+			if (alphaData != null) {
 				GLES20.glActiveTexture(GLES20.GL_TEXTURE1);
 				WorldWindowImpl.glCheckError("glActiveTexture");
 				GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture[1]);
@@ -169,12 +170,12 @@ public class GpuTexture implements Cacheable, Disposable {
 		// expect the coordinate origin to be in the lower left corner, and interpret textures as having their data
 		// origin in the lower left corner, images loaded by the Android BitmapFactory must always be flipped
 		// vertically. Flipping an image vertically is accomplished by multiplying scaling the t-coordinate by -1 then
-		// translating the t-coordinate by -1. We have pre-computed the product of the scaling and translation matrices
+		// translating the t-coordinate by 1. We have pre-computed the product of the scaling and translation matrices
 		// and stored the result inline here to avoid unnecessary matrix allocations and multiplications. The matrix
 		// below is equivalent to the following:
 		//
 		// Matrix scale = Matrix.fromIdentity().setScale(1, -1, 1);
-		// Matrix trans = Matrix.fromIdentity().setTranslation(0, -1, 0);
+		// Matrix trans = Matrix.fromIdentity().setTranslation(0, 1, 0);
 		// Matrix internalTransform = Matrix.fromIdentity();
 		// internalTransform.multiplyAndSet(scale);
 		// internalTransform.multiplyAndSet(trans);
@@ -184,13 +185,13 @@ public class GpuTexture implements Cacheable, Disposable {
 	}
 
 	protected int target;
-	protected int []textureId;
+	protected int[] textureId;
 	protected int width;
 	protected int height;
 	protected long estimatedMemorySize;
 	protected Matrix internalTransform;
 
-	public GpuTexture(int target, int []textureId, int width, int height, long estimatedMemorySize, Matrix texCoordMatrix) {
+	public GpuTexture(int target, int[] textureId, int width, int height, long estimatedMemorySize, Matrix texCoordMatrix) {
 		if (target != GLES20.GL_TEXTURE_2D && target != GLES20.GL_TEXTURE_CUBE_MAP_NEGATIVE_X && target != GLES20.GL_TEXTURE_CUBE_MAP_NEGATIVE_Y
 				&& target != GLES20.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z && target != GLES20.GL_TEXTURE_CUBE_MAP_POSITIVE_X && target != GLES20.GL_TEXTURE_CUBE_MAP_POSITIVE_Y
 				&& target != GLES20.GL_TEXTURE_CUBE_MAP_POSITIVE_Z) {
@@ -199,7 +200,7 @@ public class GpuTexture implements Cacheable, Disposable {
 			throw new IllegalArgumentException(msg);
 		}
 
-		if (textureId.length < 1 || textureId[0]<=0) {
+		if (textureId.length < 1 || textureId[0] <= 0) {
 			String msg = Logging.getMessage("GL.GLObjectIsInvalid", textureId);
 			Logging.error(msg);
 			throw new IllegalArgumentException(msg);
@@ -252,8 +253,8 @@ public class GpuTexture implements Cacheable, Disposable {
 	}
 
 	public void bind() {
-		for(int i=0; i<textureId.length; i++) {
-			GLES20.glActiveTexture(GLES20.GL_TEXTURE0+i);
+		for (int i = 0; i < textureId.length; i++) {
+			GLES20.glActiveTexture(GLES20.GL_TEXTURE0 + i);
 			WorldWindowImpl.glCheckError("glActiveTexture");
 			GLES20.glBindTexture(this.target, this.textureId[i]);
 			WorldWindowImpl.glCheckError("glBindTexture");

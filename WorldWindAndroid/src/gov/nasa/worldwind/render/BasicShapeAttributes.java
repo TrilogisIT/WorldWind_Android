@@ -21,13 +21,21 @@ public class BasicShapeAttributes implements ShapeAttributes
     /** Indicates whether or not the shape's interior is drawn. Initially <code>false</code>. */
     protected boolean enableInterior;
     /** Indicates the RGBA color of the shape's interior. Initially <code>null</code>. */
-    protected Color interiorColor;
+    protected Material interiorMaterial;
     /** Indicates whether or not the shape's outline is drawn. Initially <code>false</code>. */
     protected boolean enableOutline;
     /** Indicates the RGBA color of the shape's outline. Initially <code>null</code>. */
-    protected Color outlineColor;
+    protected Material outlineMaterial;
     /** Indicates the line width (in pixels) used when rendering the shape's outline. Initially 0.0. */
     protected double outlineWidth;
+	/** Indicates the image source that is applied as a texture to the shape's interior. Initially <code>null</code>. */
+	protected Object imageSource;
+	/** Indicates the amount the balloon's texture is scaled by as a floating-point value. Initially 0.0. */
+	protected double imageScale;
+	/** Indicates the opacity of the shape's interior as a floating-point value in the range 0.0 to 1.0. Initially 0.0. */
+	protected double interiorOpacity;
+	/** Indicates the opacity of the shape's outline as a floating-point value in the range 0.0 to 1.0. Initially 0.0. */
+	protected double outlineOpacity;
 
     /**
      * Creates a new BasicShapeAttributes with the default attributes. The default attributes are as follows:
@@ -43,10 +51,12 @@ public class BasicShapeAttributes implements ShapeAttributes
 
         this.enableLighting = false;
         this.enableInterior = true;
-        this.interiorColor = Color.white(); // Returns a new instance; no need to insulate ourselves from changes.
+        this.interiorMaterial = Material.WHITE; // Returns a new instance; no need to insulate ourselves from changes.
         this.enableOutline = true;
-        this.outlineColor = Color.black(); // Returns a new instance; no need to insulate ourselves from changes.
+        this.outlineMaterial = Material.BLACK; // Returns a new instance; no need to insulate ourselves from changes.
         this.outlineWidth = 1;
+		this.imageSource = null;
+		this.imageScale = 1;
     }
 
     /**
@@ -68,15 +78,15 @@ public class BasicShapeAttributes implements ShapeAttributes
             throw new IllegalArgumentException(msg);
         }
 
-        this.enableLighting = attributes.isEnableLighting();
-        this.enableInterior = attributes.isEnableInterior();
-        this.interiorColor = new Color(attributes.getInteriorColor()); // Copy to insulate ourselves from changes.
-        this.enableOutline = attributes.isEnableOutline();
-        this.outlineColor = new Color(attributes.getOutlineColor()); // Copy to insulate ourselves from changes.
-        this.outlineWidth = attributes.getOutlineWidth();
+        set(attributes);
     }
 
-    /** {@inheritDoc} */
+	@Override
+	public ShapeAttributes copy() {
+		return new BasicShapeAttributes(this);
+	}
+
+	@Override
     public void set(ShapeAttributes attributes)
     {
         if (attributes == null)
@@ -88,55 +98,59 @@ public class BasicShapeAttributes implements ShapeAttributes
 
         this.enableLighting = attributes.isEnableLighting();
         this.enableInterior = attributes.isEnableInterior();
-        this.interiorColor.set(attributes.getInteriorColor()); // Copy to insulate ourselves from changes.
+        this.interiorMaterial = attributes.getInteriorMaterial(); // Copy to insulate ourselves from changes.
         this.enableOutline = attributes.isEnableOutline();
-        this.outlineColor.set(attributes.getOutlineColor()); // Copy to insulate ourselves from changes.
+        this.outlineMaterial = attributes.getOutlineMaterial(); // Copy to insulate ourselves from changes.
         this.outlineWidth = attributes.getOutlineWidth();
+		this.interiorOpacity = attributes.getInteriorOpacity();
+		this.outlineOpacity = attributes.getOutlineOpacity();
+		this.imageSource = attributes.getImageSource();
+		this.imageScale = attributes.getImageScale();
     }
 
-    /** {@inheritDoc} */
+    @Override
     public boolean isUnresolved()
     {
         return unresolved;
     }
 
-    /** {@inheritDoc} */
+    @Override
     public void setUnresolved(boolean unresolved)
     {
         this.unresolved = unresolved;
     }
 
-    /** {@inheritDoc} */
+    @Override
     public boolean isEnableLighting()
     {
         return enableLighting;
     }
 
-    /** {@inheritDoc} */
+    @Override
     public void setEnableLighting(boolean tf)
     {
         this.enableLighting = tf;
     }
 
-    /** {@inheritDoc} */
+    @Override
     public boolean isEnableInterior()
     {
         return this.enableInterior;
     }
 
-    /** {@inheritDoc} */
+    @Override
     public void setEnableInterior(boolean tf)
     {
         this.enableInterior = tf;
     }
 
-    /** {@inheritDoc} */
+    @Override
     public Color getInteriorColor()
     {
-        return this.interiorColor;
+        return this.interiorMaterial.getDiffuse();
     }
 
-    /** {@inheritDoc} */
+    @Override
     public void setInteriorColor(Color color)
     {
         if (color == null)
@@ -146,28 +160,28 @@ public class BasicShapeAttributes implements ShapeAttributes
             throw new IllegalArgumentException(msg);
         }
 
-        this.interiorColor.set(color);
+        this.interiorMaterial.getDiffuse().set(color);
     }
 
-    /** {@inheritDoc} */
+    @Override
     public boolean isEnableOutline()
     {
         return this.enableOutline;
     }
 
-    /** {@inheritDoc} */
+    @Override
     public void setEnableOutline(boolean tf)
     {
         this.enableOutline = tf;
     }
 
-    /** {@inheritDoc} */
+    @Override
     public Color getOutlineColor()
     {
-        return this.outlineColor;
+        return this.outlineMaterial.getDiffuse();
     }
 
-    /** {@inheritDoc} */
+    @Override
     public void setOutlineColor(Color color)
     {
         if (color == null)
@@ -177,16 +191,16 @@ public class BasicShapeAttributes implements ShapeAttributes
             throw new IllegalArgumentException(msg);
         }
 
-        this.outlineColor.set(color);
+        this.outlineMaterial.getDiffuse().set(color);
     }
 
-    /** {@inheritDoc} */
+    @Override
     public double getOutlineWidth()
     {
         return this.outlineWidth;
     }
 
-    /** {@inheritDoc} */
+    @Override
     public void setOutlineWidth(double width)
     {
         if (width <= 0)
@@ -198,4 +212,64 @@ public class BasicShapeAttributes implements ShapeAttributes
 
         this.outlineWidth = width;
     }
+
+	@Override
+	public Material getInteriorMaterial() {
+		return this.interiorMaterial;
+	}
+
+	@Override
+	public void setInteriorMaterial(Material material) {
+		this.interiorMaterial = material;
+	}
+
+	@Override
+	public Material getOutlineMaterial() {
+		return this.outlineMaterial;
+	}
+
+	@Override
+	public void setOutlineMaterial(Material material) {
+		this.outlineMaterial = material;
+	}
+
+	@Override
+	public double getInteriorOpacity() {
+		return this.interiorOpacity;
+	}
+
+	@Override
+	public void setInteriorOpacity(double opacity) {
+		this.interiorOpacity = opacity;
+	}
+
+	@Override
+	public double getOutlineOpacity() {
+		return this.outlineOpacity;
+	}
+
+	@Override
+	public void setOutlineOpacity(double opacity) {
+		this.outlineOpacity = opacity;
+	}
+
+	@Override
+	public Object getImageSource() {
+		return this.imageSource;
+	}
+
+	@Override
+	public void setImageSource(Object imageSource) {
+		this.imageSource = imageSource;
+	}
+
+	@Override
+	public double getImageScale() {
+		return this.imageScale;
+	}
+
+	@Override
+	public void setImageScale(double scale) {
+		this.imageScale = scale;
+	}
 }

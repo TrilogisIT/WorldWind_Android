@@ -61,6 +61,14 @@ package gov.nasa.worldwind.render;
  */
 public interface ShapeAttributes
 {
+	/**
+	 * Returns a new ShapeAttributes instance of the same type as this ShapeAttributes who's properties are configured
+	 * exactly as this ShapeAttributes.
+	 *
+	 * @return a copy of this ShapeAttributes.
+	 */
+	ShapeAttributes copy();
+
     /**
      * Sets this bundle's attributes to those of the specified bundle. This does not retain any reference to the
      * specified attributes, or modify them in any way. The specified bundle's attributes are copied into this bundle.
@@ -141,6 +149,7 @@ public interface ShapeAttributes
      *
      * @see #setInteriorColor(Color)
      */
+	@Deprecated
     Color getInteriorColor();
 
     /**
@@ -153,6 +162,7 @@ public interface ShapeAttributes
      * @throws IllegalArgumentException if the color is <code>null</code>.
      * @see #getInteriorColor()
      */
+	@Deprecated
     void setInteriorColor(Color color);
 
     /**
@@ -182,6 +192,7 @@ public interface ShapeAttributes
      *
      * @see #setOutlineColor(Color)
      */
+	@Deprecated
     Color getOutlineColor();
 
     /**
@@ -194,6 +205,7 @@ public interface ShapeAttributes
      * @throws IllegalArgumentException if the color is <code>null</code>.
      * @see #getOutlineColor()
      */
+	@Deprecated
     void setOutlineColor(Color color);
 
     /**
@@ -217,4 +229,141 @@ public interface ShapeAttributes
      * @see #getOutlineWidth()
      */
     void setOutlineWidth(double width);
+
+	/**
+	 * Indicates the material properties of the shape's interior. If lighting is applied to the shape, this indicates
+	 * the interior's ambient, diffuse, and specular colors, its shininess, and the color of any emitted light.
+	 * Otherwise, the material's diffuse color indicates the shape's constant interior color.
+	 *
+	 * @return the material applied to the shape's interior.
+	 *
+	 * @see #setInteriorMaterial(Material)
+	 */
+	Material getInteriorMaterial();
+
+	/**
+	 * Specifies the material properties of the shape's interior. If lighting is applied to the shape, this specifies
+	 * the interior's ambient, diffuse, and specular colors, its shininess, and the color of any emitted light.
+	 * Otherwise, the material's diffuse color specifies the shape's constant interior color.
+	 *
+	 * @param material the material to apply to the shape's interior.
+	 *
+	 * @throws IllegalArgumentException if <code>material</code> is <code>null</code>.
+	 * @see #getInteriorMaterial()
+	 */
+	void setInteriorMaterial(Material material);
+
+	/**
+	 * Indicates the material properties of the shape's outline. If lighting is applied to the shape, this indicates the
+	 * outline's ambient, diffuse, and specular colors, its shininess, and the color of any emitted light. Otherwise,
+	 * the material's diffuse color indicates the shape's constant outline color.
+	 *
+	 * @return the material applied to the shape's outline.
+	 *
+	 * @see #setOutlineMaterial(Material)
+	 */
+	Material getOutlineMaterial();
+
+	/**
+	 * Specifies the material properties of the shape's outline. If lighting is applied to the shape, this specifies the
+	 * outline's ambient, diffuse, and specular colors, its shininess, and the color of any emitted light. Otherwise,
+	 * the material's diffuse color specifies as the shape's constant outline color.
+	 *
+	 * @param material the material to apply to the shape's outline.
+	 *
+	 * @throws IllegalArgumentException if <code>material</code> is <code>null</code>.
+	 * @see #getOutlineMaterial()
+	 */
+	void setOutlineMaterial(Material material);
+
+	/**
+	 * Indicates the opacity of the shape's interior as a floating-point value in the range 0.0 to 1.0.
+	 *
+	 * @return the interior opacity as a floating-point value from 0.0 to 1.0.
+	 *
+	 * @see #setInteriorOpacity(double)
+	 */
+	double getInteriorOpacity();
+
+	/**
+	 * Specifies the opacity of the shape's interior as a floating-point value in the range 0.0 to 1.0. A value of 1.0
+	 * specifies a completely opaque interior, and 0.0 specifies a completely transparent interior. Values in between
+	 * specify a partially transparent interior.
+	 *
+	 * @param opacity the interior opacity as a floating-point value from 0.0 to 1.0.
+	 *
+	 * @throws IllegalArgumentException if <code>opacity</code> is less than 0.0 or greater than 1.0.
+	 * @see #getInteriorOpacity()
+	 */
+	void setInteriorOpacity(double opacity);
+
+	/**
+	 * Indicates the opacity of the shape's outline as a floating-point value in the range 0.0 to 1.0.
+	 *
+	 * @return the outline opacity as a floating-point value from 0.0 to 1.0.
+	 *
+	 * @see #setOutlineOpacity(double)
+	 */
+	double getOutlineOpacity();
+
+	/**
+	 * Specifies the opacity of the shape's outline as a floating-point value in the range 0.0 to 1.0. A value of 1.0
+	 * specifies a completely opaque outline, and 0.0 specifies a completely transparent outline. Values in between
+	 * specify a partially transparent outline.
+	 *
+	 * @param opacity the outline opacity as a floating-point value from 0.0 to 1.0.
+	 *
+	 * @throws IllegalArgumentException if <code>opacity</code> is less than 0.0 or greater than 1.0.
+	 * @see #getOutlineOpacity()
+	 */
+	void setOutlineOpacity(double opacity);
+
+	/**
+	 * Indicates the image source that is applied as a texture to the shape's interior.
+	 *
+	 * @return the source of the shape's texture, either a {@link String} path, a {@link java.net.URL}, a {@link
+	 *         java.awt.image.BufferedImage}, or <code>null</code>.
+	 *
+	 * @see #setImageSource(Object)
+	 */
+	Object getImageSource();
+
+	/**
+	 * Specifies the image source to apply as a texture to the shape's interior, or <code>null</code> to specify that
+	 * the shape should not have a texture. When not <code>null</code>, the texture replaces the shape's interior
+	 * material. The source type may be one of the following: <ul> <li>{@link String} containing a path to a local file,
+	 * or a resource on the classpath.</li> <li>{@link java.net.URL}</li> <li>{@link java.awt.image.BufferedImage}</li>
+	 * <li><code>null</code></li> </ul> If the image source is a file or a <code>URL</code>, it is read only when the
+	 * shape is rendered.
+	 *
+	 * @param imageSource the source of the shape's texture, either a <code>String</code> path, a <code>URL</code>, a
+	 *                    <code>BufferedImage</code>, or <code>null</code>.
+	 *
+	 * @see #getImageSource()
+	 */
+	void setImageSource(Object imageSource);
+
+	/**
+	 * Indicates the amount the shape's texture is scaled by as a floating-point value.
+	 *
+	 * @return the amount the shape's texture is scaled by as a floating-point value. This value is always greater
+	 *         than zero.
+	 *
+	 * @see #setImageScale(double)
+	 */
+	double getImageScale();
+
+	/**
+	 * Specifies the amount to scale the shape's texture as a floating-point value. A value of 1.0 specifies that the
+	 * texture should be applied without any scaling, a value greater than 1.0 specifies that the texture should be
+	 * magnified, and a value less than 1.0 specifies that the texture should be minified. For example, a scale of 2.0
+	 * magnifies the texture by a factor of 2x.
+	 *
+	 * @param scale the amount to scale the shape's texture as a floating-point value.
+	 *
+	 * @throws IllegalArgumentException if <code>scale</code> is less than or equal to zero.
+	 * @see #getImageScale()
+	 * @see #setImageSource(Object)
+	 */
+	void setImageScale(double scale);
 }

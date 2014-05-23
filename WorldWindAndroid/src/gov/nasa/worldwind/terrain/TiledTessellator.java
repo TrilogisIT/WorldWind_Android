@@ -203,15 +203,13 @@ public class TiledTessellator extends WWObjectImpl
 		@Override
 		public Intersection[] intersect(Line line)
 		{
-			throw new RuntimeException("intersect not implemented");
-//			return this.tessellator.intersect(this, line);
+			return this.tessellator.intersect(this, line);
 		}
 
 		@Override
 		public Intersection[] intersect(double elevation)
 		{
-			throw new RuntimeException("intersect not implemented");
-//			return this.tessellator.intersect(this, elevation);
+			return this.tessellator.intersect(this, elevation);
 		}
 	}
 
@@ -548,7 +546,8 @@ public class TiledTessellator extends WWObjectImpl
 			}
 			else if(AVKey.VERTICAL_EXAGGERATION.equals(event.getPropertyName()))
 			{
-				Logging.info("Marking all sectors expired for VerticalExaggeration change");
+				Logging.info(String.format("Marking all sectors expired for VerticalExaggeration change: %.2f -> %.2f",
+						event.getOldValue(), event.getNewValue()));
 				for(SectorGeometry tile : currentTiles)
 					markSectorExpired(tile.getSector());
 			}
@@ -988,8 +987,7 @@ public class TiledTessellator extends WWObjectImpl
 	}
 
 	protected boolean mustRegenerateGeometry(DrawContext dc, TerrainTile tile) {
-		MemoryCache cache = this.getTerrainGeometryCache();
-		return tile.getGeometry(cache) == null || this.isExpired(dc, tile);
+		return this.isExpired(dc, tile);
 	}
 
 	protected void assembleExpiredSectors() {
@@ -1006,10 +1004,16 @@ public class TiledTessellator extends WWObjectImpl
 	}
 
 	protected boolean isExpired(DrawContext dc, TerrainTile tile) {
-		TerrainGeometry geom = (TerrainGeometry) getTerrainGeometryCache().get(tile);
-		if(geom==null || geom.verticalExaggeration != dc.getVerticalExaggeration()) {
+		TerrainGeometry geom = tile.getGeometry(getTerrainGeometryCache());
+		if(geom==null) {
 			if(WorldWindowImpl.DEBUG)
-				Logging.verbose("Tile has expired due to Vertical Exaggeration");
+				Logging.verbose("Generating tile geometry for first time: " + tile);
+			return true;
+		}
+		if(geom.verticalExaggeration != dc.getVerticalExaggeration()) {
+			if(WorldWindowImpl.DEBUG)
+				Logging.verbose(String.format("Tile has expired due to Vertical Exaggeration. old: %.2f  new: %.2f",
+						geom.verticalExaggeration, dc.getVerticalExaggeration()));
 			return true;
 		}
 
@@ -1017,7 +1021,11 @@ public class TiledTessellator extends WWObjectImpl
 
 		Sector tileSector = tile.getSector();
 		for (Sector sector : this.currentExpiredSectors) {
-			if (tileSector.intersects(sector)) return true;
+			if (tileSector.intersects(sector)) {
+				if(WorldWindowImpl.DEBUG)
+					Logging.verbose("Tile has expired due to expired sector: " + sector);
+				return true;
+			}
 		}
 
 		return false;
@@ -1033,6 +1041,8 @@ public class TiledTessellator extends WWObjectImpl
 		geom.verticalExaggeration = dc.getVerticalExaggeration();
 		// Update the geometry's cached size.
 		tile.setGeometry(cache, geom);
+		if(WorldWindowImpl.DEBUG)
+			Logging.verbose("added tile geometry: " + cache.getNumObjects());
 	}
 
 	/**
@@ -1062,15 +1072,25 @@ public class TiledTessellator extends WWObjectImpl
 			MemoryCache cache = new BasicMemoryCache((long) (0.8 * size), size);
 			cache.setName("Tessellator Geometry");
 			WorldWind.getMemoryCacheSet().put(TerrainGeometry.class.getName(), cache);
+			if(WorldWindowImpl.DEBUG) {
+			cache.addCacheListener(new MemoryCache.CacheListener() {
+				@Override
+				public void entryRemoved(Object key, Object value) {
+					Logging.verbose("TerrainGeometryCache entry removed: " + key);
+				}
+
+				@Override
+				public void removalException(Throwable exception, Object key, Object value) {
+
+				}
+			});
+			}
 		}
 
 		return WorldWind.getMemoryCacheSet().get(TerrainGeometry.class.getName());
 	}
 
 	protected void buildTileVertices(DrawContext dc, TerrainTile tile, TerrainGeometry geom) {
-		if(WorldWindowImpl.DEBUG) {
-			Logging.verbose(String.format("Building tile vertices: v exagg: %.2f ", dc.getVerticalExaggeration()));
-		}
 		// The WWAndroid terrain tessellator attempts to improves upon the WWJ tessellator's vertex construction
 		// performance by exploiting the fact that each terrain tile is a regular geographic grid. The following three
 		// critical differences have improved the performance of buildTileVertices by approximately 10x (from ~8ms to
@@ -1604,14 +1624,13 @@ public class TiledTessellator extends WWObjectImpl
 
 	protected void renderTileID(DrawContext dc, TerrainTile tile)
 	{
-		Paint paint = new Paint();
-		paint.setColor(android.graphics.Color.RED);
 		if(textRenderer==null) {
+            Paint paint = new Paint();
+            paint.setColor(android.graphics.Color.RED);
 			textRenderer = new TextRenderer(dc, paint);
 		}
 
-		GLES20.glDisable(GLES20.GL_DEPTH_TEST);
-		GLES20.glDepthMask(false);
+		textRenderer.beginDrawing();
 
 		String tileLabel = Integer.toString(tile.getLevelNumber());
 		double[] elevs = dc.getGlobe().getMinAndMaxElevations(tile.getSector());
@@ -1623,8 +1642,8 @@ public class TiledTessellator extends WWObjectImpl
 		dc.getView().project(dc.getGlobe().computePointFromPosition(ll.getLatitude(), ll.getLongitude(),
 				dc.getGlobe().getElevation(ll.getLatitude(), ll.getLongitude())), pt);
 		textRenderer.draw(tileLabel, (int) pt.x, (int) pt.y);
-		GLES20.glEnable(GLES20.GL_DEPTH_TEST);
-		GLES20.glDepthMask(true);
+
+        textRenderer.endDrawing();
 	}
 
 	protected void loadGeometryVbos(DrawContext dc, TerrainGeometry geom) {
@@ -1715,6 +1734,9 @@ public class TiledTessellator extends WWObjectImpl
 
 		program.bind();
 		dc.setCurrentProgram(program);
+		program.loadUniform1b("uUseVertexColors", true);
+		program.loadUniform1f("uOpacity", 1f);
+        program.loadUniformColor("uColor", Color.white());
 		try {
 			SectorGeometry sg = this.getPickedGeometry(dc, sgList, pickPoint);
 			if (sg != null) sg.pick(dc, pickPoint);

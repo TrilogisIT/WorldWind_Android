@@ -194,6 +194,7 @@ public class RenderableLayer extends AbstractLayer
         this.renderables.clear();
     }
 
+	@Override
     protected void doPick(DrawContext dc, Point pickPoint)
     {
         // TODO: Determine whether maintaining a pick list here has any purpose. Is everything deferred to ordered rendering?
@@ -235,6 +236,7 @@ public class RenderableLayer extends AbstractLayer
         //}
     }
 
+	@Override
     protected void doRender(DrawContext dc)
     {
         for (Renderable renderable : this.renderables)
@@ -251,6 +253,27 @@ public class RenderableLayer extends AbstractLayer
             }
         }
     }
+
+	@Override
+	protected void doPreRender(DrawContext dc)
+	{
+		for (Renderable renderable : renderables)
+		{
+			try
+			{
+				// If the caller has specified their own Iterable,
+				// then we cannot make any guarantees about its contents.
+				if (renderable != null && renderable instanceof PreRenderable)
+					((PreRenderable) renderable).preRender(dc);
+			}
+			catch (Exception e)
+			{
+				String msg = Logging.getMessage("generic.ExceptionWhilePrerenderingRenderable");
+				Logging.error(msg);
+				// continue to next renderable
+			}
+		}
+	}
 
     /**
      * {@inheritDoc}

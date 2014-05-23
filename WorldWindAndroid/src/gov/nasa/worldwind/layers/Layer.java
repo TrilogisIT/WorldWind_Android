@@ -94,6 +94,16 @@ public interface Layer extends WWObject, Disposable
      */
     void pick(DrawContext dc, Point pickPoint);
 
+	/**
+	 * Causes the layer to perform any actions necessary to subsequently render the layer. The layer has exclusive
+	 * access to the frame buffer during the call, and may use it to generate images or other information that is
+	 * subsequently used to render the layer's contents. Upon return, the OpenGL state must be restored to its
+	 * original.
+	 *
+	 * @param dc the current draw context.
+	 */
+	void preRender(DrawContext dc);
+
     /**
      * Cause the layer to draw its representation.
      *

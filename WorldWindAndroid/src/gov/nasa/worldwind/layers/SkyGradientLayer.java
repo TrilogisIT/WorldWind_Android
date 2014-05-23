@@ -11,8 +11,7 @@ import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Matrix;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.geom.Vec4;
-import gov.nasa.worldwind.render.DrawContext;
-import gov.nasa.worldwind.render.GpuProgram;
+import gov.nasa.worldwind.render.*;
 import gov.nasa.worldwind.util.Logging;
 import gov.nasa.worldwind.util.WWMath;
 import java.nio.ByteBuffer;
@@ -146,6 +145,7 @@ public class SkyGradientLayer extends AbstractLayer {
 			GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
 			WorldWindowImpl.glCheckError("glBlendFunc");
 
+            program.loadUniformColor("uColor", Color.white());
 			program.loadUniform1f("uOpacity", this.getOpacity());
 
 			Matrix projection = this.createProjectionMatrix(dc);
@@ -189,12 +189,12 @@ public class SkyGradientLayer extends AbstractLayer {
 	protected void drawVertexArrays(DrawContext dc, ArrayList<float[]> vertexArrays, GpuProgram program) {
 		int pointLocation = program.getAttribLocation("vertexPoint");
 		GLES20.glEnableVertexAttribArray(pointLocation);
-
 		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
+
 		int colorLocation = program.getAttribLocation("vertexColor");
 		GLES20.glEnableVertexAttribArray(colorLocation);
-
 		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
+
 		for (int i = 0; i < vertexArrays.size(); i = i + 2) {
 			float[] vertexArray = vertexArrays.get(i);
 			float[] colorArray = vertexArrays.get(i + 1);
@@ -202,23 +202,21 @@ public class SkyGradientLayer extends AbstractLayer {
 			vertexBuf.put(vertexArray);
 			vertexBuf.rewind();
 			GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertexBuf);
-
 			WorldWindowImpl.glCheckError("glVertexAttribPointer");
+
 			FloatBuffer colorBuf = ByteBuffer.allocateDirect(colorArray.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 			colorBuf.put(colorArray);
 			colorBuf.rewind();
 			GLES20.glVertexAttribPointer(colorLocation, 4, GLES20.GL_FLOAT, false, 0, colorBuf);
-
 			WorldWindowImpl.glCheckError("glVertexAttribPointer");
-			GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, vertexArray.length / 3);
 
+			GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, vertexArray.length / 3);
 			WorldWindowImpl.glCheckError("glDrawArrays");
 		}
 		GLES20.glDisableVertexAttribArray(pointLocation);
-
 		WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
-		GLES20.glDisableVertexAttribArray(colorLocation);
 
+		GLES20.glDisableVertexAttribArray(colorLocation);
 		WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 	}
 

@@ -495,7 +495,7 @@ public class BasicTiledImageLayer extends TiledImageLayer implements BulkRetriev
 
 
 	protected void addTileToCache(GpuTextureTile tile) {
-		getTextureTileCache().put(tile.getTileKey(), tile);
+		GpuTextureTile.getMemoryCache().put(tile.getTileKey(), tile);
 	}
 
 	protected void requestTile(DrawContext dc, GpuTextureTile tile) {

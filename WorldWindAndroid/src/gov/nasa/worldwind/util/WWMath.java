@@ -9,6 +9,7 @@ import gov.nasa.worldwind.View;
 import gov.nasa.worldwind.WorldWindowGLSurfaceView;
 import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.globes.Globe;
+import gov.nasa.worldwind.render.DrawContext;
 
 import java.nio.FloatBuffer;
 import java.util.*;
@@ -45,6 +46,34 @@ public class WWMath
     protected static Vec4 point2 = new Vec4();
     protected static Matrix matrix = Matrix.fromIdentity();
     protected static Matrix matrixInv = Matrix.fromIdentity();
+
+	/**
+	 * Clamps a value to a given range.
+	 *
+	 * @param v   the value to clamp.
+	 * @param min the floor.
+	 * @param max the ceiling
+	 *
+	 * @return the nearest value such that min <= v <= max.
+	 */
+	public static double clamp(double v, double min, double max)
+	{
+		return v < min ? min : v > max ? max : v;
+	}
+
+	/**
+	 * Clamps an integer value to a given range.
+	 *
+	 * @param v   the value to clamp.
+	 * @param min the floor.
+	 * @param max the ceiling
+	 *
+	 * @return the nearest value such that min <= v <= max.
+	 */
+	public static int clamp(int v, int min, int max)
+	{
+		return v < min ? min : v > max ? max : v;
+	}
 
     /**
      * Converts time in seconds to time in milliseconds.
@@ -117,6 +146,37 @@ public class WWMath
 	{
 		return (feet / METERS_TO_FEET);
 	}
+
+    /**
+     * Returns the distance in model coordinates from the {@link gov.nasa.worldwind.View} eye point to the specified
+     * {@link gov.nasa.worldwind.geom.Extent}. If the View eye point is inside the extent, this returns 0.
+     *
+     * @param dc     the {@link gov.nasa.worldwind.render.DrawContext} which the View eye point is obtained from.
+     * @param extent the extent to compute the distance from.
+     *
+     * @return the distance from the View eye point to the extent, in model coordinates.
+     *
+     * @throws IllegalArgumentException if either the DrawContext or the extent is null.
+     */
+    public static double computeDistanceFromEye(DrawContext dc, Extent extent)
+    {
+        if (dc == null)
+        {
+            String message = Logging.getMessage("nullValue.DrawContextIsNull");
+            Logging.error(message);
+            throw new IllegalArgumentException(message);
+        }
+
+        if (extent == null)
+        {
+            String message = Logging.getMessage("nullValue.ExtentIsNull");
+            Logging.error(message);
+            throw new IllegalArgumentException(message);
+        }
+
+        double distance = dc.getView().getEyePoint().distanceTo3(extent.getCenter()) - extent.getRadius();
+        return (distance < 0d) ? 0d : distance;
+    }
 
     /**
      * Computes the distance to the horizon from a viewer at the specified elevation. Only the globe's ellipsoid is
@@ -436,6 +496,8 @@ public class WWMath
 
 		return Math.PI * radiusInPixels * radiusInPixels;
 	}
+
+
 
 	/**
 	 * Computes a unit-length normal vector for a buffer of coordinate triples. The normal vector is computed from the
@@ -817,6 +879,19 @@ public class WWMath
     }
 
 	/**
+	 * Returns the value that is the nearest power of 2 less than or equal to the given value.
+	 *
+	 * @param reference the reference value. The power of 2 returned is less than or equal to this value.
+	 *
+	 * @return the value that is the nearest power of 2 less than or equal to the reference value
+	 */
+	public static int powerOfTwoFloor(int reference)
+	{
+		int power = (int) Math.floor(Math.log(reference) / Math.log(2d));
+		return (int) Math.pow(2d, power);
+	}
+
+	/**
 	 * Intersect a line with a convex polytope and return the intersection points.
 	 * <p/>
 	 * See "3-D Computer Graphics" by Samuel R. Buss, 2005, Section X.1.4.
@@ -906,4 +981,59 @@ public class WWMath
 		else // intersects backface only; point origin is within the polytope
 			return new Intersection[] {new Intersection(p.add3(u.multiply3(bMin)), isTangent)};
     }
+
+	/**
+	 * Determines whether a {@link LatLon} location is located inside a given polygon.
+	 *
+	 * @param location  the location
+	 * @param locations the list of positions describing the polygon. Last one should be the same as the first one.
+	 *
+	 * @return true if the location is inside the polygon.
+	 */
+	public static boolean isLocationInside(LatLon location, Iterable<? extends LatLon> locations)
+	{
+		if (location == null)
+		{
+			String message = Logging.getMessage("nullValue.LatLonIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		java.util.Iterator<? extends LatLon> iter = locations.iterator();
+		if (!iter.hasNext())
+		{
+			return false;
+		}
+
+		// Test for even/odd number of intersections with a constant latitude line going through the given location.
+		boolean result = false;
+		LatLon p1 = iter.next();
+		while (iter.hasNext())
+		{
+			LatLon p2 = iter.next();
+
+// Developped for clarity
+//            double lat = location.getLatitude().degrees;
+//            double lon = location.getLongitude().degrees;
+//            double lat1 = p1.getLatitude().degrees;
+//            double lon1 = p1.getLongitude().degrees;
+//            double lat2 = p2.getLatitude().degrees;
+//            double lon2 = p2.getLongitude().degrees;
+//            if ( ((lat2 <= lat && lat < lat1) || (lat1 <= lat && lat < lat2))
+//                    && (lon < (lon1 - lon2) * (lat - lat2) / (lat1 - lat2) + lon2) )
+//                result = !result;
+
+			if (((p2.getLatitude().degrees <= location.getLatitude().degrees
+					&& location.getLatitude().degrees < p1.getLatitude().degrees) ||
+					(p1.getLatitude().degrees <= location.getLatitude().degrees
+							&& location.getLatitude().degrees < p2.getLatitude().degrees))
+					&& (location.getLongitude().degrees < (p1.getLongitude().degrees - p2.getLongitude().degrees)
+					* (location.getLatitude().degrees - p2.getLatitude().degrees)
+					/ (p1.getLatitude().degrees - p2.getLatitude().degrees) + p2.getLongitude().degrees))
+				result = !result;
+
+			p1 = p2;
+		}
+		return result;
+	}
 }

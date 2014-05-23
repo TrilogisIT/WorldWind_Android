@@ -320,7 +320,7 @@ public class Position extends LatLon
         sb.append("(");
         sb.append(this.latitude.toString()).append(", ");
         sb.append(this.longitude.toString()).append(", ");
-        sb.append(this.elevation);
+        sb.append(this.elevation+"m");
         sb.append(")");
         return sb.toString();
     }

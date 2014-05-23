@@ -181,6 +181,41 @@ public abstract class AbstractLayer extends WWObjectImpl implements Layer {
 		this.doPick(dc, point);
 	}
 
+	public void preRender(DrawContext dc)
+	{
+		if (!this.enabled)
+			return; // Don't check for arg errors if we're disabled
+
+		if (null == dc)
+		{
+			String message = Logging.getMessage("nullValue.DrawContextIsNull");
+			Logging.error(message);
+			throw new IllegalStateException(message);
+		}
+
+		if (null == dc.getGlobe())
+		{
+			String message = Logging.getMessage("layers.AbstractLayer.NoGlobeSpecifiedInDrawingContext");
+			Logging.error(message);
+			throw new IllegalStateException(message);
+		}
+
+		if (null == dc.getView())
+		{
+			String message = Logging.getMessage("layers.AbstractLayer.NoViewSpecifiedInDrawingContext");
+			Logging.error(message);
+			throw new IllegalStateException(message);
+		}
+
+		if (!this.isLayerActive(dc))
+			return;
+
+		if (!this.isLayerInView(dc))
+			return;
+
+		this.doPreRender(dc);
+	}
+
 	/**
 	 * @param dc
 	 *            the current draw context
@@ -226,6 +261,10 @@ public abstract class AbstractLayer extends WWObjectImpl implements Layer {
 		// read the color under the cursor
 		// use the color code as a key to retrieve a selected object from the selectable objects table
 		// create an instance of the PickedObject and add to the dc via the dc.addPickedObject() method
+	}
+
+	protected void doPreRender(DrawContext dc)
+	{
 	}
 
 	protected abstract void doRender(DrawContext dc);

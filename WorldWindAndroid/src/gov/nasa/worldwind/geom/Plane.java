@@ -21,6 +21,36 @@ public class Plane
     // the plane normal and proportional distance. The vector is not necessarily a unit vector.
     protected final Vec4 vector;
 
+	/**
+	 * Returns the plane that passes through the specified three points. The plane's normal is the cross product of the
+	 * two vectors from <code>pb</code> to </code>pa</code> and <code>pc</code> to </code>pa</code>, respectively. The
+	 * returned plane is undefined if any of the specified points are colinear.
+	 *
+	 * @param pa the first point.
+	 * @param pb the second point.
+	 * @param pc the third point.
+	 *
+	 * @return a <code>Plane</code> passing through the specified points.
+	 *
+	 * @throws IllegalArgumentException if <code>pa</code>, <code>pb</code>, or <code>pc</code> is <code>null</code>.
+	 */
+	public static Plane fromPoints(Vec4 pa, Vec4 pb, Vec4 pc)
+	{
+		if (pa == null || pb == null || pc == null)
+		{
+			String message = Logging.getMessage("nullValue.Vec4IsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		Vec4 vab = pb.subtract3(pa);
+		Vec4 vac = pc.subtract3(pa);
+		Vec4 n = vab.cross3(vac);
+		double d = -n.dot3(pa);
+
+		return new Plane(n.x, n.y, n.z, d);
+	}
+
     public Plane()
     {
         this.vector = new Vec4();
@@ -338,6 +368,69 @@ public class Plane
 		}
 
 		return side;
+	}
+
+	/**
+	 * Determine the intersection point of a line with this plane.
+	 *
+	 * @param line the line to intersect.
+	 *
+	 * @return the intersection point if the line intersects the plane, otherwise null.
+	 *
+	 * @throws IllegalArgumentException if the line is null.
+	 */
+	public Vec4 intersect(Line line)
+	{
+		if (line == null)
+		{
+			String message = Logging.getMessage("nullValue.LineIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		double t = this.intersectDistance(line);
+
+		if (Double.isNaN(t))
+			return null;
+
+		if (Double.isInfinite(t))
+			return line.getOrigin();
+
+		Vec4 p = new Vec4();
+		return line.getPointAt(t, p);
+	}
+
+	/**
+	 * Determine the parametric point of intersection of a line with this plane.
+	 *
+	 * @param line the line to test
+	 *
+	 * @return The parametric value of the point on the line at which it intersects the plane. {@link Double#NaN} is
+	 *         returned if the line does not intersect the plane. {@link Double#POSITIVE_INFINITY} is returned if the
+	 *         line is coincident with the plane.
+	 *
+	 * @throws IllegalArgumentException if the line is null.
+	 */
+	public double intersectDistance(Line line)
+	{
+		if (line == null)
+		{
+			String message = Logging.getMessage("nullValue.LineIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		double ldotv = this.vector.dot3(line.getDirection());
+		if (ldotv == 0) // are line and plane parallel
+		{
+			double ldots = this.vector.dot4(line.getOrigin());
+			if (ldots == 0)
+				return Double.POSITIVE_INFINITY; // line is coincident with the plane
+			else
+				return Double.NaN; // line is not coincident with the plane
+		}
+
+		return -this.vector.dot4(line.getOrigin()) / ldotv; // ldots / ldotv
 	}
 
     @Override

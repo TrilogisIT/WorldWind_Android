@@ -15,17 +15,21 @@ import gov.nasa.worldwind.pick.DepthBufferSupport;
 import gov.nasa.worldwind.pick.PickSupport;
 import gov.nasa.worldwind.pick.PickedObject;
 import gov.nasa.worldwind.pick.PickedObjectList;
-import gov.nasa.worldwind.render.Color;
-import gov.nasa.worldwind.render.DrawContext;
-import gov.nasa.worldwind.render.OrderedRenderable;
+import gov.nasa.worldwind.render.*;
 import gov.nasa.worldwind.terrain.ElevationModel;
 import gov.nasa.worldwind.terrain.SectorGeometry;
 import gov.nasa.worldwind.terrain.SectorGeometryList;
+import gov.nasa.worldwind.util.GLRuntimeCapabilities;
 import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.OGLStackHandler;
 import gov.nasa.worldwind.util.PerformanceStatistic;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+
+import static android.opengl.GLES20.*;
+import static gov.nasa.worldwind.util.OGLStackHandler.GL_POLYGON_BIT;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -48,6 +52,14 @@ public class SceneController extends WWObjectImpl {
 
 	protected Set<String> perFrameStatisticsKeys = new HashSet<String>();
 	protected final Map<String, PerformanceStatistic> perFrameStatistics = Collections.synchronizedMap(new ConcurrentHashMap<String, PerformanceStatistic>());
+	protected GLRuntimeCapabilities glRuntimeCaps = new GLRuntimeCapabilities();
+
+	/** Support class used to build the composite representation of surface objects as a list of SurfaceTiles. */
+	protected SurfaceObjectTileBuilder surfaceObjectTileBuilder;
+	/** The composite surface object representation. Populated each frame by the {@link #surfaceObjectTileBuilder}. */
+	protected List<SurfaceTile> surfaceObjectTiles = new ArrayList<SurfaceTile>();
+	/** The display name for the surface object tile count performance statistic. */
+	protected static final String SURFACE_OBJECT_TILE_COUNT_NAME = "Surface Object Tiles";
 
 	protected SceneController() {
 		this.setVerticalExaggeration(Configuration.getDoubleValue(AVKey.VERTICAL_EXAGGERATION));
@@ -257,6 +269,8 @@ public class SceneController extends WWObjectImpl {
 		}
 
 //		perFrameStatistics.clear();
+		this.surfaceObjectTiles.clear(); // Clear the surface object tiles generated during the last frame.
+		this.glRuntimeCaps.initialize();
 		// Prepare the drawing context for a new frame then cause this scene controller to draw its content. There is no
 		// need to explicitly swap the front and back buffers here, as the owner WorldWindow does this for us. In the
 		// case of WorldWindowGLSurfaceView, the GLSurfaceView automatically swaps the front and back buffers for us.
@@ -298,6 +312,7 @@ public class SceneController extends WWObjectImpl {
 			this.applyView(dc);
 			this.createPickFrustum(dc);
 			this.createTerrain(dc);
+			this.preRender(dc);
 //			this.clearFrame(dc);
 //			this.pick(dc);
 			this.clearFrame(dc);
@@ -310,6 +325,7 @@ public class SceneController extends WWObjectImpl {
 	protected void initializeDrawContext(DrawContext dc, int viewportWidth, int viewportHeight) {
 		dc.initialize(viewportWidth, viewportHeight);
 		dc.setFrameTimeStamp(SystemClock.elapsedRealtime());
+		dc.setGLRuntimeCapabilities(glRuntimeCaps);
 		dc.setModel(this.model);
 		dc.setView(this.view);
 		dc.setVerticalExaggeration(this.verticalExaggeration);
@@ -380,8 +396,51 @@ public class SceneController extends WWObjectImpl {
 		dc.setVisibleSector(surfaceGeometry != null ? surfaceGeometry.getSector() : null);
 	}
 
+	protected void preRender(DrawContext dc)
+	{
+		try
+		{
+			dc.setPreRenderMode(true);
+
+			// Pre-render the layers.
+			if (dc.getLayers() != null)
+			{
+				for (Layer layer : dc.getLayers())
+				{
+					try
+					{
+						dc.setCurrentLayer(layer);
+						layer.preRender(dc);
+					}
+					catch (Exception e)
+					{
+						String message = Logging.getMessage("SceneController.ExceptionWhilePreRenderingLayer",
+								(layer != null ? layer.getClass().getName() : Logging.getMessage("term.unknown")));
+						Logging.error(message, e);
+						// Don't abort; continue on to the next layer.
+					}
+				}
+				dc.setCurrentLayer(null);
+			}
+
+			// Pre-render the deferred/ordered surface renderables.
+			this.preRenderOrderedSurfaceRenderables(dc);
+		}
+		catch (Exception e)
+		{
+			Logging.error(Logging.getMessage("BasicSceneController.ExceptionDuringPreRendering"),
+					e);
+		}
+		finally
+		{
+			dc.setPreRenderMode(false);
+		}
+	}
+
 	protected void draw(DrawContext dc) {
 		this.drawLayers(dc);
+		// Draw the deferred/ordered surface renderables.
+		this.drawOrderedSurfaceRenderables(dc);
 		this.drawOrderedRenderables(dc);
 		this.drawDiagnosticDisplays(dc);
 	}
@@ -485,6 +544,8 @@ public class SceneController extends WWObjectImpl {
 			return;
 
 		this.pickLayers(dc);
+		// Pick against the deferred/ordered surface renderables.
+		this.pickOrderedSurfaceRenderables(dc);
 		this.pickOrderedRenderables(dc);
 	}
 
@@ -608,5 +669,180 @@ public class SceneController extends WWObjectImpl {
 		}
 
 		return listA;
+	}
+
+	//**************************************************************//
+	//********************  Ordered Surface Renderable  ************//
+	//**************************************************************//
+
+	protected void preRenderOrderedSurfaceRenderables(DrawContext dc)
+	{
+		if (dc.getOrderedSurfaceRenderables().isEmpty())
+			return;
+
+		dc.setOrderedRenderingMode(true);
+
+		// Build a composite representation of the SurfaceObjects. This operation potentially modifies the framebuffer
+		// contents to update surface tile textures, therefore it must be executed during the preRender phase.
+		this.buildCompositeSurfaceObjects(dc);
+
+		// PreRender the individual deferred/ordered surface renderables.
+		int logCount = 0;
+		while (dc.getOrderedSurfaceRenderables().peek() != null)
+		{
+			try
+			{
+				OrderedRenderable or = dc.getOrderedSurfaceRenderables().poll();
+				if (or instanceof PreRenderable)
+					((PreRenderable) or).preRender(dc);
+			}
+			catch (Exception e)
+			{
+				Logging.warning(Logging.getMessage("BasicSceneController.ExceptionDuringPreRendering"), e);
+
+				// Limit how many times we log a problem.
+				if (++logCount > Logging.getMaxMessageRepeatCount())
+					break;
+			}
+		}
+
+		dc.setOrderedRenderingMode(false);
+	}
+
+	protected void pickOrderedSurfaceRenderables(DrawContext dc)
+	{
+		dc.setOrderedRenderingMode(true);
+
+		// Pick the individual deferred/ordered surface renderables. We don't use the composite representation of
+		// SurfaceObjects because we need to distinguish between individual objects. Therefore we let each object handle
+		// drawing and resolving picking.
+		while (dc.getOrderedSurfaceRenderables().peek() != null)
+		{
+			OrderedRenderable or = dc.getOrderedSurfaceRenderables().poll();
+			dc.setCurrentLayer(or.getLayer());
+			or.pick(dc, dc.getPickPoint());
+			dc.setCurrentLayer(null);
+		}
+
+		dc.setOrderedRenderingMode(false);
+	}
+
+	protected void drawOrderedSurfaceRenderables(DrawContext dc)
+	{
+		dc.setOrderedRenderingMode(true);
+
+		// Draw the composite representation of the SurfaceObjects created during preRendering.
+		this.drawCompositeSurfaceObjects(dc);
+
+		// Draw the individual deferred/ordered surface renderables. SurfaceObjects that add themselves to the ordered
+		// surface renderable queue during preRender are drawn in drawCompositeSurfaceObjects. Since this invokes
+		// SurfaceObject.render during preRendering, SurfaceObjects should not add themselves to the ordered surface
+		// renderable queue for rendering. We assume this queue is not populated with SurfaceObjects that participated
+		// in the composite representation created during preRender.
+		while (dc.getOrderedSurfaceRenderables().peek() != null)
+		{
+			try
+			{
+				OrderedRenderable or = dc.getOrderedSurfaceRenderables().poll();
+				dc.setCurrentLayer(or.getLayer());
+				or.render(dc);
+			}
+			catch (Exception e)
+			{
+				Logging.warning(Logging.getMessage("BasicSceneController.ExceptionDuringRendering"), e);
+			} finally {
+				dc.setCurrentLayer(null);
+			}
+		}
+
+		dc.setOrderedRenderingMode(false);
+	}
+
+	/**
+	 * Builds a composite representation for all {@link gov.nasa.worldwind.render.SurfaceObject} instances in the draw
+	 * context's ordered surface renderable queue. While building the composite representation this invokes {@link
+	 * gov.nasa.worldwind.render.SurfaceObject#render(gov.nasa.worldwind.render.DrawContext)} in ordered rendering mode.
+	 * This does nothing if the ordered surface renderable queue is empty, or if it does not contain any
+	 * SurfaceObjects.
+	 * <p/>
+	 * This method is called during the preRender phase, and is therefore free to modify the framebuffer contents to
+	 * create the composite representation.
+	 *
+	 * @param dc The drawing context containing the surface objects to build a composite representation for.
+	 *
+	 * @see gov.nasa.worldwind.render.DrawContext#getOrderedSurfaceRenderables()
+	 */
+	protected void buildCompositeSurfaceObjects(DrawContext dc)
+	{
+		// If the the draw context's ordered surface renderable queue is empty, then there are no surface objects to
+		// build a composite representation of.
+		if (dc.getOrderedSurfaceRenderables().isEmpty())
+			return;
+
+		// Lazily create the support object used to build the composite representation. We keep a reference to the
+		// SurfaceObjectTileBuilder used to build the tiles because it acts as a cache key to the tiles and determines
+		// when the tiles must be updated. The tile builder does not retain any references the SurfaceObjects, so
+		// keeping a reference to it does not leak memory should we never use it again.
+		if (this.surfaceObjectTileBuilder == null)
+			this.surfaceObjectTileBuilder = this.createSurfaceObjectTileBuilder();
+
+		// Build the composite representation as a list of surface tiles.
+		List<SurfaceTile> tiles = this.surfaceObjectTileBuilder.buildTiles(dc, dc.getOrderedSurfaceRenderables());
+		if (tiles != null)
+			this.surfaceObjectTiles.addAll(tiles);
+
+		if(WorldWindowImpl.DEBUG)
+			Logging.verbose("Built composite surface object tiles #"+tiles.size());
+	}
+
+	/**
+	 * Causes the scene controller to draw the composite representation of all {@link
+	 * gov.nasa.worldwind.render.SurfaceObject} instances in the draw context's ordered surface renderable queue. This
+	 * representation was built during the preRender phase. This does nothing if the ordered surface renderable queue is
+	 * empty, or if it does not contain any SurfaceObjects.
+	 *
+	 * @param dc The drawing context containing the surface objects who's composite representation is drawn.
+	 */
+	protected void drawCompositeSurfaceObjects(DrawContext dc)
+	{
+		// The composite representation is stored as a list of surface tiles. If the list is empty, then there are no
+		// SurfaceObjects to draw.
+		if (this.surfaceObjectTiles.isEmpty())
+			return;
+
+		int attributeMask =
+				GL_COLOR_BUFFER_BIT   // For alpha test enable, blend enable, alpha func, blend func, blend ref.
+						| GL_POLYGON_BIT; // For cull face enable, cull face, polygon mode.
+
+		OGLStackHandler ogsh = new OGLStackHandler();
+		ogsh.pushAttrib(attributeMask);
+		try
+		{
+			glEnable(GL_BLEND);
+			glEnable(GL_CULL_FACE);
+			glCullFace(GL_BACK);
+			// Enable blending in premultiplied color mode. The color components in each surface object tile are
+			// premultiplied by the alpha component.
+			glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+			dc.getSurfaceTileRenderer().renderTiles(dc, this.surfaceObjectTiles);
+			dc.setPerFrameStatistic(PerformanceStatistic.IMAGE_TILE_COUNT, SURFACE_OBJECT_TILE_COUNT_NAME,
+					this.surfaceObjectTiles.size());
+		}
+		finally
+		{
+			ogsh.popAttrib(attributeMask);
+		}
+	}
+
+	/**
+	 * Returns a new {@link gov.nasa.worldwind.render.SurfaceObjectTileBuilder} configured to build a composite
+	 * representation of {@link gov.nasa.worldwind.render.SurfaceObject} instances.
+	 *
+	 * @return A new {@link gov.nasa.worldwind.render.SurfaceObjectTileBuilder}.
+	 */
+	protected SurfaceObjectTileBuilder createSurfaceObjectTileBuilder()
+	{
+		return new SurfaceObjectTileBuilder();
 	}
 }

@@ -38,9 +38,17 @@ public class TextRenderer {
 	FloatBuffer vertexBuf;
 	FloatBuffer textureBuf;
 
+    public TextRenderer(DrawContext dc) {
+        this(dc, null);
+    }
+
 	public TextRenderer(DrawContext dc, Paint paint) {
 		this.drawContext = dc;
 		this.paint = paint;
+        if(paint==null) {
+            this.paint = new Paint();
+            this.paint.setColor(0xFFFFFFFF);
+        }
 		vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder())
 				.asFloatBuffer().put(unitQuadVerts);
 		textureBuf = ByteBuffer.allocateDirect(textureVerts.length * 4).order(ByteOrder.nativeOrder())
@@ -57,6 +65,10 @@ public class TextRenderer {
 	public void setColor(float[] color) {
 		this.color = color;
 	}
+
+    public Paint getPaint() {
+        return this.paint;
+    }
 
 	public void draw(String text, int x, int y) {
 		Rect viewport = drawContext.getView().getViewport();
@@ -158,4 +170,14 @@ public class TextRenderer {
 
 		return program;
 	}
+
+    public void beginDrawing() {
+        GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+        GLES20.glDepthMask(false);
+    }
+
+    public void endDrawing() {
+        GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+        GLES20.glDepthMask(true);
+    }
 }

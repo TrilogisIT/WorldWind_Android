@@ -1,0 +1,4 @@
+gen-external-apklibs/
+bin/
+gen/
+target/

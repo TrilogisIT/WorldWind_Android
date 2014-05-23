@@ -6,6 +6,7 @@
 package gov.nasa.worldwind.geom;
 
 import gov.nasa.worldwind.globes.Globe;
+import gov.nasa.worldwind.render.DrawContext;
 import gov.nasa.worldwind.util.Logging;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -17,10 +18,276 @@ import java.util.NoSuchElementException;
  * @version $Id: Sector.java 811 2012-09-26 17:44:35Z dcollins $
  */
 public class Sector implements Iterable<LatLon> {
+	/** A <code>Sector</code> of latitude [-90 degrees, + 90 degrees] and longitude [-180 degrees, + 180 degrees]. */
+	public static final Sector FULL_SPHERE = new Sector(Angle.NEG90, Angle.POS90, Angle.NEG180, Angle.POS180);
+	public static final Sector EMPTY_SECTOR = new Sector(Angle.ZERO, Angle.ZERO, Angle.ZERO, Angle.ZERO);
+
 	public final Angle minLatitude;
 	public final Angle maxLatitude;
 	public final Angle minLongitude;
 	public final Angle maxLongitude;
+
+	public static Sector boundingSector(LatLon pA, LatLon pB)
+	{
+		if (pA == null || pB == null)
+		{
+			String message = Logging.getMessage("nullValue.PositionsListIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		double minLat = pA.getLatitude().degrees;
+		double minLon = pA.getLongitude().degrees;
+		double maxLat = pA.getLatitude().degrees;
+		double maxLon = pA.getLongitude().degrees;
+
+		if (pB.getLatitude().degrees < minLat)
+			minLat = pB.getLatitude().degrees;
+		else if (pB.getLatitude().degrees > maxLat)
+			maxLat = pB.getLatitude().degrees;
+
+		if (pB.getLongitude().degrees < minLon)
+			minLon = pB.getLongitude().degrees;
+		else if (pB.getLongitude().degrees > maxLon)
+			maxLon = pB.getLongitude().degrees;
+
+		return Sector.fromDegrees(minLat, maxLat, minLon, maxLon);
+	}
+
+	/**
+	 * Returns a new <code>Sector</code> encompassing a circle centered at a given position, with a given radius in
+	 * meter.
+	 *
+	 * @param globe  a Globe instance.
+	 * @param center the circle center position.
+	 * @param radius the circle radius in meter.
+	 *
+	 * @return the circle bounding sector.
+	 */
+	public static Sector boundingSector(Globe globe, LatLon center, double radius)
+	{
+		double halfDeltaLatRadians = radius / globe.getRadiusAt(center);
+		double halfDeltaLonRadians = Math.PI * 2;
+		if (center.getLatitude().cos() > 0)
+			halfDeltaLonRadians = halfDeltaLatRadians / center.getLatitude().cos();
+
+		return new Sector(
+				Angle.fromRadiansLatitude(center.getLatitude().radians - halfDeltaLatRadians),
+				Angle.fromRadiansLatitude(center.getLatitude().radians + halfDeltaLatRadians),
+				Angle.fromRadiansLongitude(center.getLongitude().radians - halfDeltaLonRadians),
+				Angle.fromRadiansLongitude(center.getLongitude().radians + halfDeltaLonRadians));
+	}
+
+	public static Sector boundingSector(Iterable<? extends LatLon> locations)
+	{
+		if (locations == null)
+		{
+			String message = Logging.getMessage("nullValue.PositionsListIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (!locations.iterator().hasNext())
+			return EMPTY_SECTOR; // TODO: should be returning null
+
+		double minLat = Angle.POS90.getDegrees();
+		double minLon = Angle.POS180.getDegrees();
+		double maxLat = Angle.NEG90.getDegrees();
+		double maxLon = Angle.NEG180.getDegrees();
+
+		for (LatLon p : locations)
+		{
+			double lat = p.getLatitude().getDegrees();
+			if (lat < minLat)
+				minLat = lat;
+			if (lat > maxLat)
+				maxLat = lat;
+
+			double lon = p.getLongitude().getDegrees();
+			if (lon < minLon)
+				minLon = lon;
+			if (lon > maxLon)
+				maxLon = lon;
+		}
+
+		return Sector.fromDegrees(minLat, maxLat, minLon, maxLon);
+	}
+
+	/**
+	 * Returns an array of Sectors encompassing a circle centered at a given position, with a given radius in meters. If
+	 * the geometry defined by the circle and radius spans the international dateline, this will return two sectors, one
+	 * for each side of the dateline. Otherwise, this will return a single bounding sector. This returns null if the
+	 * radius is zero.
+	 *
+	 * @param globe  a Globe instance.
+	 * @param center the circle center location.
+	 * @param radius the circle radius in meters.
+	 *
+	 * @return the circle's bounding sectors, or null if the radius is zero.
+	 *
+	 * @throws IllegalArgumentException if either the globe or center is null, or if the radius is less than zero.
+	 */
+	public static Sector[] splitBoundingSectors(Globe globe, LatLon center, double radius)
+	{
+		if (globe == null)
+		{
+			String message = Logging.getMessage("nullValue.GlobeIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (center == null)
+		{
+			String message = Logging.getMessage("nullValue.CenterIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (radius < 0)
+		{
+			String message = Logging.getMessage("generic.ArgumentOutOfRange", "radius < 0");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		double halfDeltaLatRadians = radius / globe.getRadiusAt(center);
+
+		double minLat = center.getLatitude().radians - halfDeltaLatRadians;
+		double maxLat = center.getLatitude().radians + halfDeltaLatRadians;
+
+		double minLon;
+		double maxLon;
+
+		// If the circle does not cross a pole, then compute the max and min longitude.
+		if (minLat >= Angle.NEG90.radians && maxLat <= Angle.POS90.radians)
+		{
+			// We want to find the maximum and minimum longitude values on the circle. We will start with equation 5-6
+			// from "Map Projections - A Working Manual", page 31, and solve for the value of Az that will maximize
+			// lon - lon0.
+			//
+			// Eq. 5-6:
+			// lon = lon0 + arctan( h(lat0, c, az) )
+			// h(lat0, c, az) = sin(c) sin(az) / (cos(lat0) cos(c) - sin(lat1) sin(c) cos(Az))
+			//
+			// Where (lat0, lon0) are the starting coordinates, c is the angular distance along the great circle from
+			// the starting coordinate, Az is the azimuth, and lon is the end position longitude. All values are in
+			// radians.
+			//
+			// lon - lon0 is maximized when h(lat0, c, Az) is maximized because arctan(x) -> 1 as x -> infinity.
+			//
+			// Taking the partial derivative of h with respect to Az we get:
+			// h'(Az) = (sin(c) cos(c) cos(lat0) cos(Az) - sin^2(c) sin(lat0)) / (cos(lat0) cos(c) - sin(lat0) sin(c) cos(Az))^2
+			//
+			// Setting h' = 0 to find maxima:
+			// 0 = sin(c) cos(c) cos(lat0) cos(Az) - sin^2(c) sin(lat0)
+			//
+			// And solving for Az:
+			// Az = arccos( tan(lat0) tan(c) )
+			//
+			// +/- Az are bearings from North that will give positions of max and min longitude.
+
+			// If halfDeltaLatRadians == 90 degrees, then tan is undefined. This can happen if the circle radius is one
+			// quarter of the globe diameter, and the circle is centered on the equator. tan(center lat) is always
+			// defined because the center lat is in the range -90 to 90 exclusive. If it were equal to 90, then the
+			// circle would cover a pole.
+			double az;
+			if (Math.abs(Angle.POS90.radians - halfDeltaLatRadians)
+					> 0.001) // Consider within 1/1000th of a radian to be equal
+				az = Math.acos(Math.tan(halfDeltaLatRadians) * Math.tan(center.latitude.radians));
+			else
+				az = Angle.POS90.radians;
+
+			LatLon east = LatLon.greatCircleEndPosition(center, az, halfDeltaLatRadians);
+			LatLon west = LatLon.greatCircleEndPosition(center, -az, halfDeltaLatRadians);
+
+			minLon = Math.min(east.longitude.radians, west.longitude.radians);
+			maxLon = Math.max(east.longitude.radians, west.longitude.radians);
+		}
+		else
+		{
+			// If the circle crosses the pole then it spans the full circle of longitude
+			minLon = Angle.NEG180.radians;
+			maxLon = Angle.POS180.radians;
+		}
+
+		LatLon ll = new LatLon(
+				Angle.fromRadiansLatitude(minLat),
+				Angle.normalizedLongitude(Angle.fromRadians(minLon)));
+		LatLon ur = new LatLon(
+				Angle.fromRadiansLatitude(maxLat),
+				Angle.normalizedLongitude(Angle.fromRadians(maxLon)));
+
+		Iterable<? extends LatLon> locations = java.util.Arrays.asList(ll, ur);
+
+		if (LatLon.locationsCrossDateLine(locations))
+		{
+			return splitBoundingSectors(locations);
+		}
+		else
+		{
+			Sector s = boundingSector(locations);
+			return (s != null && !s.equals(Sector.EMPTY_SECTOR)) ? new Sector[] {s} : null;
+		}
+	}
+
+	public static Sector[] splitBoundingSectors(Iterable<? extends LatLon> locations)
+	{
+		if (locations == null)
+		{
+			String message = Logging.getMessage("nullValue.LocationInListIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (!locations.iterator().hasNext())
+			return null;
+
+		double minLat = Angle.POS90.getDegrees();
+		double minLon = Angle.POS180.getDegrees();
+		double maxLat = Angle.NEG90.getDegrees();
+		double maxLon = Angle.NEG180.getDegrees();
+
+		LatLon lastLocation = null;
+
+		for (LatLon ll : locations)
+		{
+			double lat = ll.getLatitude().getDegrees();
+			if (lat < minLat)
+				minLat = lat;
+			if (lat > maxLat)
+				maxLat = lat;
+
+			double lon = ll.getLongitude().getDegrees();
+			if (lon >= 0 && lon < minLon)
+				minLon = lon;
+			if (lon <= 0 && lon > maxLon)
+				maxLon = lon;
+
+			if (lastLocation != null)
+			{
+				double lastLon = lastLocation.getLongitude().getDegrees();
+				if (Math.signum(lon) != Math.signum(lastLon))
+				{
+					if (Math.abs(lon - lastLon) < 180)
+					{
+						// Crossing the zero longitude line too
+						maxLon = 0;
+						minLon = 0;
+					}
+				}
+			}
+			lastLocation = ll;
+		}
+
+		if (minLat == maxLat && minLon == maxLon)
+			return null;
+
+		return new Sector[]
+				{
+						Sector.fromDegrees(minLat, maxLat, minLon, 180), // Sector on eastern hemisphere.
+						Sector.fromDegrees(minLat, maxLat, -180, maxLon) // Sector on western hemisphere.
+				};
+	}
 
 	public Sector() {
 		this.minLatitude = new Angle();
@@ -481,6 +748,60 @@ public class Sector implements Iterable<LatLon> {
 	}
 
 	/**
+	 * Returns an approximation of the distance in model coordinates between the surface geometry defined by this sector
+	 * and the specified model coordinate point. The returned value represents the shortest distance between the
+	 * specified point and this sector's corner points or its center point. The draw context defines the globe and the
+	 * elevations that are used to compute the corner points and the center point.
+	 *
+	 * @param dc    The draw context defining the surface geometry.
+	 * @param point The model coordinate point to compute a distance to.
+	 *
+	 * @return The distance between this sector's surface geometry and the specified point, in model coordinates.
+	 *
+	 * @throws IllegalArgumentException if any argument is null.
+	 */
+	public double distanceTo(DrawContext dc, Vec4 point)
+	{
+		if (dc == null)
+		{
+			String message = Logging.getMessage("nullValue.DrawContextIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (point == null)
+		{
+			String message = Logging.getMessage("nullValue.PointIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+		Vec4[] corners = new Vec4[4];
+		this.computeCornerPoints(dc.getGlobe(), dc.getVerticalExaggeration(), corners);
+		Vec4 centerPoint = new Vec4();
+		this.computeCentroidPoint(dc.getGlobe(), dc.getVerticalExaggeration(), centerPoint);
+
+		// Get the distance for each of the sector's corners and its center.
+		double d1 = point.distanceTo3(corners[0]);
+		double d2 = point.distanceTo3(corners[1]);
+		double d3 = point.distanceTo3(corners[2]);
+		double d4 = point.distanceTo3(corners[3]);
+		double d5 = point.distanceTo3(centerPoint);
+
+		// Find the minimum distance.
+		double minDistance = d1;
+		if (minDistance > d2)
+			minDistance = d2;
+		if (minDistance > d3)
+			minDistance = d3;
+		if (minDistance > d4)
+			minDistance = d4;
+		if (minDistance > d5)
+			minDistance = d5;
+
+		return minDistance;
+	}
+
+	/**
 	 * Computes the Cartesian coordinates of a Sector's center.
 	 * 
 	 * @param globe
@@ -505,8 +826,8 @@ public class Sector implements Iterable<LatLon> {
 			throw new IllegalArgumentException(msg);
 		}
 
-		Angle lat = Angle.fromDegrees(0.5 * (this.minLatitude.radians + this.maxLatitude.radians));
-		Angle lon = Angle.fromDegrees(0.5 * (this.minLongitude.radians + this.maxLongitude.radians));
+		Angle lat = Angle.fromDegrees(0.5 * (this.minLatitude.degrees + this.maxLatitude.degrees));
+		Angle lon = Angle.fromDegrees(0.5 * (this.minLongitude.degrees + this.maxLongitude.degrees));
 		globe.computePointFromPosition(lat, lon, exaggeration * globe.getElevation(lat, lon), result);
 	}
 
