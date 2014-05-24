@@ -23,6 +23,9 @@
     <Layer
         actuate="onRequest"
         href="config/Earth/GeoserverEtc1Test.xml" />
+    <Layer
+        actuate="onRequest"
+        href="config/Earth/BlackMarbleMapserverEtc1Test.xml" />
     <!--<Layer href="config/Earth/MSVirtualEarthAerialLayer.xml" 
         actuate="onRequest"/>    -->
     <Layer

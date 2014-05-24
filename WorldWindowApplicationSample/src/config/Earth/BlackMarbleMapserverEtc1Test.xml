@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (C) 2012 United States Government as represented by the Administrator of the
+  ~ National Aeronautics and Space Administration.
+  ~ All Rights Reserved.
+  -->
+
+<!--Blue Marble Next generation 2004 + Bathymetry imagery, using the default month (May).-->
+<!--$Id: BMNGWMSLayer.xml 756 2012-09-06 19:05:36Z tgaskins $-->
+<Layer version="1" layerType="TiledImageLayer">
+    <DisplayName>blackmarble</DisplayName>
+    <Service serviceName="OGC:WMS" version="1.1.0">
+        <GetCapabilitiesURL>http://ec2-54-85-182-200.compute-1.amazonaws.com/mywms</GetCapabilitiesURL>
+        <GetMapURL>http://ec2-54-85-182-200.compute-1.amazonaws.com/mywms</GetMapURL>
+        <LayerNames>blackmarble</LayerNames>
+    </Service>
+    <!-- day month year hours:minutes:seconds timezone 
+    <LastUpdate>26 03 2013 00:00:00 GMT</LastUpdate>-->
+    <DataCacheName>blackmarble</DataCacheName>
+    <ImageFormat>image/dds; format=ETC1</ImageFormat>
+    <AvailableImageFormats>
+        <ImageFormat>image/dds; format=ETC1</ImageFormat>
+    </AvailableImageFormats>
+    <FormatSuffix>.dds</FormatSuffix>
+    <NumLevels count="16" numEmpty="0"/>
+    <TileOrigin>
+        <LatLon units="degrees" latitude="-90" longitude="-180"/>
+    </TileOrigin>
+    <LevelZeroTileDelta>
+        <LatLon units="degrees" latitude="60" longitude="60"/>
+    </LevelZeroTileDelta>
+    <TileSize>
+        <Dimension width="512" height="512"/>
+    </TileSize>
+    <Sector>
+        <SouthWest>
+            <LatLon units="degrees" latitude="-90" longitude="-180"/>
+        </SouthWest>
+        <NorthEast>
+            <LatLon units="degrees" latitude="90" longitude="180"/>
+        </NorthEast>
+    </Sector>
+    <RetrievalTimeouts>
+        <ReadTimeout>
+            <Time units="milliseconds" value="30000"/>
+        </ReadTimeout>
+    </RetrievalTimeouts>
+    <!-- The following lines are included just to show how to set the values to other than their defaults -->
+    <MaxAbsentTileAttempts>2</MaxAbsentTileAttempts>
+    <MinAbsentTileCheckInterval>1000</MinAbsentTileCheckInterval>
+</Layer>

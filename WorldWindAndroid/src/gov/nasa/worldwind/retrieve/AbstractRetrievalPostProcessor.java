@@ -6,15 +6,23 @@
 
 package gov.nasa.worldwind.retrieve;
 
-import android.graphics.Bitmap;
-import gov.nasa.worldwind.avlist.*;
-import gov.nasa.worldwind.util.*;
-import gov.nasa.worldwind.util.dds.DDSCompressor;
+import gov.nasa.worldwind.avlist.AVKey;
+import gov.nasa.worldwind.avlist.AVList;
+import gov.nasa.worldwind.util.ImageUtil;
+import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.WWIO;
+import gov.nasa.worldwind.util.WWUtil;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedByInterruptException;
+
+import nicastel.renderscripttexturecompressor.dds.ETC1DDSCompressor;
+import android.graphics.Bitmap;
 
 /**
  * Abstract base class for retrieval post-processors. Verifies the retrieval operation and dispatches the content to the
@@ -226,6 +234,7 @@ public abstract class AbstractRetrievalPostProcessor implements RetrievalPostPro
     protected boolean saveBuffer(ByteBuffer buffer) throws IOException
     {
         File outFile = this.getOutputFile();
+        System.out.println("outFile : "+outFile);
 
         if (outFile == null)
             return false;
@@ -641,7 +650,7 @@ public abstract class AbstractRetrievalPostProcessor implements RetrievalPostPro
 //        if (image != null)
 //            buffer = DDSCompressor.compressImage(image);
 //        else
-            buffer = DDSCompressor.compressImageBuffer(this.getRetriever().getBuffer());
+            buffer = ETC1DDSCompressor.compressImageBuffer(this.getRetriever().getBuffer());
 
         return buffer;
     }

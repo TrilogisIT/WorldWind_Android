@@ -25,7 +25,6 @@ import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.layers.Layer;
 import gov.nasa.worldwind.layers.LayerList;
-import gov.nasa.worldwind.util.dds.ETC1Compressor;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,6 +33,7 @@ import java.util.List;
 import nicastel.android.ww.dialogs.AddWMSDialog;
 import nicastel.android.ww.dialogs.AddWMSDialog.OnAddWMSLayersListener;
 import nicastel.android.ww.dialogs.TocDialog;
+import nicastel.renderscripttexturecompressor.dds.ETC1Compressor;
 import nicastel.renderscripttexturecompressor.etc1.rs.ScriptC_etc1compressor;
 import android.app.Activity;
 import android.os.Bundle;
@@ -89,7 +89,7 @@ public class WorldWindowActivity extends Activity {
 
         // Setting the location of the file store on Android as cache directory. Doing this, when user has no space left
         // on the device, if he asks to the system to free Cache of apps, all the MB/GB of WorldWindApplication will be cleared!
-        File fileDir = getCacheDir();// getFilesDir();
+        File fileDir = getExternalCacheDir();// getFilesDir();
         if (null != fileDir && fileDir.exists() && fileDir.canWrite()) {
             // create .nomedia file, so pictures will not be visible in the gallery (otherwise, it's really awful to see all of the tiles as images!)
             File output = new File(fileDir, ".nomedia");

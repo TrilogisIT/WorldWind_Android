@@ -10,9 +10,10 @@ import gov.nasa.worldwind.util.ImageUtil;
 import gov.nasa.worldwind.util.Logging;
 import gov.nasa.worldwind.util.WWIO;
 import gov.nasa.worldwind.util.WWMath;
+import nicastel.renderscripttexturecompressor.dds.ETC1Compressor;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Bitmap.Config;
+import android.graphics.BitmapFactory;
 import android.graphics.BitmapFactory.Options;
 
 /**
@@ -63,7 +64,7 @@ public class DDSCompressor {
 		
 		Options opts = new BitmapFactory.Options();
 		//opts.inPreferQualityOverSpeed = false;
-		opts.inPreferredConfig = Config.RGB_565;
+		opts.inPreferredConfig = Config.ARGB_8888;
         Bitmap image = BitmapFactory.decodeStream(inputStream, null, opts);
         
 		if (image == null) {
@@ -385,7 +386,7 @@ public class DDSCompressor {
 		// data is accessed directly. In this case, such code would be responsible for recognizing the color model
 		// (premultiplied) and behaving accordingly.
 
-		Bitmap.Config mipmapImageType = Bitmap.Config.RGB_565;
+		Bitmap.Config mipmapImageType = Bitmap.Config.ARGB_8888;
 		int maxLevel = ImageUtil.getMaxMipmapLevel(image.getWidth(), image.getHeight());
 
 		return ImageUtil.buildMipmaps(image, mipmapImageType, maxLevel);
