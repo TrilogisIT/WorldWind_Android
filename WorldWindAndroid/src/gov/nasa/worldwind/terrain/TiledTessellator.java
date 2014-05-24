@@ -1170,6 +1170,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	}
 
 	protected void loadGeometryVbos(DrawContext dc, TerrainGeometry geom) {
+		// TODO : offload vbo creation to another thread
 		// Load the terrain geometry into the GpuResourceCache.
 		GpuResourceCache cache = dc.getGpuResourceCache();
 		int[] vboIds = (int[]) cache.get(geom.vboCacheKey);
@@ -1198,6 +1199,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	}
 
 	protected void loadSharedGeometryVBOs(DrawContext dc, TerrainSharedGeometry geom) {
+		// TODO : offload vbo creation to another thread
 		GpuResourceCache cache = dc.getGpuResourceCache();
 		int[] vboIds = (int[]) cache.get(geom.vboCacheKey);
 		if (vboIds != null) return;

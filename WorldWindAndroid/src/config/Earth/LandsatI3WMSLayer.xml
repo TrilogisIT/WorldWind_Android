@@ -10,12 +10,15 @@
     <!-- day month year hours:minutes:seconds timezone -->
     <LastUpdate>26 03 2009 00:00:00 GMT</LastUpdate>
     <DataCacheName>Earth/NASA LandSat I3 WMS</DataCacheName>
-    <ImageFormat>image/png</ImageFormat>
+    <ImageFormat>image/jpeg</ImageFormat>
     <AvailableImageFormats>
+        <ImageFormat>image/jpeg</ImageFormat>
         <ImageFormat>image/png</ImageFormat>
         <ImageFormat>image/dds</ImageFormat>
     </AvailableImageFormats>
-    <FormatSuffix>.png</FormatSuffix>
+    <FormatSuffix>.jpg</FormatSuffix>
+    <!-- to activate client side texture compression  
+    <FormatSuffix>.dds</FormatSuffix>-->
     <NumLevels count="11" numEmpty="5"/>
     <TileOrigin>
         <LatLon units="degrees" latitude="-90" longitude="-180"/>

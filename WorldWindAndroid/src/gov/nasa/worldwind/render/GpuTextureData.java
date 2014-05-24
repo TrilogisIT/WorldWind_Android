@@ -5,14 +5,24 @@
  */
 package gov.nasa.worldwind.render;
 
-import android.graphics.*;
-import android.opengl.*;
 import gov.nasa.worldwind.cache.Cacheable;
-import gov.nasa.worldwind.util.*;
+import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.WWIO;
+import gov.nasa.worldwind.util.WWUtil;
 import gov.nasa.worldwind.util.dds.DDSTextureReader;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
+
+import android.graphics.Bitmap;
+import android.graphics.Bitmap.Config;
+import android.graphics.BitmapFactory;
+import android.graphics.BitmapFactory.Options;
+import android.opengl.GLES20;
+import android.opengl.GLUtils;
+
 
 /**
  * @author dcollins
@@ -142,6 +152,9 @@ public class GpuTextureData implements Cacheable
     }
 
     protected static final int DEFAULT_MARK_LIMIT = 1024;
+    
+//    public static RenderScript rs;
+//    public static ScriptC_etc1compressor script;
 
     protected static GpuTextureData fromStream(InputStream stream)
     {
@@ -155,9 +168,25 @@ public class GpuTextureData implements Cacheable
             if (data != null)
                 return data;
 
-            stream.reset();
+            stream.reset();            
 
-            Bitmap bitmap = BitmapFactory.decodeStream(stream);
+    		Options opts = new BitmapFactory.Options();
+    		opts.inPreferQualityOverSpeed = false;
+    		opts.inPreferredConfig = Config.RGB_565;
+            Bitmap bitmap = BitmapFactory.decodeStream(stream, null, opts);
+//            
+//            if(bitmap != null) {
+//            	ETC1Texture texture = RsETC1Util.compressBitmap(rs, script, bitmap);
+//            	if (texture != null) {
+//    				int estimatedMemorySize = ETC1.ETC_PKM_HEADER_SIZE
+//    						+ texture.getHeight() * texture.getWidth() / 2;
+//    				return PKMGpuTextureData.fromPKMETC1CompressedData(texture,
+//    						estimatedMemorySize);
+//    			} else {
+//    				return null;
+//    			}
+//            }
+            
             return bitmap != null ? new GpuTextureData(bitmap, estimateMemorySize(bitmap)) : null;
         }
         catch (IOException e)

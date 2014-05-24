@@ -132,6 +132,10 @@ public class SurfaceImage implements Renderable, SurfaceTile
         GpuTexture texture = null;
 
         GpuTextureData textureData = PKMGpuTextureData.createTextureData(this.imagePath);
+        if (textureData == null)
+        {
+        	GpuTextureData.createTextureData(this.imagePath);
+        }
         if (textureData != null)
         {
             texture = GpuTexture.createTexture(dc, textureData);

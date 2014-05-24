@@ -137,6 +137,7 @@ public class ImageUtil
         return BitmapFactory.decodeStream(inputStream);
     }
 
+    // TODO : what is this method for ??
     public static Bitmap mapTransparencyColors(Bitmap sourceImage, int[] originalColors)
     {
         if (sourceImage == null)

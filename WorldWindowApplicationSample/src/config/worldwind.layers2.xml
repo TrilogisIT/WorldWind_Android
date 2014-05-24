@@ -20,11 +20,10 @@
     <Layer
         actuate="onRequest"
         href="config/Earth/LandsatI3WMSLayer.xml" />
-    <!--
-          <Layer
-        actuate="onRequest"
-        href="config/Earth/MSVirtualEarthAerialLayer.xml" />
-    -->
+   <!--  <Layer actuate="onRequest" href="config/Earth/GeoserverEtc1Test.xml" /> 
+         <Layer actuate="onRequest" href="config/Earth/BlackMarbleMapserverEtc1Test.xml" /> 
+         <Layer href="config/Earth/MSVirtualEarthAerialLayer.xml" actuate="onRequest"/> 
+      -->
     <Layer
         actuate="onRequest"
         className="gov.nasa.worldwind.layers.WorldMapLayer"

@@ -17,9 +17,14 @@ import gov.nasa.worldwind.exception.WWRuntimeException;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.pick.*;
 import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.pkm.PKMGpuTextureData;
 
+import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.egl.EGLContext;
+import javax.microedition.khronos.egl.EGLDisplay;
 import javax.microedition.khronos.opengles.GL10;
+
 import java.beans.*;
 import java.util.*;
 
@@ -29,6 +34,8 @@ import java.util.*;
  */
 public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurfaceView.Renderer, WorldWindow, WWObject
 {
+	protected static String glVersion;
+	
     protected WWObjectImpl wwo = new WWObjectImpl(this);
     protected SceneController sceneController;
     protected InputHandler inputHandler;
@@ -42,7 +49,7 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
     public WorldWindowGLSurfaceView(Context context)
     {
         super(context);
-
+        
         try
         {
             this.init(null);
@@ -74,7 +81,7 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
     public WorldWindowGLSurfaceView(Context context, EGLConfigChooser configChooser)
     {
         super(context);
-
+        
         try
         {
             this.init(configChooser);
@@ -162,9 +169,17 @@ public class WorldWindowGLSurfaceView extends GLSurfaceView implements GLSurface
         // recognize.
         if (this.gpuResourceCache != null)
             this.gpuResourceCache.clear();
+
+        initGlVersion();
+        PKMGpuTextureData.initTCSupport();
     }
 
-    @Override
+    private void initGlVersion() {
+    	glVersion = GLES20.glGetString(GLES20.GL_VERSION);
+    	Logging.warning("GL version : "+glVersion);
+	}
+
+	@Override
     public boolean onTouchEvent(MotionEvent event)
     {
         // Let the InputHandler process the touch event first. If it returns true indicating that it handled the event,

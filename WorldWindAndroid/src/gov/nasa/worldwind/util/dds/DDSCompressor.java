@@ -10,8 +10,11 @@ import gov.nasa.worldwind.util.ImageUtil;
 import gov.nasa.worldwind.util.Logging;
 import gov.nasa.worldwind.util.WWIO;
 import gov.nasa.worldwind.util.WWMath;
+import nicastel.renderscripttexturecompressor.dds.ETC1Compressor;
 import android.graphics.Bitmap;
+import android.graphics.Bitmap.Config;
 import android.graphics.BitmapFactory;
+import android.graphics.BitmapFactory.Options;
 
 /**
  * DDSCompressor converts in-memory images into a DDS file encoded with one of the DXT block compression algorithms. If
@@ -58,8 +61,12 @@ public class DDSCompressor {
 			Logging.error(message);
 			throw new IllegalArgumentException(message);
 		}
-
-		Bitmap image = BitmapFactory.decodeStream(inputStream);
+		
+		Options opts = new BitmapFactory.Options();
+		//opts.inPreferQualityOverSpeed = false;
+		opts.inPreferredConfig = Config.ARGB_8888;
+        Bitmap image = BitmapFactory.decodeStream(inputStream, null, opts);
+        
 		if (image == null) {
 			return null;
 		}
@@ -191,9 +198,12 @@ public class DDSCompressor {
 	 */
 	public static DXTCompressionAttributes getDefaultCompressionAttributes() {
 		DXTCompressionAttributes attributes = new DXTCompressionAttributes();
+		
+		// TODO bug with 2*2 image but bug with worldwind dds reader if there is no mimmap
 		attributes.setBuildMipmaps(true); // Always build mipmaps.
+		
 		attributes.setPremultiplyAlpha(true); // Always create premultiplied alpha format files..
-		attributes.setDXTFormat(0); // Allow the DDSCompressor to choose the appropriate DXT format.
+		attributes.setDXTFormat(DDSConstants.D3DFMT_ETC1); // Allow the DDSCompressor to choose the appropriate DXT format.
 		return attributes;
 	}
 
@@ -347,12 +357,14 @@ public class DDSCompressor {
 		// Otherwise, we choose one automatically from the image type. If no choice can be made from the image type,
 		// we default to using a DXT3 compressor.
 
-		if (attributes.getDXTFormat() == DDSConstants.D3DFMT_DXT1) {
+		if (attributes.getDXTFormat() == DDSConstants.D3DFMT_ETC1) {
+			return new ETC1Compressor();
+		} else if (attributes.getDXTFormat() == DDSConstants.D3DFMT_DXT1) {
 			return new DXT1Compressor();
 		} else if (attributes.getDXTFormat() == DDSConstants.D3DFMT_DXT2 || attributes.getDXTFormat() == DDSConstants.D3DFMT_DXT3) {
 			return new DXT3Compressor();
 		} else if (!image.hasAlpha()) {
-			return new DXT1Compressor();
+			return new ETC1Compressor();
 		} else {
 			return new DXT3Compressor();
 		}
