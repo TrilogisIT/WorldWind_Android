@@ -7,7 +7,6 @@ package gov.nasa.worldwind.geom;
 
 import gov.nasa.worldwind.terrain.Terrain;
 import gov.nasa.worldwind.util.Logging;
-
 import java.nio.FloatBuffer;
 import java.util.Arrays;
 
@@ -26,7 +25,32 @@ import java.util.Arrays;
  */
 public class Matrix
 {
+	public static final Matrix IDENTITY = new Matrix(
+			1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 1, 0,
+			0, 0, 0, 1);
+
+	//Matrix indices as row major notation (Row x Column)
+	public static final int M00 = 0;  // 0;
+	public static final int M01 = 1;  // 1;
+	public static final int M02 = 2;  // 2;
+	public static final int M03 = 3; // 3;
+	public static final int M10 = 4;  // 4;
+	public static final int M11 = 5;  // 5;
+	public static final int M12 = 6;  // 6;
+	public static final int M13 = 7; // 7;
+	public static final int M20 = 8;  // 8;
+	public static final int M21 = 9;  // 9;
+	public static final int M22 = 10; // 10;
+	public static final int M23 = 11; // 11;
+	public static final int M30 = 12;  // 12;
+	public static final int M31 = 13;  // 13;
+	public static final int M32 = 14; // 14;
+	public static final int M33 = 15; // 15;
+
     public final double[] m = new double[16];
+
     // This is a temporary vector used to prevent allocating a point in order to compute cartesian points from
     // geographic positions in the setter methods below.
     protected Vec4 point;
@@ -337,6 +361,486 @@ public class Matrix
         return Matrix.fromIdentity().setOrthographic(left, right, bottom, top, near, far);
     }
 
+	public static Matrix fromOrthographic2D(double width, double height)
+	{
+		if (width <= 0.0)
+		{
+			String msg = Logging.getMessage("generic.ArgumentOutOfRange", width);
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+		if (height <= 0.0)
+		{
+			String msg = Logging.getMessage("generic.ArgumentOutOfRange", height);
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		return new Matrix(
+				2.0 / width, 0.0, 0.0, 0.0,
+				0.0, 2.0 / height, 0.0, 0.0,
+				0.0, 0.0, -1.0, 0.0,
+				0.0, 0.0, 0.0, 1.0);
+	}
+
+	/**
+	 * Computes a <code>Matrix</code> that will map a aligned 2D grid coordinates to geographic coordinates in degrees.
+	 * It is assumed that the destination grid is parallel with lines of latitude and longitude, and has its origin in
+	 * the upper left hand corner.
+	 *
+	 * @param sector      the grid sector.
+	 * @param imageWidth  the grid width.
+	 * @param imageHeight the grid height.
+	 *
+	 * @return <code>Matrix</code> that will map from grid coordinates to geographic coordinates in degrees.
+	 *
+	 * @throws IllegalArgumentException if <code>sector</code> is null, or if either <code>width</code> or
+	 *                                  <code>height</code> are less than 1.
+	 */
+	public static Matrix fromImageToGeographic(int imageWidth, int imageHeight, Sector sector)
+	{
+		if (imageWidth < 1 || imageHeight < 1)
+		{
+			String message = Logging.getMessage("generic.InvalidImageSize", imageWidth, imageHeight);
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+		if (sector == null)
+		{
+			String message = Logging.getMessage("nullValue.SectorIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		// Transform from grid coordinates to geographic coordinates. Since the grid is parallel with lines of latitude
+		// and longitude, this is a simple scale and translation.
+
+		double sx = sector.getDeltaLonDegrees() / imageWidth;
+		double sy = -sector.getDeltaLatDegrees() / imageHeight;
+		double tx = sector.minLongitude.degrees;
+		double ty = sector.maxLatitude.degrees;
+
+		return new Matrix(
+				sx, 0.0, tx, 0.0,
+				0.0, sy, ty, 0.0,
+				0.0, 0.0, 1.0, 0.0,
+				0.0, 0.0, 0.0, 0.0);
+	}
+
+//	public static Matrix fromImageToGeographic(AVList worldFileParams)
+//	{
+//		if (worldFileParams == null)
+//		{
+//			String message = Logging.getMessage("nullValue.ParamsIsNull");
+//			Logging.error(message);
+//			throw new IllegalArgumentException(message);
+//		}
+//
+//		// Transform from geographic coordinates to source grid coordinates. Start with the following system of
+//		// equations. The values a-f are defined by the world file, which construct and affine transform mapping grid
+//		// coordinates to geographic coordinates. We can simply plug these into the upper 3x3 values of our matrix.
+//		//
+//		// | a b c |   | x |   | lon |
+//		// | d e f | * | y | = | lat |
+//		// | 0 0 1 |   | 1 |   | 1   |
+//
+//		Double a = AVListImpl.getDoubleValue(worldFileParams, WorldFile.WORLD_FILE_X_PIXEL_SIZE);
+//		Double d = AVListImpl.getDoubleValue(worldFileParams, WorldFile.WORLD_FILE_Y_COEFFICIENT);
+//		Double b = AVListImpl.getDoubleValue(worldFileParams, WorldFile.WORLD_FILE_X_COEFFICIENT);
+//		Double e = AVListImpl.getDoubleValue(worldFileParams, WorldFile.WORLD_FILE_Y_PIXEL_SIZE);
+//		Double c = AVListImpl.getDoubleValue(worldFileParams, WorldFile.WORLD_FILE_X_LOCATION);
+//		Double f = AVListImpl.getDoubleValue(worldFileParams, WorldFile.WORLD_FILE_Y_LOCATION);
+//
+//		if (a == null || b == null || c == null || d == null || e == null || f == null)
+//		{
+//			return null;
+//		}
+//
+//		return new Matrix(
+//				a, b, c, 0.0,
+//				d, e, f, 0.0,
+//				0.0, 0.0, 1.0, 0.0,
+//				0.0, 0.0, 0.0, 0.0);
+//	}
+//
+//	public static Matrix fromGeographicToImage(AVList worldFileParams)
+//	{
+//		if (worldFileParams == null)
+//		{
+//			String message = Logging.getMessage("nullValue.ParamsIsNull");
+//			Logging.error(message);
+//			throw new IllegalArgumentException(message);
+//		}
+//
+//		// Transform from geographic coordinates to source grid coordinates. Start with the following system of
+//		// equations. The values a-f are defined by the world file, which construct and affine transform mapping grid
+//		// coordinates to geographic coordinates. We want to find the transform that maps geographic coordinates to
+//		// grid coordinates.
+//		//
+//		// | a b c |   | x |   | lon |
+//		// | d e f | * | y | = | lat |
+//		// | 0 0 1 |   | 1 |   | 1   |
+//		//
+//		// Expanding the matrix multiplication:
+//		//
+//		// a*x + b*y + c = lon
+//		// d*x + e*y + f = lat
+//		//
+//		// Then solving for x and y by eliminating variables:
+//		//
+//		// x0 = d - (e*a)/b
+//		// y0 = e - (d*b)/a
+//		// (-e/(b*x0))*lon + (1/x0)*lat + (e*c)/(b*x0) - f/x0 = x
+//		// (-d/(a*y0))*lon + (1/y0)*lat + (d*c)/(a*y0) - f/y0 = y
+//		//
+//		// And extracting new the matrix coefficients a'-f':
+//		//
+//		// a' = -e/(b*x0)
+//		// b' = 1/x0
+//		// c' = (e*c)/(b*x0) - f/x0
+//		// d' = -d/(a*y0)
+//		// e' = 1/y0
+//		// f' = (d*c)/(a*y0) - f/y0
+//		//
+//		// If b==0 and d==0, then we have the equation simplifies to:
+//		//
+//		// (1/a)*lon + (-c/a) = x
+//		// (1/e)*lat + (-f/e) = y
+//		//
+//		// And and the new matrix coefficients will be:
+//		//
+//		// a' = 1/a
+//		// b' = 0
+//		// c' = -c/a
+//		// d' = 0
+//		// e' = 1/e
+//		// f' = -f/e
+//
+//		Double a = AVListImpl.getDoubleValue(worldFileParams, WorldFile.WORLD_FILE_X_PIXEL_SIZE);
+//		Double d = AVListImpl.getDoubleValue(worldFileParams, WorldFile.WORLD_FILE_Y_COEFFICIENT);
+//		Double b = AVListImpl.getDoubleValue(worldFileParams, WorldFile.WORLD_FILE_X_COEFFICIENT);
+//		Double e = AVListImpl.getDoubleValue(worldFileParams, WorldFile.WORLD_FILE_Y_PIXEL_SIZE);
+//		Double c = AVListImpl.getDoubleValue(worldFileParams, WorldFile.WORLD_FILE_X_LOCATION);
+//		Double f = AVListImpl.getDoubleValue(worldFileParams, WorldFile.WORLD_FILE_Y_LOCATION);
+//
+//		if (a == null || b == null || c == null || d == null || e == null || f == null)
+//		{
+//			return null;
+//		}
+//
+//		if (b == 0.0 && d == 0.0)
+//		{
+//			return new Matrix(
+//					1.0 / a, 0.0, (-c / a), 0.0,
+//					0.0, 1.0 / e, (-f / e), 0.0,
+//					0.0, 0.0, 1.0, 0.0,
+//					0.0, 0.0, 0.0, 0.0);
+//		}
+//		else
+//		{
+//			double x0 = d - (e * a) / b;
+//			double ap = -e / (b * x0);
+//			double bp = 1.0 / x0;
+//			double cp = (e * c) / (b * x0) - f / x0;
+//
+//			double y0 = e - (d * b) / a;
+//			double dp = -d / (a * y0);
+//			double ep = 1.0 / y0;
+//			double fp = (d * c) / (a * y0) - f / y0;
+//
+//			return new Matrix(
+//					ap, bp, cp, 0.0,
+//					dp, ep, fp, 0.0,
+//					0.0, 0.0, 1.0, 0.0,
+//					0.0, 0.0, 0.0, 0.0);
+//		}
+//	}
+// TODO These methods use Point2D which is not valid in android context. Convert to android class.
+//	/**
+//	 * Computes a <code>Matrix</code> that will map constrained 2D grid coordinates to geographic coordinates in
+//	 * degrees. The grid is defined by three control points. Each control point maps a location in the source grid to a
+//	 * geographic location.
+//	 *
+//	 * @param imagePoints three control points in the source grid.
+//	 * @param geoPoints   three geographic locations corresponding to each grid control point.
+//	 *
+//	 * @return <code>Matrix</code> that will map from geographic coordinates to grid coordinates in degrees.
+//	 *
+//	 * @throws IllegalArgumentException if either <code>imagePoints</code> or <code>geoPoints</code> is null or have
+//	 *                                  length less than 3.
+//	 */
+//	public static Matrix fromImageToGeographic(java.awt.geom.Point2D[] imagePoints, LatLon[] geoPoints)
+//	{
+//		if (imagePoints == null)
+//		{
+//			String message = Logging.getMessage("nullValue.ImagePointsIsNull");
+//			Logging.error(message);
+//			throw new IllegalArgumentException(message);
+//		}
+//		if (geoPoints == null)
+//		{
+//			String message = Logging.getMessage("nullValue.GeoPointsIsNull");
+//			Logging.error(message);
+//			throw new IllegalArgumentException(message);
+//		}
+//		if (imagePoints.length < 3)
+//		{
+//			String message = Logging.getMessage("generic.ArrayInvalidLength", "imagePoints.length < 3");
+//			Logging.error(message);
+//			throw new IllegalArgumentException(message);
+//		}
+//		if (geoPoints.length < 3)
+//		{
+//			String message = Logging.getMessage("generic.ArrayInvalidLength", "geoPoints.length < 3");
+//			Logging.error(message);
+//			throw new IllegalArgumentException(message);
+//		}
+//
+//		// Transform from geographic coordinates to source grid coordinates. Start with the following system of
+//		// equations. The values a-f are the unknown coefficients we want to derive, The (lat,lon) and (x,y)
+//		// coordinates are constants defined by the caller via geoPoints and imagePoints, respectively.
+//		//
+//		// | a b c |   | x1 x2 x3 |   | lon1 lon2 lon3 |
+//		// | d e f | * | y1 y2 y3 | = | lat1 lat2 lat3 |
+//		// | 0 0 1 |   | 1  1  1  |   | 1    1    1    |
+//		//
+//		// Expanding the matrix multiplication:
+//		//
+//		// a*x1 + b*y1 + c = lon1
+//		// a*x2 + b*y2 + c = lon2
+//		// a*x3 + b*y3 + c = lon3
+//		// d*x1 + e*y1 + f = lat1
+//		// d*x2 + e*y2 + f = lat2
+//		// d*x3 + e*y3 + f = lat3
+//		//
+//		// Then solving for a-c, and d-f by repeatedly eliminating variables:
+//		//
+//		// a0 = (x3-x1) - (x2-x1)*(y3-y1)/(y2-y1)
+//		// a = (1/a0) * [(lon3-lon1) - (lon2-lon1)*(y3-y1)/(y2-y1)]
+//		// b = (lon2-lon1)/(y2-y1) - a*(x2-x1)/(y2-y1)
+//		// c = lon1 - a*x1 - b*y1
+//		//
+//		// d0 = (x3-x1) - (x2-x1)*(y3-y1)/(y2-y1)
+//		// d = (1/d0) * [(lat3-lat1) - (lat2-lat1)*(y3-y1)/(y2-y1)]
+//		// e = (lat2-lat1)/(y2-y1) - d*(x2-x1)/(y2-y1)
+//		// f = lat1 - d*x1 - e*y1
+//
+//		double lat1 = geoPoints[0].getLatitude().degrees;
+//		double lat2 = geoPoints[1].getLatitude().degrees;
+//		double lat3 = geoPoints[2].getLatitude().degrees;
+//		double lon1 = geoPoints[0].getLongitude().degrees;
+//		double lon2 = geoPoints[1].getLongitude().degrees;
+//		double lon3 = geoPoints[2].getLongitude().degrees;
+//
+//		double x1 = imagePoints[0].getX();
+//		double x2 = imagePoints[1].getX();
+//		double x3 = imagePoints[2].getX();
+//		double y1 = imagePoints[0].getY();
+//		double y2 = imagePoints[1].getY();
+//		double y3 = imagePoints[2].getY();
+//
+//		double a0 = (x3 - x1) - (x2 - x1) * (y3 - y1) / (y2 - y1);
+//		double a = (1 / a0) * ((lon3 - lon1) - (lon2 - lon1) * (y3 - y1) / (y2 - y1));
+//		double b = (lon2 - lon1) / (y2 - y1) - a * (x2 - x1) / (y2 - y1);
+//		double c = lon1 - a * x1 - b * y1;
+//
+//		double d0 = (x3 - x1) - (x2 - x1) * (y3 - y1) / (y2 - y1);
+//		double d = (1 / d0) * ((lat3 - lat1) - (lat2 - lat1) * (y3 - y1) / (y2 - y1));
+//		double e = (lat2 - lat1) / (y2 - y1) - d * (x2 - x1) / (y2 - y1);
+//		double f = lat1 - d * x1 - e * y1;
+//
+//		return new Matrix(
+//				a, b, c, 0.0,
+//				d, e, f, 0.0,
+//				0.0, 0.0, 1.0, 0.0,
+//				0.0, 0.0, 0.0, 0.0);
+//	}
+//
+//	public static Matrix fromGeographicToImage(java.awt.geom.Point2D[] imagePoints, LatLon[] geoPoints)
+//	{
+//		if (imagePoints == null)
+//		{
+//			String message = Logging.getMessage("nullValue.ImagePointsIsNull");
+//			Logging.error(message);
+//			throw new IllegalArgumentException(message);
+//		}
+//		if (geoPoints == null)
+//		{
+//			String message = Logging.getMessage("nullValue.GeoPointsIsNull");
+//			Logging.error(message);
+//			throw new IllegalArgumentException(message);
+//		}
+//		if (imagePoints.length < 3)
+//		{
+//			String message = Logging.getMessage("generic.ArrayInvalidLength", "imagePoints.length < 3");
+//			Logging.error(message);
+//			throw new IllegalArgumentException(message);
+//		}
+//		if (geoPoints.length < 3)
+//		{
+//			String message = Logging.getMessage("generic.ArrayInvalidLength", "geoPoints.length < 3");
+//			Logging.error(message);
+//			throw new IllegalArgumentException(message);
+//		}
+//
+//		// Transform from geographic coordinates to source grid coordinates. Start with the following system of
+//		// equations. The values a-f are the unknown coefficients we want to derive, The (lat,lon) and (x,y)
+//		// coordinates are constants defined by the caller via geoPoints and imagePoints, respectively.
+//		//
+//		// | a b c |   | lon1 lon2 lon3 |   | x1 x2 x3 |
+//		// | d e f | * | lat1 lat2 lat3 | = | y1 y2 y3 |
+//		// | 0 0 1 |   | 1    1    1    |   | 1  1  1  |
+//		//
+//		// Expanding the matrix multiplication:
+//		//
+//		// a*lon1 + b*lat1 + c = x1
+//		// a*lon2 + b*lat2 + c = x2
+//		// a*lon3 + b*lat3 + c = x3
+//		// d*lon1 + e*lat1 + f = y1
+//		// d*lon2 + e*lat2 + f = y2
+//		// d*lon3 + e*lat3 + f = y3
+//		//
+//		// Then solving for a-c, and d-f by repeatedly eliminating variables:
+//		//
+//		// a0 = (lon3-lon1) - (lon2-lon1)*(lat3-lat1)/(lat2-lat1)
+//		// a = (1/a0) * [(x3-x1) - (x2-x1)*(lat3-lat1)/(lat2-lat1)]
+//		// b = (x2-x1)/(lat2-lat1) - a*(lon2-lon1)/(lat2-lat1)
+//		// c = x1 - a*lon1 - b*lat1
+//		//
+//		// d0 = (lon3-lon1) - (lon2-lon1)*(lat3-lat1)/(lat2-lat1)
+//		// d = (1/d0) * [(y3-y1) - (y2-y1)*(lat3-lat1)/(lat2-lat1)]
+//		// e = (y2-y1)/(lat2-lat1) - d*(lon2-lon1)/(lat2-lat1)
+//		// f = y1 - d*lon1 - e*lat1
+//
+//		double lat1 = geoPoints[0].getLatitude().degrees;
+//		double lat2 = geoPoints[1].getLatitude().degrees;
+//		double lat3 = geoPoints[2].getLatitude().degrees;
+//		double lon1 = geoPoints[0].getLongitude().degrees;
+//		double lon2 = geoPoints[1].getLongitude().degrees;
+//		double lon3 = geoPoints[2].getLongitude().degrees;
+//
+//		double x1 = imagePoints[0].getX();
+//		double x2 = imagePoints[1].getX();
+//		double x3 = imagePoints[2].getX();
+//		double y1 = imagePoints[0].getY();
+//		double y2 = imagePoints[1].getY();
+//		double y3 = imagePoints[2].getY();
+//
+//		double a0 = (lon3 - lon1) - (lon2 - lon1) * (lat3 - lat1) / (lat2 - lat1);
+//		double a = (1 / a0) * ((x3 - x1) - (x2 - x1) * (lat3 - lat1) / (lat2 - lat1));
+//		double b = (x2 - x1) / (lat2 - lat1) - a * (lon2 - lon1) / (lat2 - lat1);
+//		double c = x1 - a * lon1 - b * lat1;
+//
+//		double d0 = (lon3 - lon1) - (lon2 - lon1) * (lat3 - lat1) / (lat2 - lat1);
+//		double d = (1 / d0) * ((y3 - y1) - (y2 - y1) * (lat3 - lat1) / (lat2 - lat1));
+//		double e = (y2 - y1) / (lat2 - lat1) - d * (lon2 - lon1) / (lat2 - lat1);
+//		double f = y1 - d * lon1 - e * lat1;
+//
+//		return new Matrix(
+//				a, b, c, 0.0,
+//				d, e, f, 0.0,
+//				0.0, 0.0, 1.0, 0.0,
+//				0.0, 0.0, 0.0, 0.0);
+//	}
+
+	/**
+	 * Computes a Matrix that will map the geographic region defined by sector onto a Cartesian region of the specified
+	 * <code>width</code> and <code>height</code> and centered at the point <code>(x, y)</code>.
+	 *
+	 * @param sector the geographic region which will be mapped to the Cartesian region
+	 * @param x      x-coordinate of lower left hand corner of the Cartesian region
+	 * @param y      y-coordinate of lower left hand corner of the Cartesian region
+	 * @param width  width of the Cartesian region, extending to the right from the x-coordinate
+	 * @param height height of the Cartesian region, extending up from the y-coordinate
+	 *
+	 * @return Matrix that will map from the geographic region to the Cartesian region.
+	 *
+	 * @throws IllegalArgumentException if <code>sector</code> is null, or if <code>width</code> or <code>height</code>
+	 *                                  are less than zero.
+	 */
+	public static Matrix fromGeographicToViewport(Sector sector, int x, int y, int width, int height)
+	{
+		if (sector == null)
+		{
+			String message = Logging.getMessage("nullValue.SectorIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (width <= 0)
+		{
+			String message = Logging.getMessage("Geom.WidthInvalid", width);
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (height <= 0)
+		{
+			String message = Logging.getMessage("Geom.HeightInvalid", height);
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		Matrix transform = Matrix.IDENTITY;
+		transform = transform.multiply(
+				Matrix.fromTranslation(-x, -y, 0.0));
+		transform = transform.multiply(
+				Matrix.fromScale(width / sector.getDeltaLonDegrees(), height / sector.getDeltaLatDegrees(), 1.0));
+		transform = transform.multiply(
+				Matrix.fromTranslation(-sector.minLongitude.degrees, -sector.minLatitude.degrees, 0.0));
+
+		return transform;
+	}
+
+	/**
+	 * Computes a Matrix that will map a Cartesian region of the specified <code>width</code> and <code>height</code>
+	 * and centered at the point <code>(x, y)</code> to the geographic region defined by sector onto .
+	 *
+	 * @param sector the geographic region the Cartesian region will be mapped to
+	 * @param x      x-coordinate of lower left hand corner of the Cartesian region
+	 * @param y      y-coordinate of lower left hand corner of the Cartesian region
+	 * @param width  width of the Cartesian region, extending to the right from the x-coordinate
+	 * @param height height of the Cartesian region, extending up from the y-coordinate
+	 *
+	 * @return Matrix that will map from Cartesian region to the geographic region.
+	 *
+	 * @throws IllegalArgumentException if <code>sector</code> is null, or if <code>width</code> or <code>height</code>
+	 *                                  are less than zero.
+	 */
+	public static Matrix fromViewportToGeographic(Sector sector, int x, int y, int width, int height)
+	{
+		if (sector == null)
+		{
+			String message = Logging.getMessage("nullValue.SectorIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (width <= 0)
+		{
+			String message = Logging.getMessage("Geom.WidthInvalid", width);
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (height <= 0)
+		{
+			String message = Logging.getMessage("Geom.HeightInvalid", height);
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		Matrix transform = Matrix.IDENTITY;
+		transform = transform.multiply(
+				Matrix.fromTranslation(sector.minLongitude.degrees, sector.minLatitude.degrees, 0.0));
+		transform = transform.multiply(
+				Matrix.fromScale(sector.getDeltaLonDegrees() / width, sector.getDeltaLatDegrees() / height, 1.0));
+		transform = transform.multiply(
+				Matrix.fromTranslation(x, y, 0.0));
+
+		return transform;
+	}
+
     /**
      * Computes a a symmetric covariance Matrix from the x, y, z coordinates of the specified points Iterable. This does
      * not retain any reference to the specified iterable or its vectors, nor does this modify the vectors in any way.
@@ -618,6 +1122,25 @@ public class Matrix
 
         return this;
     }
+
+	/**
+	 * Sets the four columns of this {@link Matrix} which correspond to the x-, y-, and z-
+	 * axis of the vector space this {@link Matrix} creates as well as the 4th column representing
+	 * the translation of any point that is multiplied by this {@link Matrix}.
+	 *
+	 * @param xAxis {@link Vec4} The x axis.
+	 * @param yAxis {@link Vec4} The y axis.
+	 * @param zAxis {@link Vec4} The z axis.
+	 * @param pos {@link Vec4} The translation vector.
+	 * @return A reference to this {@link Matrix} to facilitate chaining.
+	 */
+	public Matrix setAll(final Vec4 xAxis, final Vec4 yAxis, final Vec4 zAxis, final Vec4 pos) {
+		m[M00] = xAxis.x;	m[M01] = yAxis.x;	m[M02] = zAxis.x;	m[M03] = pos.x;
+		m[M10] = xAxis.y; 	m[M11] = yAxis.y;	m[M12] = zAxis.y;	m[M13] = pos.y;
+		m[M20] = xAxis.z;	m[M21] = yAxis.z;	m[M22] = zAxis.z;	m[M23] = pos.z;
+		m[M30] = 0;			m[M31] = 0;			m[M32] = 0;			m[M33] = 1;
+		return this;
+	}
 
     public Matrix set(double[] array, int offset)
     {

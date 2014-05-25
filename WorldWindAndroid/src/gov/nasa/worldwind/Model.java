@@ -21,4 +21,16 @@ public interface Model extends WWObject
     LayerList getLayers();
 
     void setLayers(LayerList layers);
+
+	void setShowWireframe(boolean show);
+
+	boolean isShowWireframe();
+
+	boolean isShowTessellationBoundingVolumes();
+
+	void setShowTessellationBoundingVolumes(boolean showTileBoundingVolumes);
+
+	boolean isShowTessellationTileIds();
+
+	void setShowTessellationTileIds(boolean showTileIds);
 }

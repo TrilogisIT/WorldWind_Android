@@ -7,7 +7,8 @@ package gov.nasa.worldwind.layers.Earth;
 
 import gov.nasa.worldwind.geom.Sector;
 import gov.nasa.worldwind.layers.AbstractLayer;
-import gov.nasa.worldwind.render.*;
+import gov.nasa.worldwind.render.DrawContext;
+import gov.nasa.worldwind.render.SurfaceImage;
 import gov.nasa.worldwind.util.Logging;
 
 /**
@@ -17,7 +18,8 @@ import gov.nasa.worldwind.util.Logging;
 public class BMNGOneImage extends AbstractLayer
 {
     //protected static final String IMAGE_PATH = "images/world.topo.bathy.200405.3x2048x1024.dds";
-    protected static final String IMAGE_PATH = "images/world.topo.bathy.200405.3x2048x1024.pkm";
+    //protected static final String IMAGE_PATH = "images/world.topo.bathy.200405.3x2048x1024.pkm";
+    protected static final String IMAGE_PATH = "images/world.topo.bathy.200405.3x2048x1024_mip_0.pkm";
 
     protected SurfaceImage surfaceImage;
 

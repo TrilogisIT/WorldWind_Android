@@ -5,6 +5,9 @@
  */
 package gov.nasa.worldwind.layers;
 
+import gov.nasa.worldwind.R;
+import gov.nasa.worldwind.WorldWindowGLSurfaceView;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.geom.Angle;
@@ -29,13 +32,13 @@ import android.opengl.GLES20;
 /**
  * Renders a scalebar graphic in a screen corner.
  * Edited By: Nicola Dorigatti, Trilogis
- * 
+ *
  * @author Patrick Murris
  * @version $Id: ScalebarLayer.java 508 2012-04-06 01:05:50Z tgaskins $
  */
 public class ScalebarLayer extends AbstractLayer {
-	protected static final String VERTEX_SHADER_PATH_COLOR = "shaders/ScalebarLayerColor.vert";
-	protected static final String FRAGMENT_SHADER_PATH_COLOR = "shaders/ScalebarLayerColor.frag";
+	protected static final int VERTEX_SHADER_PATH_COLOR = R.raw.simple_vert;
+	protected static final int FRAGMENT_SHADER_PATH_COLOR = R.raw.uniform_color_frag;
 	// Units constants
 	public final static String UNIT_METRIC = "gov.nasa.worldwind.ScalebarLayer.Metric";
 	public final static String UNIT_IMPERIAL = "gov.nasa.worldwind.ScalebarLayer.Imperial";
@@ -65,6 +68,11 @@ public class ScalebarLayer extends AbstractLayer {
 	private TextRenderer textRenderer;
 
 	private class OrderedIcon implements OrderedRenderable {
+		@Override
+		public Layer getLayer() {
+			return ScalebarLayer.this;
+		}
+
 		public double getDistanceFromEye() {
 			return 0;
 		}
@@ -89,7 +97,7 @@ public class ScalebarLayer extends AbstractLayer {
 
 	/**
 	 * Get the apparent pixel size in meter at the reference position.
-	 * 
+	 *
 	 * @return the apparent pixel size in meter at the reference position.
 	 */
 	public double getPixelSize() {
@@ -98,7 +106,7 @@ public class ScalebarLayer extends AbstractLayer {
 
 	/**
 	 * Get the scalebar graphic Dimension (in pixels)
-	 * 
+	 *
 	 * @return the scalebar graphic Dimension
 	 */
 	public Rect getSize() {
@@ -107,7 +115,7 @@ public class ScalebarLayer extends AbstractLayer {
 
 	/**
 	 * Set the scalebar graphic Dimenion (in pixels)
-	 * 
+	 *
 	 * @param size
 	 *            the scalebar graphic Dimension
 	 */
@@ -122,7 +130,7 @@ public class ScalebarLayer extends AbstractLayer {
 
 	/**
 	 * Get the scalebar color
-	 * 
+	 *
 	 * @return the scalebar Color
 	 */
 	public float[] getColor() {
@@ -131,7 +139,7 @@ public class ScalebarLayer extends AbstractLayer {
 
 	/**
 	 * Set the scalbar Color
-	 * 
+	 *
 	 * @param color
 	 *            the scalebar Color
 	 */
@@ -146,7 +154,7 @@ public class ScalebarLayer extends AbstractLayer {
 
 	/**
 	 * Returns the scalebar-to-viewport scale factor.
-	 * 
+	 *
 	 * @return the scalebar-to-viewport scale factor
 	 */
 	public double getToViewportScale() {
@@ -161,7 +169,7 @@ public class ScalebarLayer extends AbstractLayer {
 	 * proportion of the viewport's width indicated by this factor. The
 	 * scalebar's height is adjusted to maintain the scalebar's Dimension aspect
 	 * ratio.
-	 * 
+	 *
 	 * @param toViewportScale
 	 *            the scalebar to viewport scale factor
 	 */
@@ -177,7 +185,7 @@ public class ScalebarLayer extends AbstractLayer {
 	 * Sets the relative viewport location to display the scalebar. Can be one
 	 * of AVKey.NORTHEAST, AVKey.NORTHWEST, AVKey.SOUTHEAST (the default), or
 	 * AVKey.SOUTHWEST. These indicate the corner of the viewport.
-	 * 
+	 *
 	 * @param position
 	 *            the desired scalebar position
 	 */
@@ -192,7 +200,7 @@ public class ScalebarLayer extends AbstractLayer {
 
 	/**
 	 * Returns the current scalebar center location.
-	 * 
+	 *
 	 * @return the current location center. May be null.
 	 */
 	public Vec4 getLocationCenter() {
@@ -207,7 +215,7 @@ public class ScalebarLayer extends AbstractLayer {
 	 * origin, positive Y values are upwards from the origin. The final scalebar
 	 * location will be affected by the currently specified location offset if a
 	 * non-null location offset has been specified (see #setLocationOffset).
-	 * 
+	 *
 	 * @param locationCenter
 	 *            the scalebar center. May be null.
 	 * @see #setPosition
@@ -220,7 +228,7 @@ public class ScalebarLayer extends AbstractLayer {
 	/**
 	 * Returns the current location offset. See #setLocationOffset for a
 	 * description of the offset and its values.
-	 * 
+	 *
 	 * @return the location offset. Will be null if no offset has been
 	 *         specified.
 	 */
@@ -230,7 +238,7 @@ public class ScalebarLayer extends AbstractLayer {
 
 	/**
 	 * Specifies a placement offset from the scalebar's position on the screen.
-	 * 
+	 *
 	 * @param locationOffset
 	 *            the number of pixels to shift the scalebar from its specified
 	 *            screen position. A positive X value shifts the image to the
@@ -245,7 +253,7 @@ public class ScalebarLayer extends AbstractLayer {
 
 	/**
 	 * Returns the layer's resize behavior.
-	 * 
+	 *
 	 * @return the layer's resize behavior
 	 */
 	public String getResizeBehavior() {
@@ -263,7 +271,7 @@ public class ScalebarLayer extends AbstractLayer {
 	 * enlarges. If the value is AVKey.RESIZE_SHRINK_ONLY (the default),
 	 * scalebar sizing behaves as for AVKey.RESIZE_STRETCH but it will not grow
 	 * larger than the size specified in its Dimension.
-	 * 
+	 *
 	 * @param resizeBehavior
 	 *            the desired resize behavior
 	 */
@@ -277,7 +285,7 @@ public class ScalebarLayer extends AbstractLayer {
 
 	/**
 	 * Sets the scalebar offset from the viewport border.
-	 * 
+	 *
 	 * @param borderWidth
 	 *            the number of pixels to offset the scalebar from the borders
 	 *            indicated by {@link #setPosition(String)}.
@@ -292,7 +300,7 @@ public class ScalebarLayer extends AbstractLayer {
 
 	/**
 	 * Sets the unit the scalebar uses to display distances. Can be one of {@link #UNIT_METRIC} (the default), or {@link #UNIT_IMPERIAL}.
-	 * 
+	 *
 	 * @param unit
 	 *            the desired unit
 	 */
@@ -302,7 +310,7 @@ public class ScalebarLayer extends AbstractLayer {
 
 	/**
 	 * Get the scalebar legend Fon
-	 * 
+	 *
 	 * @return the scalebar legend Font
 	 */
 	public Paint getPaint() {
@@ -311,8 +319,8 @@ public class ScalebarLayer extends AbstractLayer {
 
 	/**
 	 * Set the scalebar legend Fon
-	 * 
-	 * @param font
+	 *
+	 * @param paint
 	 *            the scalebar legend Font
 	 */
 	public void setPaint(Paint paint) {
@@ -343,6 +351,7 @@ public class ScalebarLayer extends AbstractLayer {
 		try {
 
 			GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+			WorldWindowImpl.glCheckError("glDisable(GL_DEPTH_TEST)");
 
 			double width = this.size.width;
 			double height = this.size.height;
@@ -402,18 +411,25 @@ public class ScalebarLayer extends AbstractLayer {
 					// Draw scale
 					if (!dc.isPickingMode()) {
 						GLES20.glEnable(GLES20.GL_BLEND);
+
+						WorldWindowImpl.glCheckError("glEnable");
 						GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+
+						WorldWindowImpl.glCheckError("glBlendFunc");
 						GpuProgram colorProgram = this.getGpuProgram(dc.getGpuResourceCache(), programColorKey, VERTEX_SHADER_PATH_COLOR, FRAGMENT_SHADER_PATH_COLOR);
 						if (colorProgram != null) {
 							// Set color using current layer opacity
 							float[] backColor = this.getBackgroundColor(this.color);
 							colorProgram.bind();
-							colorProgram.loadUniform4f("uColor", backColor[0], backColor[1], backColor[2], backColor[3] * this.getOpacity());
+							colorProgram.loadUniform1f("uOpacity", getOpacity());
+							colorProgram.loadUniform4f("uColor", backColor[0], backColor[1], backColor[2], backColor[3]);
 							modelview.multiplyAndSet(Matrix.fromTranslation((width - divWidth) / 2, 0d, 0d));
 							Matrix mvp = Matrix.fromIdentity().multiplyAndSet(projection, modelview);
 							colorProgram.loadUniformMatrix("mvpMatrix", mvp);
 							int pointLocation = colorProgram.getAttribLocation("vertexPoint");
 							GLES20.glEnableVertexAttribArray(pointLocation);
+
+							WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 							this.drawScale(dc, divWidth, height, pointLocation);
 
 							colorProgram.loadUniform4f("uColor", color[0], color[1], color[2], this.getOpacity());
@@ -447,10 +463,12 @@ public class ScalebarLayer extends AbstractLayer {
 			}
 		} finally {
 			GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+
+			WorldWindowImpl.glCheckError("glBlendFunc");
 		}
 	}
 
-	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, String shaderPath, String fragmentPath) {
+	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, int shaderPath, int fragmentPath) {
 
 		GpuProgram program = cache.getProgram(programKey);
 
@@ -502,11 +520,19 @@ public class ScalebarLayer extends AbstractLayer {
 		float[] verts = new float[] { 0, (float) height, 0, 0, 0, 0, (float) width, 0, 0, (float) width, (float) height, 0 };
 		FloatBuffer vertBuf = createBuffer(verts);
 		GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertBuf);
+
+		WorldWindowImpl.glCheckError("glVertexAttribPointer");
 		GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, verts.length / 3);
+
+		WorldWindowImpl.glCheckError("glDrawArrays");
 		verts = new float[] { (float) (width / 2), 0, 0, (float) (width / 2), (float) (height / 2), 0 };
 		vertBuf = createBuffer(verts);
 		GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertBuf);
+
+		WorldWindowImpl.glCheckError("glVertexAttribPointer");
 		GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, verts.length / 3);
+
+		WorldWindowImpl.glCheckError("glDrawArrays");
 	}
 
 	protected FloatBuffer createBuffer(float[] array) {

@@ -7,7 +7,10 @@ package gov.nasa.worldwind.util;
 
 import gov.nasa.worldwind.Configuration;
 import gov.nasa.worldwind.avlist.AVKey;
+import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.exception.WWRuntimeException;
+import gov.nasa.worldwind.render.GpuProgram;
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.Closeable;
@@ -17,6 +20,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.ref.WeakReference;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.SocketAddress;
@@ -33,6 +37,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
+import android.content.Context;
 
 /**
  * @author dcollins
@@ -45,6 +50,7 @@ public class WWIO {
 	protected static final int DEFAULT_PAGE_SIZE = 2 << 15;
 	protected static final Map<String, String> mimeTypeToSuffixMap = new HashMap<String, String>();
 	protected static final Map<String, String> suffixToMimeTypeMap = new HashMap<String, String>();
+    protected static WeakReference<Context> context;
 
 	static {
 		mimeTypeToSuffixMap.put("application/acad", "dwg");
@@ -74,6 +80,7 @@ public class WWIO {
 		mimeTypeToSuffixMap.put("image/jpeg", "jpg");
 		mimeTypeToSuffixMap.put("image/jpg", "jpg");
 		mimeTypeToSuffixMap.put("image/png", "png");
+		mimeTypeToSuffixMap.put("image/pkm", "pkm");
 		mimeTypeToSuffixMap.put("image/svg+xml", "svg");
 		mimeTypeToSuffixMap.put("image/tiff", "tif");
 		mimeTypeToSuffixMap.put("image/x-imagewebserver-ecw", "ecw");
@@ -113,6 +120,7 @@ public class WWIO {
 		suffixToMimeTypeMap.put("jp2", "image/jp2");
 		suffixToMimeTypeMap.put("jpeg", "image/jpeg");
 		suffixToMimeTypeMap.put("jpg", "image/jpeg");
+		suffixToMimeTypeMap.put("pkm", "image/pkm");
 		suffixToMimeTypeMap.put("kml", "application/vnd.google-earth.kml+xml");
 		suffixToMimeTypeMap.put("kmz", "application/vnd.google-earth.kmz");
 		suffixToMimeTypeMap.put("mid", "audio/x-midi");
@@ -140,6 +148,14 @@ public class WWIO {
 		suffixToMimeTypeMap.put("xml", "application/xml");
 		suffixToMimeTypeMap.put("zip", "application/zip");
 	}
+
+    public static void setContext(Context c) {
+        context = new WeakReference<Context>(c);
+    }
+
+    public static Context getContext() {
+        return context.get();
+    }
 
 	public static String formPath(String... pathParts) {
 		StringBuilder sb = new StringBuilder();
@@ -203,28 +219,27 @@ public class WWIO {
 		return new ByteArrayInputStream(byteArray);
 	}
 
-	public static Object getFileOrResourceAsStream(String path, Class<?> c) {
+	public static BufferedInputStream getFileOrResourceAsBufferedStream(String path, Class<?> c) {
+		InputStream stream = getFileOrResourceAsStream(path, c);
+		if(stream!=null && !(stream instanceof BufferedInputStream))
+			stream = new BufferedInputStream(stream);
+		return (BufferedInputStream)stream;
+	}
+
+	public static InputStream getFileOrResourceAsStream(String path, Class<?> c) {
 		if (path == null) {
 			String msg = Logging.getMessage("nullValue.PathIsNull");
 			Logging.error(msg);
 			throw new IllegalStateException(msg);
 		}
 
-		File file = new File(path);
-		if (file.exists()) {
-			try {
-				return new FileInputStream(file);
-			} catch (Exception e) {
-				return e;
-			}
-		}
-
-		if (c == null) c = WWIO.class;
-
 		try {
-			return c.getResourceAsStream("/" + path);
+			if (new File(path).exists())
+				return new FileInputStream(new File(path));
+
+			return (c==null ? WWIO.class : c).getResourceAsStream("/" + path);
 		} catch (Exception e) {
-			return e;
+			throw new WWRuntimeException(Logging.getMessage("generic.UnableToOpenPath", path), e);
 		}
 	}
 
@@ -443,7 +458,9 @@ public class WWIO {
 		} else if (source instanceof InputStream) {
 			return (InputStream) source;
 		} else if (source instanceof File) {
-			return openFileOrResourceStream(((File) source).getPath(), null);
+            return openFileOrResourceStream(((File) source).getPath(), null);
+        } else if (source instanceof Integer && context!=null) {
+            return getContext().getResources().openRawResource((Integer) source);
 		} else if (!(source instanceof String)) {
 			throw new IllegalArgumentException(Logging.getMessage("generic.SourceTypeUnrecognized", source));
 		}
@@ -454,6 +471,13 @@ public class WWIO {
 		if (url != null) return openURLStream(url);
 
 		return openFileOrResourceStream(sourceName, null);
+	}
+
+	public static BufferedInputStream openBufferedStream(Object source) {
+		InputStream stream = openStream(source);
+		if(stream!=null && !(stream instanceof BufferedInputStream))
+			stream = new BufferedInputStream(stream);
+		return (BufferedInputStream)stream;
 	}
 
 	/**
@@ -477,14 +501,7 @@ public class WWIO {
 			throw new IllegalArgumentException(msg);
 		}
 
-		Object streamOrException = WWIO.getFileOrResourceAsStream(path, c);
-
-		if (streamOrException instanceof Exception) {
-			String msg = Logging.getMessage("generic.UnableToOpenPath", path);
-			throw new WWRuntimeException(msg, (Exception) streamOrException);
-		}
-
-		return (InputStream) streamOrException;
+		return WWIO.getFileOrResourceAsStream(path, c);
 	}
 
 	public static InputStream openURLStream(URL url) {
@@ -824,6 +841,15 @@ public class WWIO {
 		}
 	}
 
+	/**
+	 * Get file extension from filename
+	 * @param filename	the filename
+	 * @return	the extension, without period character
+	 */
+	public static String getFileExtension(String filename) {
+		return filename.substring(filename.length()-3);
+	}
+
 	public static Proxy configureProxy() {
 		String proxyHost = Configuration.getStringValue(AVKey.URL_PROXY_HOST);
 		if (proxyHost == null) return null;
@@ -950,5 +976,25 @@ public class WWIO {
 		if (!temp.mkdir()) return null;
 
 		return temp;
+	}
+
+	public static GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, int vert, int frag) {
+		GpuProgram program = cache.getProgram(programKey);
+
+		if (program == null) {
+			try {
+				GpuProgram.GpuProgramSource source = GpuProgram.readProgramSource(vert, frag);
+				program = new GpuProgram(source);
+				cache.put(programKey, program);
+			} catch (Exception e) {
+				String msg = Logging.getMessage("GL.ExceptionLoadingProgram",
+						getContext().getResources().getResourceName(vert),
+						getContext().getResources().getResourceName(frag));
+				Logging.error(msg);
+				return null;
+			}
+		}
+
+		return program;
 	}
 }

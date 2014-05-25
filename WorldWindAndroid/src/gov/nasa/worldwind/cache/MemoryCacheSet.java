@@ -5,6 +5,10 @@
  */
 package gov.nasa.worldwind.cache;
 
+import gov.nasa.worldwind.util.PerformanceStatistic;
+
+import java.util.Collection;
+
 /**
  * @author dcollins
  * @version $Id: MemoryCacheSet.java 834 2012-10-08 22:25:55Z dcollins $
@@ -18,4 +22,6 @@ public interface MemoryCacheSet
     boolean contains(String key);
 
     void clear();
+
+	Collection<PerformanceStatistic> getPerformanceStatistics();
 }

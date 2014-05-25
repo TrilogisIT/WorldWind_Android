@@ -68,14 +68,12 @@ public class TocDialog extends DialogFragment {
         builder.setView(view);
         builder.setPositiveButton(getString(android.R.string.ok), new OnClickListener() {
 
-            @Override
             public void onClick(DialogInterface dialog, int which) {
                 Toast.makeText(getActivity(), "Created layers that will be added to worldWind: ", Toast.LENGTH_LONG).show();
             }
         });
         builder.setNeutralButton(getString(R.string.menu_action_text_wms), new OnClickListener() {
 
-            @Override
             public void onClick(DialogInterface dialog, int which) {
                 // Add dialog for wms
                 openAddWMSDialog();
@@ -96,7 +94,6 @@ public class TocDialog extends DialogFragment {
         if (d != null) {
             Button neutralButton = d.getButton(Dialog.BUTTON_NEUTRAL);
             neutralButton.setOnClickListener(new View.OnClickListener() {
-                @Override
                 public void onClick(View v) {
                     openAddWMSDialog();
                 }
@@ -150,7 +147,6 @@ public class TocDialog extends DialogFragment {
     }
 
     private DragListView.DropListener onDrop = new DragListView.DropListener() {
-        @Override
         public void drop(int from, int to) {
             Layer item = mListViewAdapter.getItem(from);
             mListViewAdapter.remove(item);
@@ -159,7 +155,6 @@ public class TocDialog extends DialogFragment {
     };
 
     private DragListView.RemoveListener onRemove = new DragListView.RemoveListener() {
-        @Override
         public void remove(int which) {
             mListViewAdapter.remove(mListViewAdapter.getItem(which));
         }
@@ -185,7 +180,6 @@ public class TocDialog extends DialogFragment {
             CheckBox checkbox = (CheckBox) retval.findViewById(R.id.toc_item_checkbox);
             checkbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
 
-                @Override
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                     layer.setEnabled(buttonView.isChecked());
                 }
@@ -205,7 +199,6 @@ public class TocDialog extends DialogFragment {
 
     private OnAddWMSLayersListener mListener = new OnAddWMSLayersListener() {
 
-        @Override
         public void onAddWMSLayers(List<Layer> layersToAdd) {
 
             if (null == layersToAdd || layersToAdd.isEmpty() || null == wwd) {

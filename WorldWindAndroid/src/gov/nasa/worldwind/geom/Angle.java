@@ -5,14 +5,48 @@
  */
 package gov.nasa.worldwind.geom;
 
+import android.os.Parcel;
+import android.os.Parcelable;
 import gov.nasa.worldwind.util.Logging;
 
 /**
  * @author dcollins
  * @version $Id: Angle.java 733 2012-09-02 17:15:09Z dcollins $
  */
-public class Angle
+public class Angle implements Comparable<Angle>, Parcelable
 {
+	// Angle format
+	public final static String ANGLE_FORMAT_DD = "gov.nasa.worldwind.Geom.AngleDD";
+	public final static String ANGLE_FORMAT_DMS = "gov.nasa.worldwind.Geom.AngleDMS";
+
+	/** Represents an angle of zero degrees */
+	public final static Angle ZERO = Angle.fromDegrees(0);
+
+	/** Represents a right angle of positive 90 degrees */
+	public final static Angle POS90 = Angle.fromDegrees(90);
+
+	/** Represents a right angle of negative 90 degrees */
+	public final static Angle NEG90 = Angle.fromDegrees(-90);
+
+	/** Represents an angle of positive 180 degrees */
+	public final static Angle POS180 = Angle.fromDegrees(180);
+
+	/** Represents an angle of negative 180 degrees */
+	public final static Angle NEG180 = Angle.fromDegrees(-180);
+
+	/** Represents an angle of positive 360 degrees */
+	public final static Angle POS360 = Angle.fromDegrees(360);
+
+	/** Represents an angle of negative 360 degrees */
+	public final static Angle NEG360 = Angle.fromDegrees(-360);
+
+	/** Represents an angle of 1 minute */
+	public final static Angle MINUTE = Angle.fromDegrees(1d / 60d);
+
+	/** Represents an angle of 1 second */
+	public final static Angle SECOND = Angle.fromDegrees(1d / 3600d);
+
+
     protected static final double DEGREES_TO_RADIANS = Math.PI / 180d;
     protected static final double RADIANS_TO_DEGREES = 180d / Math.PI;
 
@@ -29,6 +63,14 @@ public class Angle
         this.radians = radians;
     }
 
+	public double getDegrees() {
+		return degrees;
+	}
+
+	public double getRadians() {
+		return radians;
+	}
+
     /**
      * Obtains an angle from a specified number of degrees.
      *
@@ -40,6 +82,44 @@ public class Angle
     {
         return new Angle(degrees, DEGREES_TO_RADIANS * degrees);
     }
+
+	private static final double PIOver2 = Math.PI / 2;
+
+	public static Angle fromDegreesLatitude(double degrees)
+	{
+		degrees = degrees < -90 ? -90 : degrees > 90 ? 90 : degrees;
+		double radians = DEGREES_TO_RADIANS * degrees;
+		radians = radians < -PIOver2 ? -PIOver2 : radians > PIOver2 ? PIOver2 : radians;
+
+		return new Angle(degrees, radians);
+	}
+
+	public static Angle fromRadiansLatitude(double radians)
+	{
+		radians = radians < -PIOver2 ? -PIOver2 : radians > PIOver2 ? PIOver2 : radians;
+		double degrees = RADIANS_TO_DEGREES * radians;
+		degrees = degrees < -90 ? -90 : degrees > 90 ? 90 : degrees;
+
+		return new Angle(degrees, radians);
+	}
+
+	public static Angle fromDegreesLongitude(double degrees)
+	{
+		degrees = degrees < -180 ? -180 : degrees > 180 ? 180 : degrees;
+		double radians = DEGREES_TO_RADIANS * degrees;
+		radians = radians < -Math.PI ? -Math.PI : radians > Math.PI ? Math.PI : radians;
+
+		return new Angle(degrees, radians);
+	}
+
+	public static Angle fromRadiansLongitude(double radians)
+	{
+		radians = radians < -Math.PI ? -Math.PI : radians > Math.PI ? Math.PI : radians;
+		double degrees = RADIANS_TO_DEGREES * radians;
+		degrees = degrees < -180 ? -180 : degrees > 180 ? 180 : degrees;
+
+		return new Angle(degrees, radians);
+	}
 
     /**
      * Obtains an angle from a specified number of radians.
@@ -85,21 +165,33 @@ public class Angle
         return this;
     }
 
-    public Angle setDegrees(double degrees)
+    public void setDegrees(double degrees)
     {
         this.degrees = degrees;
         this.radians = DEGREES_TO_RADIANS * degrees;
-
-        return this;
     }
 
-    public Angle setRadians(double radians)
+    public void setRadians(double radians)
     {
         this.degrees = RADIANS_TO_DEGREES * radians;
         this.radians = radians;
-
-        return this;
     }
+
+	public void setDegreesF(float degrees) {
+		setDegrees(degrees);
+	}
+
+	public void setRadiansF(float radians) {
+		setRadians(radians);
+	}
+
+	public float getDegreesF() {
+		return (float)degrees;
+	}
+
+	public float getRadiansF() {
+		return (float)radians;
+	}
 
     /**
      * Obtains the sine of this angle.
@@ -208,7 +300,8 @@ public class Angle
             throw new IllegalArgumentException(msg);
         }
 
-        return this.setDegrees(this.degrees + angle.degrees);
+        this.setDegrees(this.degrees + angle.degrees);
+		return this;
     }
 
     public Angle addAndSet(Angle lhs, Angle rhs)
@@ -227,17 +320,20 @@ public class Angle
             throw new IllegalArgumentException(msg);
         }
 
-        return this.setDegrees(lhs.degrees + rhs.degrees);
+        this.setDegrees(lhs.degrees + rhs.degrees);
+		return this;
     }
 
     public Angle addDegreesAndSet(double degrees)
     {
-        return this.setDegrees(this.degrees + degrees);
+        this.setDegrees(this.degrees + degrees);
+		return this;
     }
 
     public Angle addRadiansAndSet(double radians)
     {
-        return this.setRadians(this.radians + radians);
+        this.setRadians(this.radians + radians);
+		return this;
     }
 
     public Angle subtract(Angle angle)
@@ -280,7 +376,8 @@ public class Angle
             throw new IllegalArgumentException(msg);
         }
 
-        return this.setDegrees(this.degrees - angle.degrees);
+        this.setDegrees(this.degrees - angle.degrees);
+		return this;
     }
 
     public Angle subtractAndSet(Angle lhs, Angle rhs)
@@ -299,17 +396,20 @@ public class Angle
             throw new IllegalArgumentException(msg);
         }
 
-        return this.setDegrees(lhs.degrees - rhs.degrees);
+        this.setDegrees(lhs.degrees - rhs.degrees);
+		return this;
     }
 
     public Angle subtractDegreesAndSet(double degrees)
     {
-        return this.setDegrees(this.degrees - degrees);
+        this.setDegrees(this.degrees - degrees);
+		return this;
     }
 
     public Angle subtractRadiansAndSet(double radians)
     {
-        return this.setRadians(this.radians - radians);
+        this.setRadians(this.radians - radians);
+		return this;
     }
 
     /**
@@ -327,7 +427,8 @@ public class Angle
 
     public Angle multiplyAndSet(double value)
     {
-        return this.setDegrees(this.degrees * value);
+        this.setDegrees(this.degrees * value);
+		return this;
     }
 
     public Angle multiplyAndSet(Angle angle, double value)
@@ -339,7 +440,8 @@ public class Angle
             throw new IllegalArgumentException(msg);
         }
 
-        return this.setDegrees(angle.degrees * value);
+        this.setDegrees(angle.degrees * value);
+		return this;
     }
 
     /**
@@ -390,6 +492,34 @@ public class Angle
         return (int) (temp ^ (temp >>> 32));
     }
 
+	/**
+	 * Compares this {@link Angle} with another. Returns a negative integer if this is the smaller angle, a positive
+	 * integer if this is the larger, and zero if both angles are equal.
+	 *
+	 * @param angle the angle to compare against.
+	 *
+	 * @return -1 if this angle is smaller, 0 if both are equal and +1 if this angle is larger.
+	 *
+	 * @throws IllegalArgumentException if angle is null.
+	 */
+	public final int compareTo(Angle angle)
+	{
+		if (angle == null)
+		{
+			String msg = Logging.getMessage("nullValue.AngleIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		if (this.degrees < angle.degrees)
+			return -1;
+
+		if (this.degrees > angle.degrees)
+			return 1;
+
+		return 0;
+	}
+
     /**
      * Obtains the amount of memory this {@link Angle} consumes.
      *
@@ -398,6 +528,37 @@ public class Angle
     public long getSizeInBytes()
     {
         return Double.SIZE / 8;
+    }
+
+	/**
+	 * Obtains a {@link String} representation of this {@link Angle} formated as degrees, minutes and seconds
+	 * integer values.
+	 *
+	 * @return the value of this angle in degrees, minutes, seconds as a string.
+	 */
+	public final String toDMSString()
+	{
+		double temp = this.degrees;
+		int sign = (int) Math.signum(temp);
+		temp *= sign;
+		int d = (int) Math.floor(temp);
+		temp = (temp - d) * 60d;
+		int m = (int) Math.floor(temp);
+		temp = (temp - m) * 60d;
+		int s = (int) Math.round(temp);
+
+		if (s == 60)
+		{
+			m++;
+			s = 0;
+		} // Fix rounding errors
+		if (m == 60)
+		{
+			d++;
+			m = 0;
+		}
+
+		return (sign == -1 ? "-" : "") + d + '\u00B0' + ' ' + m + '\u2019' + ' ' + s + '\u201d';
     }
 
     /**
@@ -410,4 +571,95 @@ public class Angle
     {
         return Double.toString(this.degrees) + '\u00B0';
     }
+
+	public static Angle normalizedLatitude(Angle unnormalizedAngle)
+	{
+		if (unnormalizedAngle == null)
+		{
+			String msg = Logging.getMessage("nullValue.AngleIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		return Angle.fromDegrees(normalizedDegreesLatitude(unnormalizedAngle.degrees));
+	}
+
+	public static Angle normalizedLongitude(Angle unnormalizedAngle)
+	{
+		if (unnormalizedAngle == null)
+		{
+			String msg = Logging.getMessage("nullValue.AngleIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		return Angle.fromDegrees(normalizedDegreesLongitude(unnormalizedAngle.degrees));
+	}
+
+	public Angle normalizedLatitude()
+	{
+		return normalizedLatitude(this);
+	}
+
+	public Angle normalizedLongitude()
+	{
+		return normalizedLongitude(this);
+	}
+
+	/**
+	 * Linearly interpolates between two angles.
+	 *
+	 * @param amount the interpolant.
+	 * @param value1 the first angle.
+	 * @param value2 the second angle.
+	 *
+	 * @return a new angle between <code>value1</code> and <code>value2</code>.
+	 */
+	public static Angle mix(double amount, Angle value1, Angle value2)
+	{
+		if (value1 == null || value2 == null)
+		{
+			String message = Logging.getMessage("nullValue.AngleIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (amount < 0)
+			return value1;
+		else if (amount > 1)
+			return value2;
+
+		Quaternion quat = Quaternion.slerp(
+				amount,
+				Quaternion.fromAxisAngle(value1, Vec4.UNIT_X),
+				Quaternion.fromAxisAngle(value2, Vec4.UNIT_X));
+
+		Angle angle = quat.getRotationX();
+		if (Double.isNaN(angle.degrees))
+			return null;
+
+		return angle;
+	}
+
+	@Override
+	public int describeContents() {
+		return 0;
+	}
+
+	@Override
+	public void writeToParcel(Parcel dest, int flags) {
+		dest.writeDouble(this.degrees);
+	}
+
+	public static final Creator<Angle> CREATOR = new Creator<Angle>() {
+		@Override
+		public Angle createFromParcel(Parcel in) {
+			return Angle.fromDegrees(in.readDouble());
+		}
+
+		@Override
+		public Angle[] newArray(int size) {
+			return new Angle[size];
+		}
+	};
 }

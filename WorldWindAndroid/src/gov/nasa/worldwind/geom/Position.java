@@ -4,6 +4,7 @@ All Rights Reserved.
 */
 package gov.nasa.worldwind.geom;
 
+import android.os.Parcel;
 import gov.nasa.worldwind.util.Logging;
 
 import java.util.*;
@@ -280,6 +281,14 @@ public class Position extends LatLon
         return Position.fromDegrees(lat, lon, this.elevation + that.elevation);
     }
 
+	public Position subtract(Position that)
+	{
+		Angle lat = Angle.normalizedLatitude(this.latitude.subtract(that.latitude));
+		Angle lon = Angle.normalizedLongitude(this.longitude.subtract(that.longitude));
+
+		return new Position(lat, lon, this.elevation - that.elevation);
+	}
+
     @Override
     public boolean equals(Object o)
     {
@@ -311,8 +320,34 @@ public class Position extends LatLon
         sb.append("(");
         sb.append(this.latitude.toString()).append(", ");
         sb.append(this.longitude.toString()).append(", ");
-        sb.append(this.elevation);
+        sb.append(this.elevation+"m");
         sb.append(")");
         return sb.toString();
     }
+
+	@Override
+	public int describeContents() {
+		return 0;
+	}
+
+	@Override
+	public void writeToParcel(Parcel dest, int flags) {
+		dest.writeParcelable(this.latitude, flags);
+		dest.writeParcelable(this.longitude, flags);
+		dest.writeDouble(this.elevation);
+	}
+
+	private static final ClassLoader LOADER = Position.class.getClassLoader();
+
+	public static final Creator<Position> CREATOR = new Creator<Position>() {
+		@Override
+		public Position createFromParcel(Parcel in) {
+			return new Position(in.<Angle>readParcelable(LOADER), in.<Angle>readParcelable(LOADER), in.readDouble());
+		}
+
+		@Override
+		public Position[] newArray(int size) {
+			return new Position[size];
+		}
+	};
 }

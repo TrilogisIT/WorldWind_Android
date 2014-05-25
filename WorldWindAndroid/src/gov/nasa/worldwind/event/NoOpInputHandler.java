@@ -28,6 +28,16 @@ public class NoOpInputHandler extends WWObjectImpl implements InputHandler
     {
     }
 
+	@Override
+	public void addSelectListener(SelectListener listener) {
+
+	}
+
+	@Override
+	public void removeSelectListener(SelectListener listener) {
+
+	}
+
     public boolean onTouch(View view, MotionEvent motionEvent)
     {
         return false;

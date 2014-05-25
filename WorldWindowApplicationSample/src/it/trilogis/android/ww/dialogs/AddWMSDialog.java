@@ -100,7 +100,6 @@ public class AddWMSDialog extends DialogFragment {
         final Button getCapabilitiesButton = (Button) view.findViewById(R.id.get_capabilities_btn);
         getCapabilitiesButton.setOnClickListener(new View.OnClickListener() {
 
-            @Override
             public void onClick(View v) {
                 InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
                 imm.hideSoftInputFromWindow(urlEditText.getWindowToken(), 0);
@@ -110,13 +109,11 @@ public class AddWMSDialog extends DialogFragment {
                     getCapabilitiesButton.setEnabled(false);
                     downloadThread = new Thread(new Runnable() {
 
-                        @Override
                         public void run() {
                             downloadCapabilities(WMSURLtoUSE);
                             downloadThread = null;
                             AddWMSDialog.this.getActivity().runOnUiThread(new Runnable() {
 
-                                @Override
                                 public void run() {
                                     // update listVIew
                                     updateLayerInfoList(getActivity());
@@ -134,7 +131,6 @@ public class AddWMSDialog extends DialogFragment {
         builder.setView(view);
         builder.setPositiveButton(getString(android.R.string.ok), new OnClickListener() {
 
-            @Override
             public void onClick(DialogInterface dialog, int which) {
                 ArrayList<Layer> retval = new ArrayList<Layer>();
                 LayerInfo[] infos = mListViewAdapter.getLayerInfos();
@@ -329,7 +325,6 @@ public class AddWMSDialog extends DialogFragment {
             ((CheckBox) retval).setText(layerType.getTitle());
             ((CheckBox) retval).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
 
-                @Override
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                     layerType.selected = buttonView.isChecked();
                 }

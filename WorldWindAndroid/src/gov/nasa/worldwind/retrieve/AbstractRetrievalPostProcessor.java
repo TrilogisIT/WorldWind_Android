@@ -7,11 +7,21 @@
 package gov.nasa.worldwind.retrieve;
 
 import android.graphics.Bitmap;
-import gov.nasa.worldwind.avlist.*;
-import gov.nasa.worldwind.util.*;
+import android.opengl.ETC1Util;
+import gov.nasa.worldwind.WorldWindowImpl;
+import gov.nasa.worldwind.avlist.AVKey;
+import gov.nasa.worldwind.avlist.AVList;
+import gov.nasa.worldwind.util.ImageUtil;
+import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.WWIO;
+import gov.nasa.worldwind.util.WWUtil;
 import gov.nasa.worldwind.util.dds.DDSCompressor;
+import gov.nasa.worldwind.util.pkm.ETC1Compressor;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedByInterruptException;
@@ -528,6 +538,9 @@ public abstract class AbstractRetrievalPostProcessor implements RetrievalPostPro
         if (outFile.getPath().endsWith("dds"))
             return this.saveDDS();
 
+		if(outFile.getPath().endsWith("pkm"))
+			return this.savePKM();
+
         Bitmap image = this.transformPixels();
 
         if (image != null)
@@ -643,4 +656,61 @@ public abstract class AbstractRetrievalPostProcessor implements RetrievalPostPro
 
         return buffer;
     }
+
+	/**
+	 * Saves a PKM image file after first converting any other image format to PKM.
+	 *
+	 * @return the converted image data if a conversion is performed, otherwise the original image data.
+	 *
+	 * @throws IOException if an IO error occurs while converting or saving the image.
+	 */
+	protected ByteBuffer savePKM() throws IOException
+	{
+		if(WorldWindowImpl.DEBUG)
+			Logging.verbose("Converting PKM file: " + getOutputFile().toString());
+
+		ByteBuffer buffer = this.getRetriever().getBuffer();
+		try {
+			if (!this.getRetriever().getContentType().contains("pkm")) {
+				ETC1Util.ETC1Texture[] etc1 = this.convertToPKM();
+				if (WorldWindowImpl.DEBUG)
+					Logging.verbose("Conversion finished. Saving PKM file: " + getOutputFile().toString());
+
+				FileOutputStream fis = new FileOutputStream(getOutputFile());
+				ETC1Util.writeTexture(etc1[0], fis);
+				WWIO.closeStream(fis, getOutputFile().getName());
+
+				if(etc1.length>1) {
+					String path = getOutputFile().getPath();
+					path = path.substring(0, path.lastIndexOf(".pkm"))+"_alpha.pkm";
+					if (WorldWindowImpl.DEBUG)
+						Logging.verbose("Conversion finished. Saving PKM Alpha file: " + path);
+					fis = new FileOutputStream(path);
+					ETC1Util.writeTexture(etc1[1], fis);
+					WWIO.closeStream(fis, path);
+				}
+			} else {
+				this.saveBuffer(buffer);
+			}
+		} catch(Exception e) {
+			Logging.error("savePKM Exception", e);
+		}
+		return buffer;
+	}
+
+	/**
+	 * Converts an image to PKM. If the image format is not originally PKM, calls {@link #transformPixels()} to perform
+	 * any defined image transform.
+	 *
+	 * @return the converted image data if a conversion is performed, otherwise the original image data.
+	 *
+	 * @throws IOException if an IO error occurs while converting the image.
+	 */
+	protected ETC1Util.ETC1Texture[] convertToPKM() throws IOException
+	{
+		Bitmap image = this.transformPixels();
+
+		return image!=null ? ETC1Compressor.compressImage(image)
+				: ETC1Compressor.compressImageBuffer(this.getRetriever().getBuffer());
+	}
 }

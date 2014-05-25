@@ -294,6 +294,55 @@ public class Frustum
         return this;
     }
 
+	/**
+	 * Creates a <code>Frustum</code> from four edge vectors, viewport aspect ratio and distance to near and far planes.
+	 * The edge vectors connect the near corners of the frustum to the far corners. The near plane must be closer than
+	 * the far plane, and both planes must be positive.
+	 *
+	 * @param vTL  vector defining the top-left of the frustum
+	 * @param vTR  vector defining the top-right of the frustum
+	 * @param vBL  vector defining the bottom-left of the frustum
+	 * @param vBR  vector defining the bottom-right of the frustum
+	 * @param near distance to the near plane
+	 * @param far  distance to far plane
+	 *
+	 * @return Frustum that was created
+	 *
+	 * @throws IllegalArgumentException if any of the vectors are null, if either near or far are negative, or near is
+	 *                                  greater than or equal to far
+	 */
+	public static Frustum fromPerspectiveVecs(Vec4 vTL, Vec4 vTR, Vec4 vBL, Vec4 vBR,
+											  double near, double far)
+	{
+		if (vTL == null || vTR == null || vBL == null || vBR == null)
+		{
+			String message = Logging.getMessage("Geom.ViewFrustum.EdgeVectorIsNull");
+			Logging.verbose(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		double farMinusNear = far - near;
+		if (near <= 0 || farMinusNear <= 0)
+		{
+			String message = Logging.getMessage("Geom.ViewFrustum.ClippingDistanceOutOfRange");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		Vec4 lpn = vBL.cross3(vTL).normalize3();
+		Plane leftPlane = new Plane(lpn.x, lpn.y, lpn.z, 0);
+		Vec4 rpn = vTR.cross3(vBR).normalize3();
+		Plane rightPlane = new Plane(rpn.x, rpn.y, rpn.z, 0);
+		Vec4 bpn = vBR.cross3(vBL).normalize3();
+		Plane bottomPlane = new Plane(bpn.x, bpn.y, bpn.z, 0);
+		Vec4 tpn = vTL.cross3(vTR).normalize3();
+		Plane topPlane = new Plane(tpn.x, tpn.y, tpn.z, 0);
+
+		Plane nearPlane = new Plane(0d, 0d, 0d - 1d, 0d - near);
+		Plane farPlane = new Plane(0d, 0d, 1d, far);
+		return new Frustum(leftPlane, rightPlane, bottomPlane, topPlane, nearPlane, farPlane);
+	}
+
     /**
      * Returns the left plane.
      *
@@ -384,6 +433,46 @@ public class Frustum
 
         return extent.intersects(this);
     }
+
+	/**
+	 * Determines whether a line segment intersects this frustum.
+	 *
+	 * @param pa one end of the segment.
+	 * @param pb the other end of the segment.
+	 *
+	 * @return true if the segment intersects or is contained in the frustum, otherwise false.
+	 *
+	 * @throws IllegalArgumentException if either point is null.
+	 */
+	public boolean intersectsSegment(Vec4 pa, Vec4 pb)
+	{
+		if (pa == null || pb == null)
+		{
+			String message = Logging.getMessage("nullValue.PointIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		// First do a trivial accept test.
+		if (this.contains(pa) || this.contains(pb))
+			return true;
+
+		if (pa.equals(pb))
+			return false;
+
+		for (Plane p : this.getAllPlanes())
+		{
+			// See if both points are behind the plane and therefore not in the frustum.
+			if (p.onSameSide(pa, pb) < 0)
+				return false;
+
+			// See if the segment intersects the plane.
+			if (p.clip(pa, pb) != null)
+				return true;
+		}
+
+		return false; // segment does not intersect frustum
+	}
 
     /**
      * Indicates whether a specified point is within this frustum.

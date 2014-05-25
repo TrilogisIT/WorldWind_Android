@@ -5,14 +5,29 @@
  */
 package gov.nasa.worldwind.render;
 
-import android.graphics.*;
-import android.opengl.*;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.opengl.ETC1;
+import android.opengl.ETC1Util;
+import android.opengl.GLES20;
+import android.opengl.GLUtils;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.cache.Cacheable;
-import gov.nasa.worldwind.util.*;
+import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.OGLUtil;
+import gov.nasa.worldwind.util.WWIO;
+import gov.nasa.worldwind.util.WWUtil;
+import gov.nasa.worldwind.util.dds.DDSCompressor;
 import gov.nasa.worldwind.util.dds.DDSTextureReader;
+import gov.nasa.worldwind.util.dds.DXTCompressionAttributes;
+import gov.nasa.worldwind.util.pkm.ETC1Compressor;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * @author dcollins
@@ -20,6 +35,8 @@ import java.nio.ByteBuffer;
  */
 public class GpuTextureData implements Cacheable
 {
+	private static final int MAX_MIP_LEVELS = 12;
+
     public static class BitmapData
     {
         public final Bitmap bitmap;
@@ -41,8 +58,13 @@ public class GpuTextureData implements Cacheable
     {
         public final int format;
         public final MipmapData[] levelData;
+		public final MipmapData[] alphaData;
 
-        public CompressedData(int format, MipmapData[] levelData)
+		public CompressedData(int format, MipmapData[] levelData) {
+			this(format, levelData, null);
+		}
+
+        public CompressedData(int format, MipmapData[] levelData, MipmapData[] alphaData)
         {
             if (levelData == null || levelData.length == 0)
             {
@@ -53,6 +75,7 @@ public class GpuTextureData implements Cacheable
 
             this.format = format;
             this.levelData = levelData;
+			this.alphaData = alphaData;
         }
     }
 
@@ -91,7 +114,29 @@ public class GpuTextureData implements Cacheable
         }
     }
 
-    public static GpuTextureData createTextureData(Object source)
+
+	/**
+	 * Create GpuTextureData
+	 * @param source	Bitmap, InputStream, URL, or String path
+	 * @param textureFormat	Desired texture format.  If input is uncompressed and format is compressed, compression will be performed
+	 * @param useMipMaps	Whether to load/create mipmaps
+	 * @return	The GpuTextureData
+	 */
+	public static GpuTextureData createTextureData(Object source, String textureFormat, boolean useMipMaps) {
+		if(source instanceof String)
+			return createTextureData(source, (String)source, textureFormat, useMipMaps);
+		return createTextureData(source, null, textureFormat, useMipMaps);
+	}
+
+	/**
+	 * Create GpuTextureData
+	 * @param source	Bitmap, InputStream, URL, or String path
+	 * @param url		Filename, if applicable.  Used for format detection and alpha/mip location
+	 * @param textureFormat	Desired texture format.  If input is uncompressed and format is compressed, compression will be performed
+	 * @param useMipMaps	Whether to load/create mipmaps
+	 * @return	The GpuTextureData
+	 */
+    public static GpuTextureData createTextureData(Object source, String url, String textureFormat, boolean useMipMaps)
     {
         if (WWUtil.isEmpty(source))
         {
@@ -113,7 +158,7 @@ public class GpuTextureData implements Cacheable
                 // Attempt to open the source as an InputStream. This handle URLs, Files, InputStreams, a String
                 // containing a valid URL, a String path to a file on the local file system, and a String path to a
                 // class path resource.
-                InputStream stream = WWIO.openStream(source);
+                InputStream stream = WWIO.openBufferedStream(source);
                 try
                 {
                     if (stream != null)
@@ -121,9 +166,7 @@ public class GpuTextureData implements Cacheable
                         // Wrap the stream in a BufferedInputStream to provide the mark/reset capability required to
                         // avoid destroying the stream when it is read more than once. BufferedInputStream also improves
                         // file read performance.
-                        if (!(stream instanceof BufferedInputStream))
-                            stream = new BufferedInputStream(stream);
-                        data = fromStream(stream);
+                        data = fromStream(stream, url, textureFormat, useMipMaps);
                     }
                 }
                 finally
@@ -134,8 +177,7 @@ public class GpuTextureData implements Cacheable
         }
         catch (Exception e)
         {
-            String msg = Logging.getMessage("GpuTextureFactory.TextureDataCreationFailed", source);
-            Logging.error(msg);
+			Logging.error(Logging.getMessage("GpuTextureFactory.TextureDataCreationFailed", source), e);
         }
 
         return data;
@@ -143,30 +185,104 @@ public class GpuTextureData implements Cacheable
 
     protected static final int DEFAULT_MARK_LIMIT = 1024;
 
-    protected static GpuTextureData fromStream(InputStream stream)
-    {
-        GpuTextureData data = null;
-        try
-        {
-            stream.mark(DEFAULT_MARK_LIMIT);
+    protected static GpuTextureData fromStream(InputStream stream, String url, String textureFormat, boolean useMipMaps) throws IOException {
+		GpuTextureData data = null;
+		stream.mark(DEFAULT_MARK_LIMIT);
 
-            DDSTextureReader ddsReader = new DDSTextureReader();
-            data = ddsReader.read(stream);
-            if (data != null)
-                return data;
+		if(textureFormat==null && url!=null)
+//			textureFormat = "image/"+WWIO.getFileExtension(url);
+			textureFormat = WWIO.makeMimeTypeForSuffix(WWIO.getSuffix(url));
 
-            stream.reset();
+		if ("image/dds".equalsIgnoreCase(textureFormat) && url!=null && !url.toString().toLowerCase().endsWith("dds"))
+		{
+			if(WorldWindowImpl.DEBUG)
+				Logging.verbose("Compressing DDS texture " + url);
+			// Configure a DDS compressor to generate mipmaps based according to the 'useMipMaps' parameter, and
+			// convert the image URL to a compressed DDS format.
+			DXTCompressionAttributes attributes = DDSCompressor.getDefaultCompressionAttributes();
+			attributes.setBuildMipmaps(useMipMaps);
+			DDSTextureReader ddsReader = new DDSTextureReader();
+			return ddsReader.read(WWIO.getInputStreamFromByteBuffer(DDSCompressor.compressImageStream(stream, attributes)));
+		}
+		else if("image/dds".equalsIgnoreCase(textureFormat))
+		{
+			if(WorldWindowImpl.DEBUG)
+				Logging.verbose("Loading DDS texture " + url);
+			DDSTextureReader ddsReader = new DDSTextureReader();
+			return ddsReader.read(stream);
+		}
+		else if ("image/pkm".equalsIgnoreCase(textureFormat) && url!=null && !url.toString().toLowerCase().endsWith("pkm"))
+		{
+			if(WorldWindowImpl.DEBUG)
+				Logging.verbose("Compressing ETC1 texture " + url);
+			ETC1Util.ETC1Texture[] etc1tex = ETC1Compressor.compressImage(BitmapFactory.decodeStream(stream));
 
-            Bitmap bitmap = BitmapFactory.decodeStream(stream);
-            return bitmap != null ? new GpuTextureData(bitmap, estimateMemorySize(bitmap)) : null;
-        }
-        catch (IOException e)
-        {
-            // TODO
-        }
+			MipmapData mipmapData = new MipmapData(etc1tex[0].getWidth(), etc1tex[0].getHeight(), etc1tex[0].getData());
+			MipmapData []alphaMipmap = etc1tex.length==1 ? null :
+				new MipmapData[] {new MipmapData(etc1tex[1].getWidth(), etc1tex[1].getHeight(), etc1tex[1].getData())};
 
-        return data;
-    }
+			return new GpuTextureData(ETC1.ETC1_RGB8_OES, new MipmapData[] {mipmapData}, alphaMipmap, etc1tex[0].getData().remaining());
+		}
+		else if ("image/pkm".equalsIgnoreCase(textureFormat))
+		{
+			if(WorldWindowImpl.DEBUG)
+				Logging.verbose("Loading ETC1 texture " + url);
+
+			List<MipmapData> colorData = new LinkedList<MipmapData>();
+			List<MipmapData> alphaData = new LinkedList<MipmapData>();
+
+			ETC1Util.ETC1Texture etc1tex = ETC1Util.createTexture(stream);
+			MipmapData mipmapData = new MipmapData(etc1tex.getWidth(), etc1tex.getHeight(), etc1tex.getData());
+			colorData.add(mipmapData);
+			int dataSize = etc1tex.getData().limit();
+
+			MipmapData alphaLevel0 = readETC1(url.substring(0, url.lastIndexOf(".pkm")) + "_alpha.pkm");
+			if(alphaLevel0 != null) {
+				alphaData.add(alphaLevel0);
+				dataSize += alphaLevel0.buffer.limit();
+			}
+
+			if(useMipMaps) {
+				for(int i=0; i<MAX_MIP_LEVELS; i++) {
+					String mipUrl = url.replace("mip_0", "mip_"+i);
+					MipmapData mipData = readETC1(mipUrl);
+					if(mipData==null)
+						break;
+					colorData.add(mipData);
+					dataSize += mipData.buffer.limit();
+
+					mipData = readETC1(mipUrl.substring(0, mipUrl.lastIndexOf(".pkm")) + "_alpha.pkm");
+					if(mipData!=null) {
+						alphaData.add(mipData);
+						dataSize += mipData.buffer.limit();
+					}
+				}
+			}
+			MipmapData[] colors = colorData.isEmpty() ? null : colorData.toArray(new MipmapData[colorData.size()]);
+			MipmapData[] alphas = alphaData.isEmpty() ? null : alphaData.toArray(new MipmapData[alphaData.size()]);
+			return new GpuTextureData(ETC1.ETC1_RGB8_OES, colors, alphas, dataSize);
+		} else {
+			if(WorldWindowImpl.DEBUG)
+				Logging.verbose("Loading bitmap texture "+ url);
+			Bitmap bitmap = BitmapFactory.decodeStream(stream);
+			return bitmap != null ? new GpuTextureData(bitmap, estimateMemorySize(bitmap)) : null;
+		}
+	}
+
+	public static MipmapData readETC1(String url) throws IOException {
+		if(WorldWindowImpl.DEBUG)
+			Logging.verbose("Loading ETC1 texture " + url);
+
+		InputStream is = WWIO.getFileOrResourceAsBufferedStream(url, GpuTextureData.class);
+		if(is==null)
+			return null;
+		try {
+			ETC1Util.ETC1Texture tex = ETC1Util.createTexture(is);
+			return new MipmapData(tex.getWidth(), tex.getHeight(), tex.getData());
+		} finally {
+			WWIO.closeStream(is, url);
+		}
+	}
 
     public GpuTextureData(Bitmap bitmap, long estimatedMemorySize)
     {
@@ -188,7 +304,12 @@ public class GpuTextureData implements Cacheable
         this.estimatedMemorySize = estimatedMemorySize;
     }
 
-    public GpuTextureData(int format, MipmapData[] levelData, long estimatedMemorySize)
+	public GpuTextureData(int format, MipmapData[] levelData, long estimatedMemorySize)
+	{
+		this(format, levelData, null, estimatedMemorySize);
+	}
+
+    public GpuTextureData(int format, MipmapData[] levelData, MipmapData[] alphaData, long estimatedMemorySize)
     {
         if (levelData == null || levelData.length == 0)
         {
@@ -204,7 +325,7 @@ public class GpuTextureData implements Cacheable
             throw new IllegalArgumentException(msg);
         }
 
-        this.compressedData = new CompressedData(format, levelData);
+        this.compressedData = new CompressedData(format, levelData, alphaData);
         this.estimatedMemorySize = estimatedMemorySize;
     }
 
@@ -233,37 +354,6 @@ public class GpuTextureData implements Cacheable
 
     protected static long estimateMemorySize(Bitmap bitmap)
     {
-        int internalFormat = GLUtils.getInternalFormat(bitmap);
-
-        if (internalFormat == GLES20.GL_ALPHA || internalFormat == GLES20.GL_LUMINANCE)
-        {
-            // Alpha and luminance pixel data is always stored as 1 byte per pixel. See OpenGL ES Specification, version 2.0.25,
-            // section 3.6.2, table 3.4.
-            return bitmap.getWidth() * bitmap.getHeight();
-        }
-        else if (internalFormat == GLES20.GL_LUMINANCE_ALPHA)
-        {
-            // Luminance-alpha pixel data is always stored as 2 bytes per pixel. See OpenGL ES Specification,
-            // version 2.0.25, section 3.6.2, table 3.4.
-            return 2 * bitmap.getWidth() * bitmap.getHeight(); // Type must be GL_UNSIGNED_BYTE.
-        }
-        else if (internalFormat == GLES20.GL_RGB)
-        {
-            // RGB pixel data is stored as either 2 or 3 bytes per pixel, depending on the type used during texture
-            // image specification. See OpenGL ES Specification, version 2.0.25, section 3.6.2, table 3.4.
-            int type = GLUtils.getType(bitmap);
-            // Default to type GL_UNSIGNED_BYTE.
-            int bpp = (type == GLES20.GL_UNSIGNED_SHORT_5_6_5 ? 2 : 3);
-            return bpp * bitmap.getWidth() * bitmap.getHeight();
-        }
-        else // Default to internal format GL_RGBA.
-        {
-            // RGBA pixel data is stored as either 2 or 4 bytes per pixel, depending on the type used during texture
-            // image specification. See OpenGL ES Specification, version 2.0.25, section 3.6.2, table 3.4.
-            int type = GLUtils.getType(bitmap);
-            // Default to type GL_UNSIGNED_BYTE.
-            int bpp = (type == GLES20.GL_UNSIGNED_SHORT_4_4_4_4 || type == GLES20.GL_UNSIGNED_SHORT_5_5_5_1) ? 2 : 4;
-            return bpp * bitmap.getWidth() * bitmap.getHeight();
-        }
+		return OGLUtil.estimateMemorySize(GLUtils.getInternalFormat(bitmap), GLUtils.getType(bitmap), bitmap.getWidth(), bitmap.getHeight(), true);
     }
 }

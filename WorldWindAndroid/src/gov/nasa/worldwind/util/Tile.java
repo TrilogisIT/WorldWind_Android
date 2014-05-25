@@ -29,8 +29,8 @@ import java.util.Random;
  * @version $Id: Tile.java 842 2012-10-09 23:46:47Z tgaskins $
  */
 public class Tile implements Cacheable {
-	public interface TileFactory {
-		Tile createTile(Sector sector, Level level, int row, int column);
+	public interface TileFactory<T extends Tile> {
+		T createTile(Sector sector, Level level, int row, int column);
 	}
 
 	protected Sector sector;
@@ -67,25 +67,7 @@ public class Tile implements Cacheable {
 	 *             if <code>sector</code> or <code>level</code> is null.
 	 */
 	public Tile(Sector sector, Level level, int row, int column) {
-		if (sector == null) {
-			String msg = Logging.getMessage("nullValue.SectorIsNull");
-			Logging.error(msg);
-			throw new IllegalArgumentException(msg);
-		}
-
-		if (level == null) {
-			String msg = Logging.getMessage("nullValue.LevelIsNull");
-			Logging.error(msg);
-			throw new IllegalArgumentException(msg);
-		}
-
-		this.sector = sector;
-		this.level = level;
-		this.row = row;
-		this.column = column;
-		this.cacheName = null;
-		this.tileKey = new TileKey(this);
-		this.path = null;
+		this(sector, level, row, column, null);
 	}
 
 	/**
@@ -546,7 +528,7 @@ public class Tile implements Cacheable {
 		}
 	}
 
-	public static void createTilesForLevel(Level level, Sector sector, TileFactory factory, List<Tile> result, LatLon origin) {
+	public static <T extends Tile> void createTilesForLevel(Level level, Sector sector, TileFactory<T> factory, List<T> result, LatLon origin) {
 		if (level == null) {
 			String msg = Logging.getMessage("nullValue.LevelIsNull");
 			Logging.error(msg);

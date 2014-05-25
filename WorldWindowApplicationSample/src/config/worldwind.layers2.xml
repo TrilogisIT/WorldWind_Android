@@ -16,25 +16,25 @@
     </Layer>
     <Layer
         actuate="onLoad"
-        href="config/Earth/BMNGWMSLayer.xml" />
+        href="config/Earth/BMNGWMSLayerPNG.xml" />
     <Layer
-        actuate="onRequest"
-        href="config/Earth/LandsatI3WMSLayer.xml" />
+        actuate="onLoad"
+        href="config/Earth/LandsatI3WMSLayerPNG.xml" />
     <!--
           <Layer
         actuate="onRequest"
         href="config/Earth/MSVirtualEarthAerialLayer.xml" />
     -->
     <Layer
-        actuate="onRequest"
+        actuate="onLoad"
         className="gov.nasa.worldwind.layers.WorldMapLayer"
         title="World Map" />
     <Layer
-        actuate="onRequest"
+        actuate="onLoad"
         className="gov.nasa.worldwind.layers.CompassLayer"
         title="Compass" />
     <Layer
-        actuate="onRequest"
+        actuate="onLoad"
         className="gov.nasa.worldwind.layers.ScalebarLayer"
         title="Scale Bar" />
 </LayerList>

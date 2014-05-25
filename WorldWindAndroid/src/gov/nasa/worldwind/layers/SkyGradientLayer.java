@@ -5,14 +5,13 @@
  */
 package gov.nasa.worldwind.layers;
 
-import gov.nasa.worldwind.View;
+import gov.nasa.worldwind.*;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.Matrix;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.geom.Vec4;
-import gov.nasa.worldwind.render.DrawContext;
-import gov.nasa.worldwind.render.GpuProgram;
+import gov.nasa.worldwind.render.*;
 import gov.nasa.worldwind.util.Logging;
 import gov.nasa.worldwind.util.WWMath;
 import java.nio.ByteBuffer;
@@ -26,13 +25,13 @@ import android.opengl.GLES20;
  * <p/>
  * Note : based on a spherical globe.<br />
  * Issue : Ellipsoidal globe doesnt match the spherical atmosphere everywhere. Edited By: Nicola Dorigatti, Trilogis
- * 
+ *
  * @author Patrick Murris
  * @version $Id: SkyGradientLayer.java 1 2011-07-16 23:22:47Z dcollins $
  */
 public class SkyGradientLayer extends AbstractLayer {
-	protected static final String VERTEX_SHADER_PATH = "shaders/SkyGradientLayer.vert";
-	protected static final String FRAGMENT_SHADER_PATH = "shaders/SkyGradientLayer.frag";
+	protected static final int VERTEX_SHADER_PATH = R.raw.vertex_color_vert;
+	protected static final int FRAGMENT_SHADER_PATH = R.raw.vertex_color_frag;
 	protected final static int STACKS = 12;
 	protected final static int SLICES = 64;
 
@@ -54,7 +53,7 @@ public class SkyGradientLayer extends AbstractLayer {
 
 	/**
 	 * Get the atmosphere thickness in meter
-	 * 
+	 *
 	 * @return the atmosphere thickness in meter
 	 */
 	public double getAtmosphereThickness() {
@@ -63,7 +62,7 @@ public class SkyGradientLayer extends AbstractLayer {
 
 	/**
 	 * Set the atmosphere thickness in meter
-	 * 
+	 *
 	 * @param thickness
 	 *            the atmosphere thickness in meter
 	 */
@@ -79,7 +78,7 @@ public class SkyGradientLayer extends AbstractLayer {
 
 	/**
 	 * Get the horizon color
-	 * 
+	 *
 	 * @return the horizon color
 	 */
 	public float[] getHorizonColor() {
@@ -88,7 +87,7 @@ public class SkyGradientLayer extends AbstractLayer {
 
 	/**
 	 * Set the horizon color
-	 * 
+	 *
 	 * @param color
 	 *            the horizon color
 	 */
@@ -104,7 +103,7 @@ public class SkyGradientLayer extends AbstractLayer {
 
 	/**
 	 * Get the zenith color
-	 * 
+	 *
 	 * @return the zenith color
 	 */
 	public float[] getZenithColor() {
@@ -113,7 +112,7 @@ public class SkyGradientLayer extends AbstractLayer {
 
 	/**
 	 * Set the zenith color
-	 * 
+	 *
 	 * @param color
 	 *            the zenith color
 	 */
@@ -142,11 +141,12 @@ public class SkyGradientLayer extends AbstractLayer {
 			program.bind();
 			if (!this.isValid(dc)) vertexArrays = this.updateSkyDome(dc);
 			GLES20.glDisable(GLES20.GL_CULL_FACE);
+			WorldWindowImpl.glCheckError("glDisable: GL_CULL_FACE");
 			GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
-			// GLES20.glDisable(GLES20.GL_DEPTH_TEST);
-			// GLES20.glDepthMask(false);
-			// GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
-			// GLES20.glEnable(GLES20.GL_BLEND);
+			WorldWindowImpl.glCheckError("glBlendFunc");
+
+            program.loadUniformColor("uColor", Color.white());
+			program.loadUniform1f("uOpacity", this.getOpacity());
 
 			Matrix projection = this.createProjectionMatrix(dc);
 			// this.applyDrawProjection(dc);
@@ -158,8 +158,11 @@ public class SkyGradientLayer extends AbstractLayer {
 			this.drawVertexArrays(dc, vertexArrays, program);
 		} finally {
 			GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+
+			WorldWindowImpl.glCheckError("glBlendFunc");
 			GLES20.glEnable(GLES20.GL_CULL_FACE);
-			// GLES20.glDisable(GLES20.GL_BLEND);
+
+			WorldWindowImpl.glCheckError("glEnable: GL_CULL_FACE");
 		}
 	}
 
@@ -186,8 +189,12 @@ public class SkyGradientLayer extends AbstractLayer {
 	protected void drawVertexArrays(DrawContext dc, ArrayList<float[]> vertexArrays, GpuProgram program) {
 		int pointLocation = program.getAttribLocation("vertexPoint");
 		GLES20.glEnableVertexAttribArray(pointLocation);
+		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
+
 		int colorLocation = program.getAttribLocation("vertexColor");
 		GLES20.glEnableVertexAttribArray(colorLocation);
+		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
+
 		for (int i = 0; i < vertexArrays.size(); i = i + 2) {
 			float[] vertexArray = vertexArrays.get(i);
 			float[] colorArray = vertexArrays.get(i + 1);
@@ -195,14 +202,22 @@ public class SkyGradientLayer extends AbstractLayer {
 			vertexBuf.put(vertexArray);
 			vertexBuf.rewind();
 			GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, vertexBuf);
+			WorldWindowImpl.glCheckError("glVertexAttribPointer");
+
 			FloatBuffer colorBuf = ByteBuffer.allocateDirect(colorArray.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 			colorBuf.put(colorArray);
 			colorBuf.rewind();
 			GLES20.glVertexAttribPointer(colorLocation, 4, GLES20.GL_FLOAT, false, 0, colorBuf);
+			WorldWindowImpl.glCheckError("glVertexAttribPointer");
+
 			GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, vertexArray.length / 3);
+			WorldWindowImpl.glCheckError("glDrawArrays");
 		}
 		GLES20.glDisableVertexAttribArray(pointLocation);
+		WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
+
 		GLES20.glDisableVertexAttribArray(colorLocation);
+		WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 	}
 
 	protected Matrix createModelViewMatrix(DrawContext dc) {
@@ -230,7 +245,7 @@ public class SkyGradientLayer extends AbstractLayer {
 		if (viewportWidth <= 0) viewportWidth = 1;
 		if (viewportHeight <= 0) viewportHeight = 1;
 
-		double horizonDist = WWMath.computeHorizonDistance(dc.getGlobe(), view.getEyePosition(dc.getGlobe()).elevation);
+		double horizonDist = WWMath.computeHorizonDistance(dc.getGlobe(), view.getEyePosition().elevation);
 		Matrix projection = Matrix.fromPerspective(view.getFieldOfView(), viewportWidth, viewportHeight, 100, horizonDist + 10e3);
 		return projection;
 	}
@@ -239,7 +254,7 @@ public class SkyGradientLayer extends AbstractLayer {
 		View view = dc.getView();
 		ArrayList<float[]> retval = null;
 
-		double tangentialDistance = WWMath.computeHorizonDistance(dc.getGlobe(), view.getEyePosition(dc.getGlobe()).elevation);
+		double tangentialDistance = WWMath.computeHorizonDistance(dc.getGlobe(), view.getEyePosition().elevation);
 		double distToCenterOfPlanet = view.getEyePoint().getLength3();
 		Position camPos = dc.getGlobe().computePositionFromPoint(view.getEyePoint());
 		double worldRadius = dc.getGlobe().computePointFromPosition(camPos, 0).getLength3();
@@ -273,7 +288,7 @@ public class SkyGradientLayer extends AbstractLayer {
 
 	/**
 	 * Draws the sky dome
-	 * 
+	 *
 	 * @param dc
 	 *            the current DrawContext
 	 * @param radius
@@ -407,7 +422,7 @@ public class SkyGradientLayer extends AbstractLayer {
 
 	/**
 	 * Converts position in spherical coordinates (lat/lon/altitude) to cartesian (XYZ) coordinates.
-	 * 
+	 *
 	 * @param latitude
 	 *            Latitude in decimal degrees
 	 * @param longitude
@@ -427,7 +442,7 @@ public class SkyGradientLayer extends AbstractLayer {
 
 	/**
 	 * Converts position in cartesian coordinates (XYZ) to spherical (radius, lat, lon) coordinates.
-	 * 
+	 *
 	 * @param x
 	 *            X coordinate
 	 * @param y

@@ -24,19 +24,19 @@ public class VisibleTerrain implements Terrain
         this.dc = dc;
     }
 
-    /** {@inheritDoc} */
+    @Override
     public Globe getGlobe()
     {
         return this.dc.getGlobe();
     }
 
-    /** {@inheritDoc} */
+    @Override
     public double getVerticalExaggeration()
     {
         return this.dc.getVerticalExaggeration();
     }
 
-    /** {@inheritDoc} */
+    @Override
     public Double getElevation(Angle latitude, Angle longitude)
     {
         if (latitude == null)
@@ -62,7 +62,7 @@ public class VisibleTerrain implements Terrain
         return p.distanceTo3(pt);
     }
 
-    /** {@inheritDoc} */
+    @Override
     public Vec4 getSurfacePoint(Position position)
     {
         if (position == null)
@@ -77,7 +77,7 @@ public class VisibleTerrain implements Terrain
         return result;
     }
 
-    /** {@inheritDoc} */
+    @Override
     public Vec4 getSurfacePoint(Angle latitude, Angle longitude, double metersOffset)
     {
         if (latitude == null)
@@ -99,7 +99,7 @@ public class VisibleTerrain implements Terrain
         return result;
     }
 
-    /** {@inheritDoc} */
+    @Override
     public void getSurfacePoint(Position position, Vec4 result)
     {
         if (position == null)
@@ -119,7 +119,7 @@ public class VisibleTerrain implements Terrain
         this.getSurfacePoint(position.latitude, position.longitude, position.elevation, result);
     }
 
-    /** {@inheritDoc} */
+    @Override
     public void getSurfacePoint(Angle latitude, Angle longitude, double metersOffset, Vec4 result)
     {
         if (latitude == null)
@@ -146,11 +146,13 @@ public class VisibleTerrain implements Terrain
         SectorGeometryList sectorGeometry = this.dc.getSurfaceGeometry();
         if (sectorGeometry != null && sectorGeometry.getSurfacePoint(latitude, longitude, result))
         {
-            // The sector geometry already has vertical exaggeration applied. This has the effect of interpreting
-            // metersOffset as height above the terrain after vertical exaggeration is applied.
-            this.getGlobe().computeSurfaceNormalAtPoint(result, this.point);
-            this.point.multiply3AndSet(metersOffset);
-            result.add3AndSet(this.point);
+			if(metersOffset>0) {
+				// The sector geometry already has vertical exaggeration applied. This has the effect of interpreting
+				// metersOffset as height above the terrain after vertical exaggeration is applied.
+				this.getGlobe().computeSurfaceNormalAtPoint(result, this.point);
+				this.point.multiply3AndSet(metersOffset);
+				result.add3AndSet(this.point);
+			}
         }
         else
         {
@@ -163,7 +165,7 @@ public class VisibleTerrain implements Terrain
         }
     }
 
-    /** {@inheritDoc} */
+    @Override
     public void getPoint(Position position, String altitudeMode, Vec4 result)
     {
         if (position == null)
@@ -183,7 +185,7 @@ public class VisibleTerrain implements Terrain
         this.getPoint(position.latitude, position.longitude, position.elevation, altitudeMode, result);
     }
 
-    /** {@inheritDoc} */
+    @Override
     public void getPoint(Angle latitude, Angle longitude, double metersOffset, String altitudeMode, Vec4 result)
     {
         if (latitude == null)

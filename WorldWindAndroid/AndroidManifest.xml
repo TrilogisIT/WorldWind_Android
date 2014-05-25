@@ -5,11 +5,9 @@
     android:versionName="1.0" >
     <uses-sdk
         android:minSdkVersion="15"
-        android:targetSdkVersion="18" />
+        android:targetSdkVersion="19" />
     <!-- Specify all of the Android features that World Wind requires: OpenGL ES 2.0. -->
     <uses-feature android:glEsVersion="0x00020000" />
     <!-- Specify all of the Android permissions that World Wind requires: internet. -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <application android:allowBackup="true" >
-    </application>
 </manifest>

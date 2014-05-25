@@ -6,6 +6,7 @@
 package gov.nasa.worldwind.render;
 
 import android.graphics.Point;
+import gov.nasa.worldwind.layers.Layer;
 
 /**
  * @author tag
@@ -13,6 +14,12 @@ import android.graphics.Point;
  */
 public interface OrderedRenderable extends Renderable
 {
+	/**
+	 * Layer this ordered renderable is in
+	 * @return
+	 */
+	Layer getLayer();
+
     /**
      * Returns the ordered renderable's distance from the current view's eye point. Intended to be used only to sort a
      * list of ordered renderables according to eye distance, and only during frame generation when a view is active.

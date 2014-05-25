@@ -1,28 +1,31 @@
 package gov.nasa.worldwind.render;
 
-import gov.nasa.worldwind.cache.GpuResourceCache;
-import gov.nasa.worldwind.geom.Matrix;
-import gov.nasa.worldwind.geom.Rect;
-import gov.nasa.worldwind.util.Logging;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
-import java.util.HashMap;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.opengl.GLES20;
+import gov.nasa.worldwind.R;
+import gov.nasa.worldwind.WorldWindowImpl;
+import gov.nasa.worldwind.cache.GpuResourceCache;
+import gov.nasa.worldwind.geom.Matrix;
+import gov.nasa.worldwind.geom.Rect;
+import gov.nasa.worldwind.util.Logging;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
+import java.util.HashMap;
 
 /**
  * Class used to render text on view
- * 
+ *
  * @author Nicola Dorigatti Trilogis SRL
  * @version 1
  */
 public class TextRenderer {
 
-	protected static final String VERTEX_SHADER_PATH = "shaders/TextRenderer.vert";
-	protected static final String FRAGMENT_SHADER_PATH = "shaders/TextRenderer.frag";
+	protected static final int VERTEX_SHADER_PATH = R.raw.textrenderervert;
+	protected static final int FRAGMENT_SHADER_PATH = R.raw.textrendererfrag;
 	protected static final Object shaderKey = new Object();
 
 	private HashMap<String, Object> textKeys = new HashMap<String, Object>();
@@ -30,9 +33,26 @@ public class TextRenderer {
 	private Paint paint;
 	private float[] color = new float[] { 1, 1, 1, 1 };
 
+	float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
+	float[] textureVerts = new float[] { 0, 1, 1, 1, 1, 0, 0, 0 };
+	FloatBuffer vertexBuf;
+	FloatBuffer textureBuf;
+
+    public TextRenderer(DrawContext dc) {
+        this(dc, null);
+    }
+
 	public TextRenderer(DrawContext dc, Paint paint) {
 		this.drawContext = dc;
 		this.paint = paint;
+        if(paint==null) {
+            this.paint = new Paint();
+            this.paint.setColor(0xFFFFFFFF);
+        }
+		vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder())
+				.asFloatBuffer().put(unitQuadVerts);
+		textureBuf = ByteBuffer.allocateDirect(textureVerts.length * 4).order(ByteOrder.nativeOrder())
+				.asFloatBuffer().put(textureVerts);
 	}
 
 	public Rect getBounds(String text) {
@@ -46,6 +66,10 @@ public class TextRenderer {
 		this.color = color;
 	}
 
+    public Paint getPaint() {
+        return this.paint;
+    }
+
 	public void draw(String text, int x, int y) {
 		Rect viewport = drawContext.getView().getViewport();
 		Rect bounds = getBounds(text);
@@ -57,32 +81,40 @@ public class TextRenderer {
 		GpuProgram program = this.getGpuProgram(drawContext.getGpuResourceCache(), shaderKey, VERTEX_SHADER_PATH, FRAGMENT_SHADER_PATH);
 		program.bind();
 		program.loadUniformMatrix("mvpMatrix", mvp);
-		GLES20.glEnable(GLES20.GL_TEXTURE_2D);
+
 		GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+		WorldWindowImpl.glCheckError("glActiveTexture");
+
 		GpuTexture texture = getGpuTexture(text);
 		texture.bind();
-		program.loadUniform4f("uTextureColor", color[0], color[1], color[2], color[3]);
+		program.loadUniform4f("uTextureColor", color[0], color[1], color[2], color[3]*drawContext.getCurrentLayer().getOpacity());
 		program.loadUniformSampler("sTexture", 0);
 
-		float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
 		int pointLocation = program.getAttribLocation("vertexPoint");
 		GLES20.glEnableVertexAttribArray(pointLocation);
-		FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-		vertexBuf.put(unitQuadVerts);
-		vertexBuf.rewind();
-		GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
-		float[] textureVerts = new float[] { 0, 1, 1, 1, 1, 0, 0, 0 };
+		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
+
+		GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf.rewind());
+		WorldWindowImpl.glCheckError("glVertexAttribPointer");
+
 		int textureLocation = program.getAttribLocation("aTextureCoord");
 		GLES20.glEnableVertexAttribArray(textureLocation);
-		FloatBuffer textureBuf = ByteBuffer.allocateDirect(textureVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-		textureBuf.put(textureVerts);
-		textureBuf.rewind();
-		GLES20.glVertexAttribPointer(textureLocation, 2, GLES20.GL_FLOAT, false, 0, textureBuf);
+		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
+
+		GLES20.glVertexAttribPointer(textureLocation, 2, GLES20.GL_FLOAT, false, 0, textureBuf.rewind());
+		WorldWindowImpl.glCheckError("glVertexAttribPointer");
+
 		GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
+		WorldWindowImpl.glCheckError("glDrawArrays");
+
 		GLES20.glDisableVertexAttribArray(pointLocation);
+		WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
+
 		GLES20.glDisableVertexAttribArray(textureLocation);
+		WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
+
 		GLES20.glUseProgram(0);
-		GLES20.glDisable(GLES20.GL_TEXTURE_2D);
+		WorldWindowImpl.glCheckError("glUseProgram");
 	}
 
 	protected GpuTexture getGpuTexture(String text) {
@@ -97,8 +129,8 @@ public class TextRenderer {
 			// TODO: load the texture on a non-rendering thread.
 			texture = this.loadTextTexture(text);
 			if (texture != null) // Don't add the texture to the cache if
-									// texture creation failed.
-			cache.put(key, texture);
+				// texture creation failed.
+				cache.put(key, texture);
 		}
 
 		return texture;
@@ -112,7 +144,7 @@ public class TextRenderer {
 		canvas.drawText(text, 0, bounds.height(), paint);
 
 		GpuTexture texture = null;
-		GpuTextureData textureData = GpuTextureData.createTextureData(image);
+		GpuTextureData textureData = GpuTextureData.createTextureData(image, null, null, false);
 		// GpuTextureData textureData = BasicGpuTextureFactory.createTextureData(AVKey.GPU_TEXTURE_FACTORY, image, null);
 		if (textureData != null) {
 			texture = GpuTexture.createTexture(drawContext, textureData);
@@ -121,7 +153,7 @@ public class TextRenderer {
 		return texture;
 	}
 
-	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, String shaderPath, String fragmentPath) {
+	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, int shaderPath, int fragmentPath) {
 
 		GpuProgram program = cache.getProgram(programKey);
 
@@ -138,4 +170,14 @@ public class TextRenderer {
 
 		return program;
 	}
+
+    public void beginDrawing() {
+        GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+        GLES20.glDepthMask(false);
+    }
+
+    public void endDrawing() {
+        GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+        GLES20.glDepthMask(true);
+    }
 }

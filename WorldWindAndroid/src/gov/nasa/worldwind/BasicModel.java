@@ -18,6 +18,9 @@ public class BasicModel extends WWObjectImpl implements Model
 {
     protected Globe globe;
     protected LayerList layers;
+	protected boolean showTessellationBoundingVolumes;
+	protected boolean showTessellationTileIds;
+	protected boolean showWireframe;
 
     public BasicModel()
     {
@@ -101,4 +104,55 @@ public class BasicModel extends WWObjectImpl implements Model
         this.layers = layers;
         this.firePropertyChange(AVKey.LAYERS, old, this.layers);
     }
+
+	/**
+	 * Specifies whether to display as wireframe the exterior geometry of the tessellated globe surface.
+	 *
+	 * @param show true causes the geometry to be shown, false, the default, does not.
+	 */
+	public void setShowWireframe(boolean show)
+	{
+		this.showWireframe = show;
+	}
+
+	/**
+	 * Indicates whether the globe surface's interior geometry is to be drawn.
+	 *
+	 * @return true if it is to be drawn, otherwise false.
+	 */
+	public boolean isShowWireframe()
+	{
+		return this.showWireframe;
+	}
+
+	/**
+	 * Indicates whether the bounding volumes of the tessellated globe's surface geometry should be displayed.
+	 *
+	 * @return true if the bounding volumes are to be drawn, otherwise false.
+	 */
+	public boolean isShowTessellationBoundingVolumes()
+	{
+		return showTessellationBoundingVolumes;
+	}
+
+	/**
+	 * Specifies whether the bounding volumes of the globes tessellated surface geometry is to be drawn.
+	 *
+	 * @param showTessellationBoundingVolumes
+	 *         true if the bounding volumes should be drawn, false, the default, if not.
+	 */
+	public void setShowTessellationBoundingVolumes(boolean showTessellationBoundingVolumes)
+	{
+		this.showTessellationBoundingVolumes = showTessellationBoundingVolumes;
+	}
+
+	@Override
+	public boolean isShowTessellationTileIds() {
+		return this.showTessellationTileIds;
+	}
+
+	@Override
+	public void setShowTessellationTileIds(boolean showTileIds) {
+		this.showTessellationTileIds = showTileIds;
+	}
 }

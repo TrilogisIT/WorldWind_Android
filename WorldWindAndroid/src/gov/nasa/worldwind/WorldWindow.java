@@ -6,9 +6,16 @@
 package gov.nasa.worldwind;
 
 import gov.nasa.worldwind.cache.GpuResourceCache;
-import gov.nasa.worldwind.event.*;
+import gov.nasa.worldwind.event.InputHandler;
+import gov.nasa.worldwind.event.PositionListener;
+import gov.nasa.worldwind.event.RenderingListener;
+import gov.nasa.worldwind.event.SelectListener;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.pick.PickedObjectList;
+import gov.nasa.worldwind.util.PerformanceStatistic;
+import java.util.Map;
+import java.util.Set;
+import android.content.Context;
 
 /**
  * @author dcollins
@@ -16,6 +23,8 @@ import gov.nasa.worldwind.pick.PickedObjectList;
  */
 public interface WorldWindow extends WWObject
 {
+	public Context getContext();
+
     /**
      * Returns the window's current model.
      *
@@ -108,6 +117,36 @@ public interface WorldWindow extends WWObject
     void removeRenderingListener(RenderingListener listener);
 
     /**
+	 * Adds a select listener to this world window. Select listeners are called when a selection is made by the user in
+	 * the world window. A selection is any operation that identifies a visible item.
+	 *
+	 * @param listener The select listener to add.
+	 */
+	void addSelectListener(SelectListener listener);
+
+	/**
+	 * Removes the specified select listener associated with this world window.
+	 *
+	 * @param listener The select listener to remove.
+	 */
+	void removeSelectListener(SelectListener listener);
+
+	/**
+	 * Adds a position listener to this world window. Position listeners are called when the cursor's position changes.
+	 * They identify the position of the cursor on the globe, or that the cursor is not on the globe.
+	 *
+	 * @param listener The position listener to add.
+	 */
+	void addPositionListener(PositionListener listener);
+
+	/**
+	 * Removes the specified position listener associated with this world window.
+	 *
+	 * @param listener The listener to remove.
+	 */
+	void removePositionListener(PositionListener listener);
+
+    /**
      * Returns the current latitude, longitude and altitude of the current cursor position, or <code>null</code> if the
      * cursor is not on the globe.
      *
@@ -135,4 +174,24 @@ public interface WorldWindow extends WWObject
     void redraw();
 
     void invokeInRenderingThread(Runnable r);
+
+	/**
+	 * Activates the per-frame performance statistic specified. Per-frame statistics measure values within a single
+	 * frame of rendering, such as number of tiles drawn to produce the frame.
+	 *
+	 * @param keys The statistics to activate.
+	 */
+	void setPerFrameStatisticsKeys(Set<String> keys);
+
+	/**
+	 * Returns the active per-frame performance statistics such as number of tiles drawn in the most recent frame.
+	 *
+	 * @return The keys and values of the active per-frame statistics.
+	 */
+	Map<String, PerformanceStatistic> getPerFrameStatistics(); // TODO: move the constants from AVKey to this interface.
+
+	public void onSurfaceDestroyed();
+
+	public void onPause();
+	public void onResume();
 }

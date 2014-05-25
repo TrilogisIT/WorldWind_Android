@@ -40,9 +40,51 @@ public interface SectorGeometry
 
     void renderOutline(DrawContext dc);
 
+	/**
+	 * Displays the geometry's bounding volume.
+	 *
+	 * @param dc the current draw context.
+	 *
+	 * @throws IllegalArgumentException if the draw context is null.
+	 */
+	void renderBoundingVolume(DrawContext dc);
+
+	/**
+	 * Displays on the geometry's surface the tessellator level and the minimum and maximum elevations of the sector.
+	 *
+	 * @param dc the current draw context.
+	 *
+	 * @throws IllegalArgumentException if the draw context is null.
+	 */
+	void renderTileID(DrawContext dc);
+
     void beginRendering(DrawContext dc);
 
     void endRendering(DrawContext dc);
 
     void pick(DrawContext dc, Point pickPoint);
+
+	/**
+	 * Computes the Cartesian coordinates of a line's intersections with the geometry.
+	 *
+	 * @param line the line to intersect.
+	 *
+	 * @return the Cartesian coordinates of each intersection, or null if there is no intersection or no internal
+	 *         geometry has been computed.
+	 *
+	 * @throws IllegalArgumentException if the line is null.
+	 */
+	Intersection[] intersect(Line line);
+
+	/**
+	 * Computes the geometry's intersections with a globe at a specified elevation.
+	 *
+	 * @param elevation the elevation for which intersection points are to be found.
+	 *
+	 * @return an array of intersection pairs, or null if no intersections were found. The returned array of
+	 *         intersections describes a list of individual segments - two <code>Intersection</code> elements for each,
+	 *         corresponding to each geometry triangle that intersects the given elevation.
+	 */
+	Intersection[] intersect(double elevation);
+
 }

@@ -6,9 +6,18 @@
 
 package gov.nasa.worldwind.geom;
 
+import android.opengl.GLES20;
+import gov.nasa.worldwind.R;
+import gov.nasa.worldwind.cache.GpuResourceCache;
+import gov.nasa.worldwind.render.Color;
+import gov.nasa.worldwind.render.DrawContext;
+import gov.nasa.worldwind.render.GpuProgram;
+import gov.nasa.worldwind.render.Renderable;
 import gov.nasa.worldwind.util.*;
 
-import java.nio.FloatBuffer;
+import java.nio.*;
+
+import static android.opengl.GLES20.*;
 
 /**
  * An arbitrarily oriented box, typically used as a oriented bounding volume for a collection of points or shapes. A
@@ -19,7 +28,7 @@ import java.nio.FloatBuffer;
  * @author tag
  * @version $Id: Box.java 807 2012-09-26 17:40:25Z dcollins $
  */
-public class Box implements Extent
+public class Box implements Extent, Renderable
 {
     protected final Vec4 bottomCenter; // point at center of box's longest axis
     protected final Vec4 topCenter; // point at center of box's longest axis
@@ -458,6 +467,32 @@ public class Box implements Extent
         return tLength;
     }
 
+	/**
+	 * Returns the eight corners of the box.
+	 *
+	 * @return the eight box corners in the order bottom-lower-left, bottom-lower-right, bottom-upper-right,
+	 *         bottom-upper-left, top-lower-left, top-lower-right, top-upper-right, top-upper-left.
+	 */
+	public Vec4[] getCorners()
+	{
+		Vec4 ll = this.s.add3(this.t).multiply3(-0.5);     // Lower left.
+		Vec4 lr = this.t.subtract3(this.s).multiply3(0.5); // Lower right.
+		Vec4 ur = this.s.add3(this.t).multiply3(0.5);      // Upper right.
+		Vec4 ul = this.s.subtract3(this.t).multiply3(0.5); // Upper left.
+
+		Vec4[] corners = new Vec4[8];
+		corners[0] = this.bottomCenter.add3(ll);
+		corners[1] = this.bottomCenter.add3(lr);
+		corners[2] = this.bottomCenter.add3(ur);
+		corners[3] = this.bottomCenter.add3(ul);
+		corners[4] = this.topCenter.add3(ll);
+		corners[5] = this.topCenter.add3(lr);
+		corners[6] = this.topCenter.add3(ur);
+		corners[7] = this.topCenter.add3(ul);
+
+		return corners;
+	}
+
     public Box translate(Vec4 point)
     {
         if (point == null)
@@ -516,6 +551,41 @@ public class Box implements Extent
         Vec4 n = plane.getNormal();
         return 0.5 * (Math.abs(this.s.dot3(n)) + Math.abs(this.t.dot3(n)));
     }
+
+
+
+	/** {@inheritDoc} */
+	public boolean intersects(Plane plane)
+	{
+		if (plane == null)
+		{
+			String message = Logging.getMessage("nullValue.PlaneIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		double effectiveRadius = this.getEffectiveRadius(plane);
+		return this.intersects(plane, effectiveRadius) >= 0;
+	}
+
+	protected double intersects(Plane plane, double effectiveRadius)
+	{
+		// Test the distance from the first end-point.
+		double dq1 = plane.dot(this.bottomCenter);
+		boolean bq1 = dq1 <= -effectiveRadius;
+
+		// Test the distance from the top of the box.
+		double dq2 = plane.dot(this.topCenter);
+		boolean bq2 = dq2 <= -effectiveRadius;
+
+		if (bq1 && bq2) // both beyond effective radius; box is on negative side of plane
+			return -1;
+
+		if (bq1 == bq2) // both within effective radius; can't draw any conclusions
+			return 0;
+
+		return 1; // box almost certainly intersects
+	}
 
     /** {@inheritDoc} */
     public boolean intersects(Frustum frustum)
@@ -595,6 +665,24 @@ public class Box implements Extent
         return t;
     }
 
+	/** {@inheritDoc} */
+	public Intersection[] intersect(Line line)
+	{
+		if (line == null)
+		{
+			String message = Logging.getMessage("nullValue.LineIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+		return WWMath.polytopeIntersect(line, this.planes);
+	}
+
+	/** {@inheritDoc} */
+	public boolean intersects(Line line)
+	{
+		return intersect(line) != null;
+	}
+
     @Override
     public boolean equals(Object o)
     {
@@ -619,4 +707,168 @@ public class Box implements Extent
         result = 31 * result + (this.t != null ? this.t.hashCode() : 0);
         return result;
     }
+
+	public String toString()
+	{
+		return String.format("Box @(%s) r: %s, s: %s, t: %s", center.toString(), r.toString(), s.toString(), t.toString());
+	}
+
+	private FloatBuffer vBuf = ByteBuffer.allocateDirect(6 * 3 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();;
+	private IntBuffer iBuf = ByteBuffer.allocateDirect(4 * 4).order(ByteOrder.nativeOrder()).asIntBuffer();
+	protected final Object programKey = new Object();
+	protected boolean programCreationFailed;
+
+	/**
+	 * Draws a representation of the <code>Box</code>.
+	 *
+	 * @param dc the <code>DrawContext</code> to be used.
+	 */
+	public void render(DrawContext dc)
+	{
+		if (dc == null)
+		{
+			String message = Logging.getMessage("nullValue.DocumentSourceIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		if (dc.isPickingMode())
+			return;
+
+		GpuProgram program = this.getGpuProgram(dc.getGpuResourceCache());
+		if (program == null) return;
+
+		dc.setCurrentProgram(program);
+		program.bind();
+
+		program.loadUniform1f("uOpacity", dc.isPickingMode() ? 1f : dc.getCurrentLayer().getOpacity());
+
+		int attribLocation = program.getAttribLocation("vertexPoint");
+		if (attribLocation >= 0) GLES20.glEnableVertexAttribArray(attribLocation);
+
+		Vec4 a = this.s.add3(this.t).multiply3(-0.5);
+		Vec4 b = this.s.subtract3(this.t).multiply3(0.5);
+		Vec4 c = this.s.add3(this.t).multiply3(0.5);
+		Vec4 d = this.t.subtract3(this.s).multiply3(0.5);
+
+		OGLStackHandler ogsh = new OGLStackHandler();
+		ogsh.pushAttrib(GL_COLOR_BUFFER_BIT // For alpha enable, blend enable, alpha func, blend func.
+				| GL_DEPTH_BUFFER_BIT); // For depth test enable, depth func.
+		try {
+			GLES20.glLineWidth(1f);
+			GLES20.glEnable(GLES20.GL_BLEND);
+			OGLUtil.applyBlending(false);
+			GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+
+			GLES20.glDepthFunc(GLES20.GL_LEQUAL);
+			dc.getCurrentProgram().loadUniformColor("uColor", new Color(1d, 1d, 1d, 0.5d));
+			this.drawBox(dc, a, b, c, d);
+
+			GLES20.glDepthFunc(GLES20.GL_GREATER);
+			dc.getCurrentProgram().loadUniformColor("uColor", new Color(1d, 0d, 1d, 0.4d));
+			this.drawBox(dc, a, b, c, d);
+
+		} finally {
+			ogsh.popAttrib(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			GLES20.glDisableVertexAttribArray(attribLocation);
+
+			dc.setCurrentProgram(null);
+			GLES20.glUseProgram(0);
+			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+			GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
+		}
+	}
+
+	protected void drawBox(DrawContext dc, Vec4 a, Vec4 b, Vec4 c, Vec4 d)
+	{
+		Vec4 e = a.add3(this.r);
+		Vec4 f = d.add3(this.r);
+		vBuf.rewind();
+		vBuf.put((float)a.x);
+		vBuf.put((float)a.y);
+		vBuf.put((float)a.z);
+		vBuf.put((float)b.x);
+		vBuf.put((float)b.y);
+		vBuf.put((float)b.z);
+		vBuf.put((float)c.x);
+		vBuf.put((float)c.y);
+		vBuf.put((float)c.z);
+		vBuf.put((float)d.x);
+		vBuf.put((float)d.y);
+		vBuf.put((float)d.z);
+		vBuf.put((float)e.x);
+		vBuf.put((float)e.y);
+		vBuf.put((float)e.z);
+		vBuf.put((float)f.x);
+		vBuf.put((float)f.y);
+		vBuf.put((float)f.z);
+
+		Matrix matrix = Matrix.fromIdentity();
+		matrix.multiplyAndSet(dc.getView().getModelviewProjectionMatrix(),
+//				Matrix.fromIdentity());
+				Matrix.fromTranslation(this.bottomCenter));
+
+		dc.getCurrentProgram().loadUniformMatrix("mvpMatrix", matrix);
+		Matrix tmpMatrix = matrix.copy();
+
+		// Draw parallel lines in R direction
+		int n = 20;
+		Vec4 dr = this.r.multiply3(1d / (double) n);
+
+		this.drawOutline(dc, 0, 1, 2, 3);
+		for (int i = 1; i < n; i++)
+		{
+			tmpMatrix.multiplyAndSet(Matrix.fromTranslation(dr));
+			dc.getCurrentProgram().loadUniformMatrix("mvpMatrix", tmpMatrix);
+			this.drawOutline(dc, 0, 1, 2, 3);
+		}
+
+		dc.getCurrentProgram().loadUniformMatrix("mvpMatrix", matrix);
+		tmpMatrix = matrix.copy();
+
+		// Draw parallel lines in S direction
+		n = 20;
+		Vec4 ds = this.s.multiply3(1d / (double) n);
+
+		this.drawOutline(dc, 0, 4, 5, 3);
+		for (int i = 1; i < n; i++)
+		{
+			tmpMatrix.multiplyAndSet(Matrix.fromTranslation(ds));
+			dc.getCurrentProgram().loadUniformMatrix("mvpMatrix", tmpMatrix);
+			this.drawOutline(dc, 0, 4, 5, 3);
+		}
+	}
+
+	protected void drawOutline(DrawContext dc, int a, int b, int c, int d)
+	{
+		iBuf.rewind();
+		iBuf.put(a);
+		iBuf.put(b);
+		iBuf.put(c);
+		iBuf.put(d);
+		int maPositionHandle = dc.getCurrentProgram().getAttribLocation("vertexPoint");
+		GLES20.glVertexAttribPointer(maPositionHandle, 3, GLES20.GL_FLOAT, false, 3, vBuf.rewind());
+		GLES20.glDrawElements(GLES20.GL_LINE_LOOP, 4, GLES20.GL_UNSIGNED_INT, iBuf.rewind());
+	}
+
+
+	protected GpuProgram getGpuProgram(GpuResourceCache cache) {
+		if (this.programCreationFailed) return null;
+
+		GpuProgram program = cache.getProgram(this.programKey);
+
+		if (program == null) {
+			try {
+				GpuProgram.GpuProgramSource source = GpuProgram.readProgramSource(R.raw.simple_vert, R.raw.uniform_color_frag);
+				program = new GpuProgram(source);
+				cache.put(this.programKey, program);
+			} catch (Exception e) {
+				String msg = Logging.getMessage("GL.ExceptionLoadingProgram", R.raw.simple_vert, R.raw.uniform_color_frag);
+				Logging.error(msg);
+				this.programCreationFailed = true;
+			}
+		}
+
+		return program;
+	}
 }

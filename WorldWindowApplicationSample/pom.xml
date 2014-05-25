@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  ~ Copyright (C) 2014 United States Government as represented by the Administrator of the
+  ~ National Aeronautics and Space Administration.
+  ~ All Rights Reserved.
+  -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.github.trilogisit.worldwindandroid</groupId>
+        <artifactId>parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>sample</artifactId>
+    <packaging>apk</packaging>
+
+    <name>WorldWindAndroid Sample</name>
+
+    <scm>
+        <url>https://github.com/TrilogisIT/WorldWindAndroid.git</url>
+        <connection>scm:git:git://github.com/TrilogisIT/WorldWindAndroid.git</connection>
+        <developerConnection>scm:git:git://github.com/TrilogisIT/WorldWindAndroid.git</developerConnection>
+    </scm>
+
+    <issueManagement>
+        <url>https://www.github.com/TrilogisIT/WorldWindAndroid/issues</url>
+        <system>GitHub Issues</system>
+    </issueManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>android</groupId>
+            <artifactId>android</artifactId>
+            <version>4.4_r1</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.github.trilogisit.worldwindandroid</groupId>
+            <artifactId>library</artifactId>
+            <version>${project.version}</version>
+            <type>aar</type>
+        </dependency>
+        <dependency>
+            <groupId>com.github.masdennis.rajawali</groupId>
+            <artifactId>rajawali</artifactId>
+            <version>1.0.0</version>
+            <type>aar</type>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+                <artifactId>android-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

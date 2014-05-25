@@ -1040,7 +1040,7 @@ public class BasicElevationModel extends AbstractElevationModel implements BulkR
 				// Look directly in the file system
 				File file = new File(extremesFileName);
 				if (file.exists()) is = new FileInputStream(file);
-				else Logging.warning("BasicElevationModel.UnavailableExtremesFile", extremesFileName);
+				else Logging.warning("UnavailExtremeFile", extremesFileName);
 			}
 
 			if (is == null) return;

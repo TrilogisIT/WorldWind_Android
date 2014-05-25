@@ -5,16 +5,15 @@
  */
 package gov.nasa.worldwind.layers;
 
-import gov.nasa.worldwind.Configuration;
 import gov.nasa.worldwind.WorldWind;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.avlist.AVList;
 import gov.nasa.worldwind.avlist.AVListImpl;
-import gov.nasa.worldwind.cache.BasicMemoryCache;
 import gov.nasa.worldwind.cache.FileStore;
 import gov.nasa.worldwind.cache.MemoryCache;
-import gov.nasa.worldwind.event.BulkRetrievalListener;
 import gov.nasa.worldwind.geom.Angle;
+import gov.nasa.worldwind.geom.Box;
 import gov.nasa.worldwind.geom.Extent;
 import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Position;
@@ -22,33 +21,28 @@ import gov.nasa.worldwind.geom.Rect;
 import gov.nasa.worldwind.geom.Sector;
 import gov.nasa.worldwind.geom.Vec4;
 import gov.nasa.worldwind.render.DrawContext;
-import gov.nasa.worldwind.render.GpuTextureData;
 import gov.nasa.worldwind.render.GpuTextureTile;
-import gov.nasa.worldwind.retrieve.AbstractRetrievalPostProcessor;
-import gov.nasa.worldwind.retrieve.BulkRetrievable;
-import gov.nasa.worldwind.retrieve.BulkRetrievalThread;
-import gov.nasa.worldwind.retrieve.Retriever;
-import gov.nasa.worldwind.retrieve.URLRetriever;
+import gov.nasa.worldwind.render.Renderable;
+import gov.nasa.worldwind.render.TextRenderer;
 import gov.nasa.worldwind.util.DataConfigurationUtils;
 import gov.nasa.worldwind.util.Level;
 import gov.nasa.worldwind.util.LevelSet;
 import gov.nasa.worldwind.util.Logging;
+import gov.nasa.worldwind.util.PerformanceStatistic;
 import gov.nasa.worldwind.util.Tile;
 import gov.nasa.worldwind.util.TileKey;
 import gov.nasa.worldwind.util.WWIO;
 import gov.nasa.worldwind.util.WWXML;
-import java.io.File;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.PriorityBlockingQueue;
 import javax.xml.xpath.XPath;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Point;
+import android.opengl.GLES20;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -57,7 +51,7 @@ import android.graphics.Point;
  * @version $Id: TiledImageLayer.java 842 2012-10-09 23:46:47Z tgaskins $
  */
 // TODO: apply layer opacity during rendering
-public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, BulkRetrievable {
+public abstract class TiledImageLayer extends AbstractLayer implements Tile.TileFactory<GpuTextureTile> {
 	protected LevelSet levels;
 	protected double detailHintOrigin = 2.6; // the default detail hint origin
 	protected double detailHint;
@@ -65,15 +59,22 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 	protected boolean levelZeroLoaded = false;
 	protected boolean retainLevelZeroTiles = false;
 	protected boolean useTransparentTextures = false;
-	protected List<Tile> topLevelTiles = new ArrayList<Tile>();
+	protected boolean useMipMaps = true;
+	protected String textureFormat;
+	private boolean drawTileIDs = false;
+	private boolean drawBoundingVolumes = false;
+	protected List<GpuTextureTile> topLevelTiles = new ArrayList<GpuTextureTile>();
 	protected String tileCountName;
-	protected String wmsLayerName;
 
 	// Stuff computed each frame
 	protected List<GpuTextureTile> currentTiles = new ArrayList<GpuTextureTile>();
 	protected GpuTextureTile currentAncestorTile;
 	protected PriorityBlockingQueue<Runnable> requestQ = new PriorityBlockingQueue<Runnable>(200);
 	protected final Object fileLock = new Object();
+	protected TextRenderer textRenderer;
+
+	abstract protected void forceTextureLoad(GpuTextureTile tile);
+	abstract protected void requestTile(DrawContext dc, GpuTextureTile tile);
 
 	public TiledImageLayer(AVList params) {
 		if (params == null) {
@@ -86,49 +87,7 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 
 		this.setValue(AVKey.SECTOR, this.levels.getSector());
 		this.setPickEnabled(false); // textures are assumed to be terrain unless specifically indicated otherwise.
-		this.tileCountName = this.getName() + " Tiles";
-
-		String s = params.getStringValue(AVKey.DISPLAY_NAME);
-		if (s != null) this.setName(s);
-		
-		String wmsName = params.getStringValue(AVKey.LAYER_NAMES);
-        if (wmsName != null) this.setWmsLayerName(wmsName);
-
-		Double d = (Double) params.getValue(AVKey.OPACITY);
-		if (d != null) this.setOpacity(d);
-
-		d = (Double) params.getValue(AVKey.MAX_ACTIVE_ALTITUDE);
-		if (d != null) this.setMaxActiveAltitude(d);
-
-		d = (Double) params.getValue(AVKey.MIN_ACTIVE_ALTITUDE);
-		if (d != null) this.setMinActiveAltitude(d);
-
-		d = (Double) params.getValue(AVKey.MAP_SCALE);
-		if (d != null) this.setValue(AVKey.MAP_SCALE, d);
-
-		d = (Double) params.getValue(AVKey.DETAIL_HINT);
-		if (d != null) this.setDetailHint(d);
-
-		Boolean b;
-
-		b = (Boolean) params.getValue(AVKey.NETWORK_RETRIEVAL_ENABLED);
-		if (b != null) this.setNetworkRetrievalEnabled(b);
-
-		b = (Boolean) params.getValue(AVKey.USE_TRANSPARENT_TEXTURES);
-		if (b != null) this.setUseTransparentTextures(b);
-
-		Object o = params.getValue(AVKey.URL_CONNECT_TIMEOUT);
-		if (o != null) this.setValue(AVKey.URL_CONNECT_TIMEOUT, o);
-
-		o = params.getValue(AVKey.URL_READ_TIMEOUT);
-		if (o != null) this.setValue(AVKey.URL_READ_TIMEOUT, o);
-
-		o = params.getValue(AVKey.RETRIEVAL_QUEUE_STALE_REQUEST_LIMIT);
-		if (o != null) this.setValue(AVKey.RETRIEVAL_QUEUE_STALE_REQUEST_LIMIT, o);
-
-		if (params.getValue(AVKey.TRANSPARENCY_COLORS) != null) this.setValue(AVKey.TRANSPARENCY_COLORS, params.getValue(AVKey.TRANSPARENCY_COLORS));
-
-		this.setValue(AVKey.CONSTRUCTION_PARAMETERS, params.copy());
+		setName(this.getName());
 	}
 
 	public TiledImageLayer(Element domElement, AVList params) {
@@ -182,6 +141,13 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 		return value != null ? value : this.getLevels().getValue(key); // see if the level set has it
 	}
 
+	@Override
+	public void setName(String name)
+	{
+		super.setName(name);
+		this.tileCountName = this.getName() + " Tiles";
+	}
+
 	public boolean isForceLevelZeroLoads() {
 		return this.forceLevelZeroLoads;
 	}
@@ -196,6 +162,26 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 
 	public void setRetainLevelZeroTiles(boolean retainLevelZeroTiles) {
 		this.retainLevelZeroTiles = retainLevelZeroTiles;
+	}
+
+	public boolean isDrawTileIDs()
+	{
+		return drawTileIDs;
+	}
+
+	public void setDrawTileIDs(boolean drawTileIDs)
+	{
+		this.drawTileIDs = drawTileIDs;
+	}
+
+	public boolean isDrawBoundingVolumes()
+	{
+		return drawBoundingVolumes;
+	}
+
+	public void setDrawBoundingVolumes(boolean drawBoundingVolumes)
+	{
+		this.drawBoundingVolumes = drawBoundingVolumes;
 	}
 
 	/**
@@ -246,25 +232,44 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 	}
 
 	/**
-     * @return the wmsLayerName
-     */
-    public String getWmsLayerName() {
-        if (null == wmsLayerName){
-            wmsLayerName = "";
-        }
-        return wmsLayerName;
-    }
-    
+	 * Returns the format used to store images in texture memory, or null if
+	 * images are stored in their native format.
+	 *
+	 * @return the texture image format; null if images are stored in their
+	 *         native format.
+	 * @see #setTextureFormat(String)
+	 */
+	public String getTextureFormat() {
+		return this.textureFormat;
+	}
 
-    /**
-     * @param wmsLayerName the wmsLayerName to set
-     */
-    public void setWmsLayerName(String wmsLayerName) {
-        this.wmsLayerName = wmsLayerName;
-    }
-    
+	/**
+	 * Specifies the format used to store images in texture memory, or null to
+	 * store images in their native format. Suppported texture formats are as
+	 * follows:
+	 * <ul>
+	 * <li><code>image/dds</code> - Stores images in the compressed DDS format. If the image is already in DDS format it's stored as-is.</li>
+	 * </ul>
+	 *
+	 * @param textureFormat
+	 *            the texture image format; null to store images in their native
+	 *            format.
+	 */
+	public void setTextureFormat(String textureFormat) {
+		this.textureFormat = textureFormat;
+	}
 
-    /**
+	public boolean isUseMipMaps()
+	{
+		return useMipMaps;
+	}
+
+	public void setUseMipMaps(boolean useMipMaps)
+	{
+		this.useMipMaps = useMipMaps;
+	}
+
+	/**
 	 * Specifies the time of the layer's most recent dataset update, beyond which cached data is invalid. If greater
 	 * than zero, the layer ignores and eliminates any in-memory or on-disk cached data older than the time specified,
 	 * and requests new information from the data source. If zero, the default, the layer applies any expiry times
@@ -340,6 +345,9 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 
 	@Override
 	protected void doRender(DrawContext dc) {
+		if (this.forceLevelZeroLoads && !this.levelZeroLoaded)
+			this.loadAllTopLevelTextures(dc);
+
 		if (dc.getSurfaceGeometry() == null || dc.getSurfaceGeometry().size() < 1) return;
 
 		this.assembleTiles(dc);
@@ -347,7 +355,16 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 		if (!this.currentTiles.isEmpty()) {
 			// TODO: apply opacity and transparent texture support
 
+			//TODO Draw Tile boundries/labels
+			dc.setPerFrameStatistic(PerformanceStatistic.IMAGE_TILE_COUNT, this.tileCountName,
+					this.currentTiles.size());
 			dc.getSurfaceTileRenderer().renderTiles(dc, this.currentTiles);
+
+			if (this.drawTileIDs)
+				this.drawTileIDs(dc, this.currentTiles);
+
+			if (this.drawBoundingVolumes)
+				this.drawBoundingVolumes(dc, this.currentTiles);
 
 			// Check texture expiration. Memory-cached textures are checked for expiration only when an explicit,
 			// non-zero expiry time has been set for the layer. If none has been set, the expiry times of the layer's
@@ -362,6 +379,46 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 		this.requestQ.clear();
 
 		// TODO: clear fallback tiles
+	}
+
+	protected void drawTileIDs(DrawContext dc, List<GpuTextureTile> tiles)
+	{
+		Paint paint = new Paint();
+		paint.setColor(Color.YELLOW);
+		if(textRenderer==null) {
+			textRenderer = new TextRenderer(dc, paint);
+		}
+
+		GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+		GLES20.glDepthMask(false);
+
+		for (GpuTextureTile tile : tiles)
+		{
+			String tileLabel = tile.getLabel();
+
+			if (tile.getFallbackTile() != null)
+				tileLabel += "/" + tile.getFallbackTile().getLabel();
+
+			LatLon ll = tile.getSector().getCentroid();
+			Vec4 pt = new Vec4();
+			dc.getView().project(dc.getGlobe().computePointFromPosition(ll.getLatitude(), ll.getLongitude(),
+					dc.getGlobe().getElevation(ll.getLatitude(), ll.getLongitude())), pt);
+			textRenderer.draw(tileLabel, (int) pt.x, (int) pt.y);
+		}
+		GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+		GLES20.glDepthMask(true);
+	}
+
+	protected void drawBoundingVolumes(DrawContext dc, List<GpuTextureTile> tiles)
+	{
+		for (GpuTextureTile tile : tiles)
+		{
+			if (tile.getExtent() instanceof Renderable)
+				((Renderable) tile.getExtent()).render(dc);
+		}
+
+		Box c = Sector.computeBoundingBox(dc.getGlobe(), dc.getVerticalExaggeration(), this.levels.getSector());
+		c.render(dc);
 	}
 
 	public GpuTextureTile createTile(Sector sector, Level level, int row, int column) {
@@ -389,8 +446,22 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 			throw new IllegalArgumentException(msg);
 		}
 
-		return new GpuTextureTile(sector, level, row, column, this.getTextureTileCache());
+		return new GpuTextureTile(sector, level, row, column);
 	}
+
+	protected void loadAllTopLevelTextures(DrawContext dc)
+	{
+		if(WorldWindowImpl.DEBUG)
+			Logging.verbose(getName() + "- Creating Top Level Tiles");
+		for (GpuTextureTile tile : this.getTopLevels())
+		{
+			if (!tile.isTextureInMemory(dc.getTextureCache()))
+				this.forceTextureLoad(tile);
+		}
+
+		this.levelZeroLoaded = true;
+	}
+
 
 	// ============== Tile Assembly ======================= //
 	// ============== Tile Assembly ======================= //
@@ -410,6 +481,15 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 			if (this.isTileVisible(dc, (GpuTextureTile) tile)) this.addTileOrDescendants(dc, (GpuTextureTile) tile);
 		}
 	}
+
+	public List<GpuTextureTile> getTopLevels()
+	{
+		if (this.topLevelTiles == null)
+			this.createTopLevelTiles();
+
+		return topLevelTiles;
+	}
+
 
 	protected void createTopLevelTiles() {
 		if (this.levels.getFirstLevel() == null) {
@@ -440,7 +520,7 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 		// transform is applied during rendering to align the sector's texture coordinates with the appropriate region
 		// of the ancestor's texture.
 
-		MemoryCache cache = this.getTextureTileCache();
+		MemoryCache cache = GpuTextureTile.getMemoryCache();
 		GpuTextureTile ancestorTile = null;
 
 		try {
@@ -448,7 +528,19 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 				ancestorTile = this.currentAncestorTile;
 				this.currentAncestorTile = tile;
 			}
+			else if (!tile.getLevel().isEmpty())
+			{
+//                this.addTile(dc, tile);
+//                return;
 
+				// Issue a request for the parent before descending to the children.
+//                if (tile.getLevelNumber() < this.levels.getNumLevels())
+//                {
+//                    // Request only tiles with data associated at this level
+//                    if (!this.levels.isResourceAbsent(tile))
+//                        this.requestTexture(dc, tile);
+//                }
+			}
 			Tile[] subTiles = tile.subdivide(this.levels.getLevel(tile.getLevelNumber() + 1), cache, this);
 			for (Tile child : subTiles) {
 				// Put all sub-tiles in the terrain tile cache to avoid repeatedly allocating them each frame. Sub
@@ -481,6 +573,17 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 			return;
 		}
 
+		// Level 0 loads may be forced
+		if (tile.getLevelNumber() == 0 && this.forceLevelZeroLoads && !tile.isTextureInMemory(dc.getTextureCache()))
+		{
+			this.forceTextureLoad(tile);
+			if (tile.isTextureInMemory(dc.getTextureCache()))
+			{
+				this.currentTiles.add(tile);
+				return;
+			}
+		}
+
 		// The tile's texture is not in memory. Issue a request for the texture data if the tile is not already marked
 		// as an absent resource. We ignore absent resources to avoid flooding the system with requests for resources
 		// that are never resolved.
@@ -493,6 +596,9 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 			// application is resumed with the view close to the globe. In that case, the level zero tiles are never
 			// initially loaded and the tile that meets the render criteria may have no data. By issuing a request for
 			// level zero ancestor tiles, we ensure that something displays when the application resumes.
+			if (this.currentAncestorTile.getLevelNumber() == 0 && this.forceLevelZeroLoads &&
+					!this.currentAncestorTile.isTextureInMemory(dc.getTextureCache()))
+				this.forceTextureLoad(this.currentAncestorTile);
 
 			if (this.currentAncestorTile.isTextureInMemory(dc.getGpuResourceCache())) {
 				tile.setFallbackTile(this.currentAncestorTile);
@@ -543,289 +649,6 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 		return Sector.computeBoundingBox(dc.getGlobe(), dc.getVerticalExaggeration(), tile.getSector());
 	}
 
-	/**
-	 * Returns the memory cache used to cache texture tiles, initializing the cache if it doesn't yet exist.
-	 * 
-	 * @return the memory cache associated with texture tiles.
-	 */
-	protected MemoryCache getTextureTileCache() {
-		if (!WorldWind.getMemoryCacheSet().contains(GpuTextureTile.class.getName())) {
-			long size = Configuration.getLongValue(AVKey.GPU_TEXTURE_TILE_CACHE_SIZE);
-			MemoryCache cache = new BasicMemoryCache((long) (0.8 * size), size);
-			cache.setName("Texture Tiles");
-			WorldWind.getMemoryCacheSet().put(GpuTextureTile.class.getName(), cache);
-		}
-
-		return WorldWind.getMemoryCacheSet().get(GpuTextureTile.class.getName());
-	}
-
-	// **************************************************************//
-	// ********************** Retrieval ***************************//
-	// **************************************************************//
-
-	protected void requestTile(DrawContext dc, GpuTextureTile tile) {
-		Runnable task = this.createRequestTask(dc, tile);
-		if (task == null) {
-			String msg = Logging.getMessage("nullValue.TaskIsNull");
-			Logging.warning(msg);
-			return;
-		}
-
-		this.requestQ.add(task);
-	}
-
-	/**
-	 * Create a task to load a tile.
-	 * 
-	 * @param dc
-	 *            current draw context.
-	 * @param tile
-	 *            tile to load.
-	 * @return new task.
-	 */
-	protected Runnable createRequestTask(DrawContext dc, GpuTextureTile tile) {
-		double priority = this.computeTilePriority(dc, tile);
-		tile.setPriority(priority);
-		return new RequestTask(tile, this, priority);
-	}
-
-	/**
-	 * Compute the priority of loading this tile, based on distance from the eye to the tile's center point. Tiles
-	 * closer to the eye have higher priority than those far from the eye.
-	 * 
-	 * @param dc
-	 *            current draw context.
-	 * @param tile
-	 *            tile for which to compute the priority.
-	 * @return tile priority. A lower number indicates higher priority.
-	 */
-	protected double computeTilePriority(DrawContext dc, GpuTextureTile tile) {
-		// Tile priority is ordered from low (most priority) to high (least priority). Assign the tile priority based
-		// on square distance form the eye point. Since we don't care about the actual distance this enables us to
-		// avoid a square root computation. Tiles further from the eye point are loaded last.
-		return dc.getView().getEyePoint().distanceToSquared3(tile.getExtent().getCenter());
-	}
-
-	/**
-	 * Load a tile. If the tile exists in the file cache, it will be loaded from the file cache. If not, it will be
-	 * requested from the network.
-	 * 
-	 * @param tile
-	 *            tile to load.
-	 */
-	protected void loadTile(GpuTextureTile tile) {
-		URL textureURL = this.getDataFileStore().findFile(tile.getPath(), false);
-		if (textureURL != null) {
-			this.loadTileFromCache(tile, textureURL);
-		} else {
-			this.retrieveTexture(tile, this.createDownloadPostProcessor(tile));
-		}
-	}
-
-	/**
-	 * Load a tile from the file cache.
-	 * 
-	 * @param tile
-	 *            tile to load.
-	 * @param textureURL
-	 *            local URL to the cached resource.
-	 */
-	protected void loadTileFromCache(GpuTextureTile tile, URL textureURL) {
-		GpuTextureData textureData;
-
-		synchronized (this.fileLock) {
-			textureData = this.createTextureData(textureURL);
-		}
-
-		if (textureData != null) {
-			tile.setTextureData(textureData);
-
-			// The tile's size has changed, so update its size in the memory cache.
-			MemoryCache cache = this.getTextureTileCache();
-			if (cache.contains(tile.getTileKey())) cache.put(tile.getTileKey(), tile);
-
-			// Mark the tile as not absent to ensure that it is used, and cause any World Windows containing this layer
-			// to repaint themselves.
-			this.levels.unmarkResourceAbsent(tile);
-			this.firePropertyChange(AVKey.LAYER, null, this);
-		} else {
-			// Assume that something is wrong with the file and delete it.
-			this.getDataFileStore().removeFile(textureURL);
-			String message = Logging.getMessage("generic.DeletedCorruptDataFile", textureURL);
-			Logging.info(message);
-		}
-	}
-
-	protected GpuTextureData createTextureData(URL textureURL) {
-		return GpuTextureData.createTextureData(textureURL);
-	}
-
-	/**
-	 * Create a post processor for a tile retrieval task.
-	 * 
-	 * @param tile
-	 *            tile to create a post processor for.
-	 * @return new post processor.
-	 */
-	protected DownloadPostProcessor createDownloadPostProcessor(GpuTextureTile tile) {
-		return new DownloadPostProcessor(tile, this, this.getDataFileStore());
-	}
-
-	/**
-	 * Retrieve a tile from the network. This method initiates an asynchronous retrieval task and then returns.
-	 * 
-	 * @param tile
-	 *            tile to download.
-	 * @param postProcessor
-	 *            post processor to handle the retrieval.
-	 */
-	protected void retrieveTexture(GpuTextureTile tile, DownloadPostProcessor postProcessor) {
-		this.retrieveRemoteTexture(tile, postProcessor);
-	}
-
-	protected void retrieveRemoteTexture(GpuTextureTile tile, DownloadPostProcessor postProcessor) {
-		if (!this.isNetworkRetrievalEnabled()) {
-			this.getLevels().markResourceAbsent(tile);
-			return;
-		}
-
-		if (!WorldWind.getRetrievalService().isAvailable()) return;
-
-		URL url;
-		try {
-			url = tile.getResourceURL();
-		} catch (MalformedURLException e) {
-			Logging.error(Logging.getMessage("layers.TextureLayer.ExceptionCreatingTextureUrl", tile), e);
-			return;
-		}
-
-		if (WorldWind.getNetworkStatus().isHostUnavailable(url)) {
-			this.getLevels().markResourceAbsent(tile);
-			return;
-		}
-
-		Retriever retriever = URLRetriever.createRetriever(url, postProcessor);
-		if (retriever == null) {
-			Logging.error(Logging.getMessage("layers.TextureLayer.UnknownRetrievalProtocol", url.toString()));
-			return;
-		}
-		retriever.setValue(URLRetriever.EXTRACT_ZIP_ENTRY, "true"); // supports legacy layers
-
-		// Apply any overridden timeouts.
-		Integer connectTimeout = AVListImpl.getIntegerValue(this, AVKey.URL_CONNECT_TIMEOUT);
-		if (connectTimeout != null && connectTimeout > 0) retriever.setConnectTimeout(connectTimeout);
-
-		Integer readTimeout = AVListImpl.getIntegerValue(this, AVKey.URL_READ_TIMEOUT);
-		if (readTimeout != null && readTimeout > 0) retriever.setReadTimeout(readTimeout);
-
-		Integer staleRequestLimit = AVListImpl.getIntegerValue(this, AVKey.RETRIEVAL_QUEUE_STALE_REQUEST_LIMIT);
-		if (staleRequestLimit != null && staleRequestLimit > 0) retriever.setStaleRequestLimit(staleRequestLimit);
-
-		WorldWind.getRetrievalService().runRetriever(retriever, tile.getPriority());
-	}
-
-	protected static class RequestTask implements Runnable, Comparable<RequestTask> {
-		protected GpuTextureTile tile;
-		protected TiledImageLayer layer;
-		protected double priority;
-
-		public RequestTask(GpuTextureTile tile, TiledImageLayer layer, double priority) {
-			if (tile == null) {
-				String msg = Logging.getMessage("nullValue.TileIsNull");
-				Logging.error(msg);
-				throw new IllegalArgumentException(msg);
-			}
-
-			if (layer == null) {
-				String msg = Logging.getMessage("nullValue.LayerIsNull");
-				Logging.error(msg);
-				throw new IllegalArgumentException(msg);
-			}
-
-			this.tile = tile;
-			this.layer = layer;
-			this.priority = priority;
-		}
-
-		public void run() {
-			if (Thread.currentThread().isInterrupted()) return; // This task was cancelled because it's a duplicate or for some other reason.
-
-			this.layer.loadTile(this.tile);
-		}
-
-		public int compareTo(RequestTask that) {
-			if (that == null) return -1;
-
-			return this.priority < that.priority ? -1 : (this.priority > that.priority ? 1 : 0);
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) return true;
-			if (!(o instanceof RequestTask)) return false;
-
-			RequestTask that = (RequestTask) o;
-			return this.tile.equals(that.tile);
-		}
-
-		@Override
-		public int hashCode() {
-			return this.tile.hashCode();
-		}
-
-		@Override
-		public String toString() {
-			return this.tile.toString();
-		}
-	}
-
-	protected static class DownloadPostProcessor extends AbstractRetrievalPostProcessor {
-		protected GpuTextureTile tile;
-		protected TiledImageLayer layer;
-		protected FileStore fileStore;
-
-		public DownloadPostProcessor(GpuTextureTile tile, TiledImageLayer layer, FileStore fileStore) {
-			super(layer);
-
-			this.tile = tile;
-			this.layer = layer;
-			this.fileStore = fileStore;
-		}
-
-		@Override
-		protected void markResourceAbsent() {
-			this.layer.getLevels().markResourceAbsent(this.tile);
-		}
-
-		@Override
-		protected Object getFileLock() {
-			return this.layer.fileLock;
-		}
-
-		@Override
-		protected File doGetOutputFile() {
-			return layer.getDataFileStore().newFile(this.tile.getPath());
-		}
-
-		@Override
-		protected ByteBuffer handleSuccessfulRetrieval() {
-			ByteBuffer buffer = super.handleSuccessfulRetrieval();
-
-			if (buffer != null) {
-				// Fire a property change to denote that the layer's backing data has changed.
-				this.layer.firePropertyChange(AVKey.LAYER, null, this);
-			}
-
-			return buffer;
-		}
-
-		@Override
-		protected ByteBuffer handleTextContent() throws IOException {
-			this.markResourceAbsent();
-
-			return super.handleTextContent();
-		}
-	}
 
 	// **************************************************************//
 	// ******************** Configuration *************************//
@@ -987,7 +810,7 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 		// Optional behavior properties.
 		WWXML.checkAndAppendBooleanElement(params, AVKey.FORCE_LEVEL_ZERO_LOADS, context, "ForceLevelZeroLoads");
 		WWXML.checkAndAppendBooleanElement(params, AVKey.RETAIN_LEVEL_ZERO_TILES, context, "RetainLevelZeroTiles");
-		// WWXML.checkAndAppendBooleanElement(params, AVKey.USE_MIP_MAPS, context, "UseMipMaps");
+		WWXML.checkAndAppendBooleanElement(params, AVKey.USE_MIP_MAPS, context, "UseMipMaps");
 		WWXML.checkAndAppendBooleanElement(params, AVKey.USE_TRANSPARENT_TEXTURES, context, "UseTransparentTextures");
 		WWXML.checkAndAppendDoubleElement(params, AVKey.DETAIL_HINT, context, "DetailHint");
 
@@ -1080,122 +903,22 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 		// Image format properties.
 		WWXML.checkAndSetStringParam(domElement, params, AVKey.IMAGE_FORMAT, "ImageFormat", xpath);
 		WWXML.checkAndSetUniqueStringsParam(domElement, params, AVKey.AVAILABLE_IMAGE_FORMATS, "AvailableImageFormats/ImageFormat", xpath);
+		WWXML.checkAndSetStringParam(domElement, params, AVKey.TEXTURE_FORMAT, "TextureFormat", xpath);
 
 		// Optional behavior properties.
 		WWXML.checkAndSetDoubleParam(domElement, params, AVKey.DETAIL_HINT, "DetailHint", xpath);
+		WWXML.checkAndSetBooleanParam(domElement, params, AVKey.FORCE_LEVEL_ZERO_LOADS, "ForceLevelZeroLoads", xpath);
+		WWXML.checkAndSetBooleanParam(domElement, params, AVKey.RETAIN_LEVEL_ZERO_TILES, "RetainLevelZeroTiles", xpath);
+		WWXML.checkAndSetBooleanParam(domElement, params, AVKey.USE_MIP_MAPS, "UseMipMaps", xpath);
+		WWXML.checkAndSetBooleanParam(domElement, params, AVKey.USE_TRANSPARENT_TEXTURES, "UseTransparentTextures", xpath);
+//		WWXML.checkAndSetColorArrayParam(domElement, params, AVKey.TRANSPARENCY_COLORS, "TransparencyColors/Color", xpath);
 
-		// Retrieval properties. Convert the Long time values to Integers.
-		WWXML.checkAndSetTimeParamAsInteger(domElement, params, AVKey.URL_CONNECT_TIMEOUT, "RetrievalTimeouts/ConnectTimeout/Time", xpath);
+				// Retrieval properties. Convert the Long time values to Integers.
+				WWXML.checkAndSetTimeParamAsInteger(domElement, params, AVKey.URL_CONNECT_TIMEOUT, "RetrievalTimeouts/ConnectTimeout/Time", xpath);
 		WWXML.checkAndSetTimeParamAsInteger(domElement, params, AVKey.URL_READ_TIMEOUT, "RetrievalTimeouts/ReadTimeout/Time", xpath);
 		WWXML.checkAndSetTimeParamAsInteger(domElement, params, AVKey.RETRIEVAL_QUEUE_STALE_REQUEST_LIMIT, "RetrievalTimeouts/StaleRequestLimit/Time", xpath);
 
 		return params;
-	}
-
-	// ============== Bulk Download ======================= //
-	// ============== Bulk Download ======================= //
-	// ============== Bulk Download ======================= //
-
-	/**
-	 * Start a new {@link BulkRetrievalThread} that downloads all imagery for a given sector and resolution to the
-	 * current World Wind file cache, without downloading imagery that is already in the cache.
-	 * <p/>
-	 * This method creates and starts a thread to perform the download. A reference to the thread is returned. To create a downloader that has not been started,
-	 * construct a {@link TiledImageLayerBulkDownloader}.
-	 * <p/>
-	 * Note that the target resolution must be provided in radians of latitude per texel, which is the resolution in meters divided by the globe radius.
-	 * 
-	 * @param sector
-	 *            the sector to download imagery for.
-	 * @param resolution
-	 *            the target resolution, provided in radians of latitude per texel.
-	 * @param listener
-	 *            an optional retrieval listener. May be null.
-	 * @return the {@link BulkRetrievalThread} executing the retrieval or <code>null</code> if the specified sector does
-	 *         not intersect the layer bounding sector.
-	 * @throws IllegalArgumentException
-	 *             if the sector is null or the resolution is less than zero.
-	 * @see TiledImageLayerBulkDownloader
-	 */
-	public BulkRetrievalThread makeLocal(Sector sector, double resolution, BulkRetrievalListener listener) {
-		return makeLocal(sector, resolution, null, listener);
-	}
-
-	/**
-	 * Start a new {@link BulkRetrievalThread} that downloads all imagery for a given sector and resolution to a
-	 * specified {@link FileStore}, without downloading imagery that is already in the file store.
-	 * <p/>
-	 * This method creates and starts a thread to perform the download. A reference to the thread is returned. To create a downloader that has not been started,
-	 * construct a {@link TiledImageLayerBulkDownloader}.
-	 * <p/>
-	 * Note that the target resolution must be provided in radians of latitude per texel, which is the resolution in meters divided by the globe radius.
-	 * 
-	 * @param sector
-	 *            the sector to download data for.
-	 * @param resolution
-	 *            the target resolution, provided in radians of latitude per texel.
-	 * @param fileStore
-	 *            the file store in which to place the downloaded imagery. If null the current World Wind file
-	 *            cache is used.
-	 * @param listener
-	 *            an optional retrieval listener. May be null.
-	 * @return the {@link BulkRetrievalThread} executing the retrieval or <code>null</code> if the specified sector does
-	 *         not intersect the layer bounding sector.
-	 * @throws IllegalArgumentException
-	 *             if the sector is null or the resolution is less than zero.
-	 * @see TiledImageLayerBulkDownloader
-	 */
-	public BulkRetrievalThread makeLocal(Sector sector, double resolution, FileStore fileStore, BulkRetrievalListener listener) {
-		Sector targetSector = sector != null ? getLevels().getSector().intersection(sector) : null;
-		if (targetSector == null) return null;
-
-		TiledImageLayerBulkDownloader thread = new TiledImageLayerBulkDownloader(this, targetSector, resolution, fileStore != null ? fileStore : this.getDataFileStore(), listener);
-		thread.setDaemon(true);
-		thread.start();
-		return thread;
-	}
-
-	/**
-	 * Get the estimated size in bytes of the imagery not in the World Wind file cache for the given sector and
-	 * resolution.
-	 * <p/>
-	 * Note that the target resolution must be provided in radians of latitude per texel, which is the resolution in meters divided by the globe radius.
-	 * 
-	 * @param sector
-	 *            the sector to estimate.
-	 * @param resolution
-	 *            the target resolution, provided in radians of latitude per texel.
-	 * @return the estimated size in bytes of the missing imagery.
-	 * @throws IllegalArgumentException
-	 *             if the sector is null or the resolution is less than zero.
-	 */
-	public long getEstimatedMissingDataSize(Sector sector, double resolution) {
-		return this.getEstimatedMissingDataSize(sector, resolution, null);
-	}
-
-	/**
-	 * Get the estimated size in bytes of the imagery not in a specified file store for a specified sector and
-	 * resolution.
-	 * <p/>
-	 * Note that the target resolution must be provided in radians of latitude per texel, which is the resolution in meters divided by the globe radius.
-	 * 
-	 * @param sector
-	 *            the sector to estimate.
-	 * @param resolution
-	 *            the target resolution, provided in radians of latitude per texel.
-	 * @param fileStore
-	 *            the file store to examine. If null the current World Wind file cache is used.
-	 * @return the estimated size in byte of the missing imagery.
-	 * @throws IllegalArgumentException
-	 *             if the sector is null or the resolution is less than zero.
-	 */
-	public long getEstimatedMissingDataSize(Sector sector, double resolution, FileStore fileStore) {
-		Sector targetSector = sector != null ? getLevels().getSector().intersection(sector) : null;
-		if (targetSector == null) return 0;
-
-		TiledImageLayerBulkDownloader downloader = new TiledImageLayerBulkDownloader(this, sector, resolution, fileStore != null ? fileStore : this.getDataFileStore(), null);
-
-		return downloader.getEstimatedMissingDataSize();
 	}
 
 	protected boolean isTextureFileExpired(GpuTextureTile tile, java.net.URL textureURL, FileStore fileStore) {

@@ -5,16 +5,18 @@
  */
 package gov.nasa.worldwind.render;
 
+import gov.nasa.worldwind.Configuration;
+import gov.nasa.worldwind.WorldWind;
+import gov.nasa.worldwind.avlist.AVKey;
+import gov.nasa.worldwind.cache.BasicMemoryCache;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.cache.MemoryCache;
-import gov.nasa.worldwind.geom.Extent;
-import gov.nasa.worldwind.geom.Matrix;
-import gov.nasa.worldwind.geom.Sector;
-import gov.nasa.worldwind.geom.Vec4;
+import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.util.Level;
 import gov.nasa.worldwind.util.Logging;
 import gov.nasa.worldwind.util.Tile;
+import gov.nasa.worldwind.util.TileKey;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
@@ -26,27 +28,31 @@ public class GpuTextureTile extends Tile implements SurfaceTile {
 	protected Extent extent;
 	protected volatile GpuTextureData textureData;
 	protected GpuTextureTile fallbackTile;
-	protected MemoryCache memoryCache;
 
 	/**
-	 * @return the memoryCache
+	 * Returns the memory cache used to cache texture tiles, initializing the cache if it doesn't yet exist.
+	 *
+	 * @return the memory cache associated with texture tiles.
 	 */
-	public MemoryCache getMemoryCache() {
-		return memoryCache;
+	public static MemoryCache getMemoryCache() {
+		if (!WorldWind.getMemoryCacheSet().contains(GpuTextureTile.class.getName())) {
+			long size = Configuration.getLongValue(AVKey.GPU_TEXTURE_TILE_CACHE_SIZE);
+			MemoryCache cache = new BasicMemoryCache((long) (0.8 * size), size);
+			cache.setName("Texture Tiles");
+			WorldWind.getMemoryCacheSet().put(GpuTextureTile.class.getName(), cache);
+		}
+
+		return WorldWind.getMemoryCacheSet().get(GpuTextureTile.class.getName());
 	}
 
 	protected long updateTime = 0;
 
-	public GpuTextureTile(Sector sector, Level level, int row, int column, MemoryCache cache) {
+	public GpuTextureTile(Sector sector, Level level, int row, int column) {
 		super(sector, level, row, column);
+	}
 
-		if (cache == null) {
-			String msg = Logging.getMessage("nullValue.CacheIsNull");
-			Logging.error(msg);
-			throw new IllegalArgumentException(msg);
-		}
-
-		this.memoryCache = cache;
+	public GpuTextureTile(Sector sector, Level level, int row, int column, String cacheName) {
+		super(sector, level, row, column, cacheName);
 	}
 
 	public Extent getExtent() {
@@ -91,7 +97,7 @@ public class GpuTextureTile extends Tile implements SurfaceTile {
 		this.updateTime = System.currentTimeMillis();
 		this.textureData = null;
 
-		if (this.memoryCache.contains(this.tileKey)) this.memoryCache.put(this.tileKey, this);
+		if (getMemoryCache().contains(this.tileKey)) getMemoryCache().put(this.tileKey, this);
 	}
 
 	public boolean isTextureInMemory(GpuResourceCache cache) {
@@ -203,7 +209,7 @@ public class GpuTextureTile extends Tile implements SurfaceTile {
 	}
 
 	protected GpuTexture createTexture(DrawContext dc, GpuTextureData textureData) {
-		return GpuTexture.createTexture(dc, textureData);
+		return GpuTexture.createTexture(textureData);
 	}
 
 	protected void applyFallbackTransform(DrawContext dc, Matrix matrix) {
@@ -226,5 +232,114 @@ public class GpuTextureTile extends Tile implements SurfaceTile {
 		// matrix.multiplyAndSet(scale);
 
 		matrix.multiplyAndSet(sxy, 0, 0, tx, 0, sxy, 0, ty, 0, 0, 1, 0, 0, 0, 0, 1);
+	}
+
+	/**
+	 * Creates a sub tile of this texture tile with the specified {@link gov.nasa.worldwind.geom.Sector}, {@link
+	 * gov.nasa.worldwind.util.Level}, row, and column. This is called by {@link #createSubTiles(gov.nasa.worldwind.util.Level)},
+	 * to construct a sub tile for each quadrant of this tile. Subclasses must override this method to return an
+	 * instance of the derived version.
+	 *
+	 * @param sector the sub tile's sector.
+	 * @param level  the sub tile's level.
+	 * @param row    the sub tile's row.
+	 * @param col    the sub tile's column.
+	 *
+	 * @return a sub tile of this texture tile.
+	 */
+	protected GpuTextureTile createSubTile(Sector sector, Level level, int row, int col)
+	{
+		return new GpuTextureTile(sector, level, row, col);
+	}
+
+	/**
+	 * Returns a key for a sub tile of this texture tile with the specified {@link gov.nasa.worldwind.util.Level}, row,
+	 * and column. This is called by {@link #createSubTiles(gov.nasa.worldwind.util.Level)}, to create a sub tile key
+	 * for each quadrant of this tile.
+	 *
+	 * @param level the sub tile's level.
+	 * @param row   the sub tile's row.
+	 * @param col   the sub tile's column.
+	 *
+	 * @return a sub tile of this texture tile.
+	 */
+	protected TileKey createSubTileKey(Level level, int row, int col)
+	{
+		return new TileKey(level.getLevelNumber(), row, col, level.getCacheName());
+	}
+
+	protected GpuTextureTile getTileFromMemoryCache(TileKey tileKey)
+	{
+		return (GpuTextureTile) getMemoryCache().get(tileKey);
+	}
+
+	protected void updateMemoryCache()
+	{
+		if (this.getTileFromMemoryCache(this.getTileKey()) != null)
+			getMemoryCache().put(this.getTileKey(), this);
+	}
+
+	/**
+	 * Splits this texture tile into four tiles; one for each sub quadrant of this texture tile. This attempts to
+	 * retrieve each sub tile from the texture tile cache. This calls {@link #createSubTile(gov.nasa.worldwind.geom.Sector,
+	 * gov.nasa.worldwind.util.Level, int, int)} to create sub tiles not found in the cache.
+	 *
+	 * @param nextLevel the level for the sub tiles.
+	 *
+	 * @return a four-element array containing this texture tile's sub tiles.
+	 *
+	 * @throws IllegalArgumentException if the level is null.
+	 */
+	public GpuTextureTile[] createSubTiles(Level nextLevel)
+	{
+		if (nextLevel == null)
+		{
+			String msg = Logging.getMessage("nullValue.LevelIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
+		}
+
+		Angle p0 = this.getSector().minLatitude;
+		Angle p2 = this.getSector().maxLatitude;
+		Angle p1 = Angle.midAngle(p0, p2);
+
+		Angle t0 = this.getSector().minLongitude;
+		Angle t2 = this.getSector().maxLongitude;
+		Angle t1 = Angle.midAngle(t0, t2);
+
+		int row = this.getRow();
+		int col = this.getColumn();
+
+		GpuTextureTile[] subTiles = new GpuTextureTile[4];
+
+		TileKey key = this.createSubTileKey(nextLevel, 2 * row, 2 * col);
+		GpuTextureTile subTile = this.getTileFromMemoryCache(key);
+		if (subTile != null)
+			subTiles[0] = subTile;
+		else
+			subTiles[0] = this.createSubTile(new Sector(p0, p1, t0, t1), nextLevel, 2 * row, 2 * col);
+
+		key = this.createSubTileKey(nextLevel, 2 * row, 2 * col + 1);
+		subTile = this.getTileFromMemoryCache(key);
+		if (subTile != null)
+			subTiles[1] = subTile;
+		else
+			subTiles[1] = this.createSubTile(new Sector(p0, p1, t1, t2), nextLevel, 2 * row, 2 * col + 1);
+
+		key = this.createSubTileKey(nextLevel, 2 * row + 1, 2 * col);
+		subTile = this.getTileFromMemoryCache(key);
+		if (subTile != null)
+			subTiles[2] = subTile;
+		else
+			subTiles[2] = this.createSubTile(new Sector(p1, p2, t0, t1), nextLevel, 2 * row + 1, 2 * col);
+
+		key = this.createSubTileKey(nextLevel, 2 * row + 1, 2 * col + 1);
+		subTile = this.getTileFromMemoryCache(key);
+		if (subTile != null)
+			subTiles[3] = subTile;
+		else
+			subTiles[3] = this.createSubTile(new Sector(p1, p2, t1, t2), nextLevel, 2 * row + 1, 2 * col + 1);
+
+		return subTiles;
 	}
 }

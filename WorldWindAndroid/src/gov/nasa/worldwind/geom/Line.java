@@ -70,6 +70,23 @@ public class Line
     protected final Vec4 origin;
     protected final Vec4 direction;
 
+	/**
+	 * Create the line containing a line segement between two points.
+	 *
+	 * @param pa the first point of the line segment.
+	 * @param pb the second point of the line segment.
+	 *
+	 * @return The line containing the two points.
+	 *
+	 * @throws IllegalArgumentException if either point is null or they are coincident.
+	 */
+	public static Line fromSegment(Vec4 pa, Vec4 pb)
+	{
+		Line line = new Line();
+		line.setSegment(pa, pb);
+		return line;
+	}
+
     /** Creates a new line with its origin set to (0, 0, 0) and its direction set to (1, 0, 0). */
     public Line()
     {
@@ -231,7 +248,7 @@ public class Line
         return this.direction;
     }
 
-    public void getPointAt(double t, Vec4 result)
+    public Vec4 getPointAt(double t, Vec4 result)
     {
         if (result == null)
         {
@@ -241,6 +258,7 @@ public class Line
         }
 
         result.setPointOnLine3(this.origin, t, this.direction);
+		return result;
     }
 
     public double selfDot()
@@ -296,6 +314,42 @@ public class Line
         result.y = this.origin.y + this.direction.y * c;
         result.z = this.origin.z + this.direction.z * c;
     }
+
+	/**
+	 * Determine if a point is behind the <code>Line</code>'s origin.
+	 *
+	 * @param point The point to test.
+	 *
+	 * @return true if <code>point</code> is behind this <code>Line</code>'s origin, false otherwise.
+	 */
+	public boolean isPointBehindLineOrigin(Vec4 point)
+	{
+		double dot = point.subtract3(this.getOrigin()).dot3(this.getDirection());
+		return dot < 0.0;
+	}
+
+	public Vec4 nearestIntersectionPoint(Intersection[] intersections)
+	{
+		Vec4 intersectionPoint = null;
+
+		// Find the nearest intersection that's in front of the ray origin.
+		double nearestDistance = Double.MAX_VALUE;
+		for (Intersection intersection : intersections)
+		{
+			// Ignore any intersections behind the line origin.
+			if (!this.isPointBehindLineOrigin(intersection.getIntersectionPoint()))
+			{
+				double d = intersection.getIntersectionPoint().distanceTo3(this.getOrigin());
+				if (d < nearestDistance)
+				{
+					intersectionPoint = intersection.getIntersectionPoint();
+					nearestDistance = d;
+				}
+			}
+		}
+
+		return intersectionPoint;
+	}
 
     /**
      * Performs a comparison to test whether this Object is internally identical to the other Object <code>o</code>.

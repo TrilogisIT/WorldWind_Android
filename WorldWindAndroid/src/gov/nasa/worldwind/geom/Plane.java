@@ -21,6 +21,36 @@ public class Plane
     // the plane normal and proportional distance. The vector is not necessarily a unit vector.
     protected final Vec4 vector;
 
+	/**
+	 * Returns the plane that passes through the specified three points. The plane's normal is the cross product of the
+	 * two vectors from <code>pb</code> to </code>pa</code> and <code>pc</code> to </code>pa</code>, respectively. The
+	 * returned plane is undefined if any of the specified points are colinear.
+	 *
+	 * @param pa the first point.
+	 * @param pb the second point.
+	 * @param pc the third point.
+	 *
+	 * @return a <code>Plane</code> passing through the specified points.
+	 *
+	 * @throws IllegalArgumentException if <code>pa</code>, <code>pb</code>, or <code>pc</code> is <code>null</code>.
+	 */
+	public static Plane fromPoints(Vec4 pa, Vec4 pb, Vec4 pc)
+	{
+		if (pa == null || pb == null || pc == null)
+		{
+			String message = Logging.getMessage("nullValue.Vec4IsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		Vec4 vab = pb.subtract3(pa);
+		Vec4 vac = pc.subtract3(pa);
+		Vec4 n = vab.cross3(vac);
+		double d = -n.dot3(pa);
+
+		return new Plane(n.x, n.y, n.z, d);
+	}
+
     public Plane()
     {
         this.vector = new Vec4();
@@ -207,17 +237,201 @@ public class Plane
         return this.vector.x * vec.x + this.vector.y * vec.y + this.vector.z * vec.z + this.vector.w * vec.w;
     }
 
-    public double distanceTo(Vec4 point)
-    {
-        if (point == null)
-        {
-            String msg = Logging.getMessage("nullValue.PointIsNull");
-            Logging.error(msg);
-            throw new IllegalArgumentException(msg);
-        }
+	/**
+	 * Clip a line segment to this plane.
+	 *
+	 * @param pa the first point of the segment.
+	 * @param pb the second point of the segment.
+	 *
+	 * @return An array of two points both on the positive side of the plane. If the direction of the line formed by the
+	 *         two points is positive with respect to this plane's normal vector, the first point in the array will be
+	 *         the intersection point on the plane, and the second point will be the original segment end point. If the
+	 *         direction of the line is negative with respect to this plane's normal vector, the first point in the
+	 *         array will be the original segment's begin point, and the second point will be the intersection point on
+	 *         the plane. If the segment does not intersect the plane, null is returned. If the segment is coincident
+	 *         with the plane, the input points are returned, in their input order.
+	 *
+	 * @throws IllegalArgumentException if either input point is null.
+	 */
+	public Vec4[] clip(Vec4 pa, Vec4 pb)
+	{
+		if (pa == null || pb == null)
+		{
+			String message = Logging.getMessage("nullValue.PointIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
 
-        return this.vector.x * point.x + this.vector.y * point.y + this.vector.z * point.z + this.vector.w * point.w;
-    }
+		if (pa.equals(pb))
+			return null;
+
+		// Get the projection of the segment onto the plane.
+		Line line = Line.fromSegment(pa, pb);
+		double ldotv = this.vector.dot3(line.getDirection());
+
+		// Are the line and plane parallel?
+		if (ldotv == 0) // line and plane are parallel and maybe coincident
+		{
+			double ldots = this.vector.dot4(line.getOrigin());
+			if (ldots == 0)
+				return new Vec4[] {pa, pb}; // line is coincident with the plane
+			else
+				return null; // line is not coincident with the plane
+		}
+
+		// Not parallel so the line intersects. But does the segment intersect?
+		double t = -this.vector.dot4(line.getOrigin()) / ldotv; // ldots / ldotv
+		if (t < 0 || t > 1) // segment does not intersect
+			return null;
+
+		Vec4 p = new Vec4();
+		line.getPointAt(t, p);
+		if (ldotv > 0)
+			return new Vec4[] {p, pb};
+		else
+			return new Vec4[] {pa, p};
+	}
+
+	public double distanceTo(Vec4 p)
+	{
+		return this.vector.dot4(p);
+	}
+
+	/**
+	 * Determines whether two points are on the same side of a plane.
+	 *
+	 * @param pa the first point.
+	 * @param pb the second point.
+	 *
+	 * @return true if the points are on the same side of the plane, otherwise false.
+	 *
+	 * @throws IllegalArgumentException if either point is null.
+	 */
+	public int onSameSide(Vec4 pa, Vec4 pb)
+	{
+		if (pa == null || pb == null)
+		{
+			String message = Logging.getMessage("nullValue.PointIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		double da = this.distanceTo(pa);
+		double db = this.distanceTo(pb);
+
+		if (da < 0 && db < 0)
+			return -1;
+
+		if (da > 0 && db > 0)
+			return 1;
+
+		return 0;
+	}
+
+	/**
+	 * Determines whether multiple points are on the same side of a plane.
+	 *
+	 * @param pts the array of points.
+	 *
+	 * @return true if the points are on the same side of the plane, otherwise false.
+	 *
+	 * @throws IllegalArgumentException if the points array is null or any point within it is null.
+	 */
+	public int onSameSide(Vec4[] pts)
+	{
+		if (pts == null)
+		{
+			String message = Logging.getMessage("nullValue.PointsArrayIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		double d = this.distanceTo(pts[0]);
+		int side = d < 0 ? -1 : d > 0 ? 1 : 0;
+		if (side == 0)
+			return 0;
+
+		for (int i = 1; i < pts.length; i++)
+		{
+			if (pts[i] == null)
+			{
+				String message = Logging.getMessage("nullValue.PointIsNull");
+				Logging.error(message);
+				throw new IllegalArgumentException(message);
+			}
+
+			d = this.distanceTo(pts[i]);
+			if ((side == -1 && d < 0) || (side == 1 && d > 0))
+				continue;
+
+			return 0; // point is not on same side as the others
+		}
+
+		return side;
+	}
+
+	/**
+	 * Determine the intersection point of a line with this plane.
+	 *
+	 * @param line the line to intersect.
+	 *
+	 * @return the intersection point if the line intersects the plane, otherwise null.
+	 *
+	 * @throws IllegalArgumentException if the line is null.
+	 */
+	public Vec4 intersect(Line line)
+	{
+		if (line == null)
+		{
+			String message = Logging.getMessage("nullValue.LineIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		double t = this.intersectDistance(line);
+
+		if (Double.isNaN(t))
+			return null;
+
+		if (Double.isInfinite(t))
+			return line.getOrigin();
+
+		Vec4 p = new Vec4();
+		return line.getPointAt(t, p);
+	}
+
+	/**
+	 * Determine the parametric point of intersection of a line with this plane.
+	 *
+	 * @param line the line to test
+	 *
+	 * @return The parametric value of the point on the line at which it intersects the plane. {@link Double#NaN} is
+	 *         returned if the line does not intersect the plane. {@link Double#POSITIVE_INFINITY} is returned if the
+	 *         line is coincident with the plane.
+	 *
+	 * @throws IllegalArgumentException if the line is null.
+	 */
+	public double intersectDistance(Line line)
+	{
+		if (line == null)
+		{
+			String message = Logging.getMessage("nullValue.LineIsNull");
+			Logging.error(message);
+			throw new IllegalArgumentException(message);
+		}
+
+		double ldotv = this.vector.dot3(line.getDirection());
+		if (ldotv == 0) // are line and plane parallel
+		{
+			double ldots = this.vector.dot4(line.getOrigin());
+			if (ldots == 0)
+				return Double.POSITIVE_INFINITY; // line is coincident with the plane
+			else
+				return Double.NaN; // line is not coincident with the plane
+		}
+
+		return -this.vector.dot4(line.getOrigin()) / ldotv; // ldots / ldotv
+	}
 
     @Override
     public boolean equals(Object o)

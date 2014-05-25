@@ -70,7 +70,30 @@ public class BufferUtil
             throw new IllegalArgumentException(msg);
         }
 
-        return ByteBuffer.allocateDirect(Short.SIZE / 8 * capacity).order(ByteOrder.nativeOrder()).asShortBuffer();
+        return newByteBuffer(Short.SIZE / 8 * capacity).asShortBuffer();
+    }
+
+    /**
+     * Allocates and returns a new int buffer with the specified capacity, in number of int elements. The returned
+     * buffer is backed by a direct byte buffer who's byte order is set to the current platform byte order. See the
+     * section above on <i>Creating Vertex Attribute Buffers</i> for more information.
+     *
+     * @param capacity the new buffer's capacity, in number of int elements.
+     *
+     * @return a new int buffer with the specified capacity.
+     *
+     * @throws IllegalArgumentException if the capacity is less than 0.
+     */
+    public static IntBuffer newIntBuffer(int capacity)
+    {
+        if (capacity < 0)
+        {
+            String msg = Logging.getMessage("generic.CapacityIsInvalid", capacity);
+            Logging.error(msg);
+            throw new IllegalArgumentException(msg);
+        }
+
+        return newByteBuffer(Integer.SIZE / 8 * capacity).asIntBuffer();
     }
 
     /**
@@ -93,6 +116,6 @@ public class BufferUtil
             throw new IllegalArgumentException(msg);
         }
 
-        return ByteBuffer.allocateDirect(Float.SIZE / 8 * capacity).order(ByteOrder.nativeOrder()).asFloatBuffer();
+        return newByteBuffer(Float.SIZE / 8 * capacity).asFloatBuffer();
     }
 }

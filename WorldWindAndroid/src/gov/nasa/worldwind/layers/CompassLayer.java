@@ -5,8 +5,13 @@
  */
 package gov.nasa.worldwind.layers;
 
+import android.graphics.Point;
+import android.opengl.ETC1Util;
+import android.opengl.GLES20;
 import gov.nasa.worldwind.BasicView;
+import gov.nasa.worldwind.R;
 import gov.nasa.worldwind.View;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.exception.WWRuntimeException;
@@ -16,12 +21,9 @@ import gov.nasa.worldwind.geom.Rect;
 import gov.nasa.worldwind.geom.Vec4;
 import gov.nasa.worldwind.pick.PickSupport;
 import gov.nasa.worldwind.pick.PickedObject;
-import gov.nasa.worldwind.render.DrawContext;
-import gov.nasa.worldwind.render.GpuProgram;
-import gov.nasa.worldwind.render.GpuTexture;
-import gov.nasa.worldwind.render.GpuTextureData;
-import gov.nasa.worldwind.render.OrderedRenderable;
+import gov.nasa.worldwind.render.*;
 import gov.nasa.worldwind.util.Logging;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -29,21 +31,19 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
-import android.graphics.Point;
-import android.opengl.GLES20;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
- * 
+ *
  * @author Nicola Dorigatti
  * @version $Id: CompassLayer.java 1 2013-08-08 $
  */
 public class CompassLayer extends AbstractLayer {
-	protected static final String VERTEX_SHADER_PATH_TEXTURE = "shaders/CompassLayerTexture.vert";
-	protected static final String FRAGMENT_SHADER_PATH_TEXTURE = "shaders/CompassLayerTexture.frag";
-	protected final Object programTextureKey = new Object();
-	protected String iconFilePath = "images/notched-compass.png"; // TODO: make configurable
+	protected static final int VERTEX_SHADER_PATH_TEXTURE = R.raw.diffuse_tex_vert;
+	protected static final int FRAGMENT_SHADER_PATH_TEXTURE = R.raw.etc1alphafrag;
+	protected String iconFilePath; // TODO: make configurable
 	protected double compassToViewportScale = 0.2; // TODO: make configurable
+	protected final Object programTextureKey = new Object();
 	protected double iconScale = 0.5;
 	protected int borderWidth = 20; // TODO: make configurable
 	protected String position = AVKey.NORTHEAST; // TODO: make configurable
@@ -54,19 +54,28 @@ public class CompassLayer extends AbstractLayer {
 	protected Vec4 locationOffset = null;
 	protected boolean showTilt = true;
 	protected PickSupport pickSupport = new PickSupport();
+	private Matrix texMatrix = Matrix.fromIdentity();
 
 	// Draw it as ordered with an eye distance of 0 so that it shows up in front of most other things.
 	protected OrderedIcon orderedImage = new OrderedIcon();
 
 	protected class OrderedIcon implements OrderedRenderable {
+		@Override
+		public Layer getLayer() {
+			return CompassLayer.this;
+		}
+
+		@Override
 		public double getDistanceFromEye() {
 			return 0;
 		}
 
+		@Override
 		public void pick(DrawContext dc, Point pickPoint) {
 			CompassLayer.this.draw(dc);
 		}
 
+		@Override
 		public void render(DrawContext dc) {
 			CompassLayer.this.draw(dc);
 		}
@@ -85,17 +94,20 @@ public class CompassLayer extends AbstractLayer {
 
 	/**
 	 * Returns the layer's current icon file path.
-	 * 
+	 *
 	 * @return the icon file path
 	 */
 	public String getIconFilePath() {
+		if(iconFilePath==null || iconFilePath.isEmpty())
+			iconFilePath = ETC1Util.isETC1Supported() ? "images/notched-compass_mip_0.pkm" :
+					"images/notched-compass.png";
 		return iconFilePath;
 	}
 
 	/**
 	 * Sets the compass icon's image location. The layer first searches for this location in the current Java classpath.
 	 * If not found then the specified path is assumed to refer to the local file system. found there then the
-	 * 
+	 *
 	 * @param iconFilePath
 	 *            the path to the icon's image file
 	 */
@@ -110,7 +122,7 @@ public class CompassLayer extends AbstractLayer {
 
 	/**
 	 * Returns the layer's compass-to-viewport scale factor.
-	 * 
+	 *
 	 * @return the compass-to-viewport scale factor
 	 */
 	public double getCompassToViewportScale() {
@@ -122,7 +134,7 @@ public class CompassLayer extends AbstractLayer {
 	 * scale factor is used only when the layer's resize behavior is AVKey.RESIZE_STRETCH or AVKey.RESIZE_SHRINK_ONLY.
 	 * The icon's width is adjusted to occupy the proportion of the viewport's width indicated by this factor. The
 	 * icon's height is adjusted to maintain the compass image's native aspect ratio.
-	 * 
+	 *
 	 * @param compassToViewportScale
 	 *            the compass to viewport scale factor
 	 */
@@ -132,7 +144,7 @@ public class CompassLayer extends AbstractLayer {
 
 	/**
 	 * Returns the icon scale factor. See {@link #setIconScale(double)} for a description of the scale factor.
-	 * 
+	 *
 	 * @return the current icon scale
 	 */
 	public double getIconScale() {
@@ -146,7 +158,7 @@ public class CompassLayer extends AbstractLayer {
 	 * specified by {@link #setCompassToViewportScale(double)} and the current viewport size.
 	 * <p/>
 	 * The default icon scale is 0.5.
-	 * 
+	 *
 	 * @param iconScale
 	 *            the icon scale factor
 	 */
@@ -156,7 +168,7 @@ public class CompassLayer extends AbstractLayer {
 
 	/**
 	 * Returns the compass icon's resize behavior.
-	 * 
+	 *
 	 * @return the icon's resize behavior
 	 */
 	public String getResizeBehavior() {
@@ -172,7 +184,7 @@ public class CompassLayer extends AbstractLayer {
 	 * compass-to-viewport scale and by the icon's image file size scaled by the current icon scale. If the value is
 	 * AVKey.RESIZE_SHRINK_ONLY (the default), icon sizing behaves as for AVKey.RESIZE_STRETCH but the icon will not
 	 * grow larger than the size specified in its image file scaled by the current icon scale.
-	 * 
+	 *
 	 * @param resizeBehavior
 	 *            the desired resize behavior
 	 */
@@ -186,7 +198,7 @@ public class CompassLayer extends AbstractLayer {
 
 	/**
 	 * Sets the compass icon offset from the viewport border.
-	 * 
+	 *
 	 * @param borderWidth
 	 *            the number of pixels to offset the compass icon from the borders indicated by {@link #setPosition(String)}.
 	 */
@@ -196,7 +208,7 @@ public class CompassLayer extends AbstractLayer {
 
 	/**
 	 * Returns the current relative compass icon position.
-	 * 
+	 *
 	 * @return the current compass position
 	 */
 	public String getPosition() {
@@ -207,7 +219,7 @@ public class CompassLayer extends AbstractLayer {
 	 * Sets the relative viewport location to display the compass icon. Can be one of AVKey.NORTHEAST (the default),
 	 * AVKey.NORTHWEST, AVKey.SOUTHEAST, or AVKey.SOUTHWEST. These indicate the corner of the viewport to place the
 	 * icon.
-	 * 
+	 *
 	 * @param position
 	 *            the desired compass position
 	 */
@@ -222,7 +234,7 @@ public class CompassLayer extends AbstractLayer {
 
 	/**
 	 * Returns the current compass image location.
-	 * 
+	 *
 	 * @return the current location center. May be null.
 	 */
 	public Vec4 getLocationCenter() {
@@ -235,7 +247,7 @@ public class CompassLayer extends AbstractLayer {
 	 * pixels. The origin is the window's lower left corner. Positive X values are to the right of the origin, positive
 	 * Y values are upwards from the origin. The final image location will be affected by the currently specified
 	 * location offset if a non-null location offset has been specified (see {@link #setLocationOffset(gov.nasa.worldwind.geom.Vec4)}).
-	 * 
+	 *
 	 * @param locationCenter
 	 *            the location center. May be null.
 	 * @see #setPosition(String)
@@ -247,7 +259,7 @@ public class CompassLayer extends AbstractLayer {
 
 	/**
 	 * Returns the current location offset. See #setLocationOffset for a description of the offset and its values.
-	 * 
+	 *
 	 * @return the location offset. Will be null if no offset has been specified.
 	 */
 	public Vec4 getLocationOffset() {
@@ -256,7 +268,7 @@ public class CompassLayer extends AbstractLayer {
 
 	/**
 	 * Specifies a placement offset from the compass' position on the screen.
-	 * 
+	 *
 	 * @param locationOffset
 	 *            the number of pixels to shift the compass image from its specified screen position. A
 	 *            positive X value shifts the image to the right. A positive Y value shifts the image up. If
@@ -289,6 +301,7 @@ public class CompassLayer extends AbstractLayer {
 
 		try {
 			GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+			WorldWindowImpl.glCheckError("glDisable");
 
 			double width = this.getScaledIconWidth();
 			double height = this.getScaledIconHeight();
@@ -312,7 +325,7 @@ public class CompassLayer extends AbstractLayer {
 			if (!dc.isPickingMode()) {
 				modelview.multiplyAndSet(Matrix.fromTranslation(width / 2, height / 2, 0));
 				if (this.showTilt) // formula contributed by Ty Hayden
-				modelview.multiplyAndSet(Matrix.fromRotationX(Angle.fromDegrees(70d * (pitch / 90.0))));
+					modelview.multiplyAndSet(Matrix.fromRotationX(Angle.fromDegrees(70d * (pitch / 90.0))));
 				modelview.multiplyAndSet(Matrix.fromRotationZ(Angle.fromDegrees(-heading)));
 				modelview.multiplyAndSet(Matrix.fromTranslation(-width / 2, -height / 2, 0));
 				modelview.multiplyAndSet(Matrix.fromScale(width, height, 1d));
@@ -335,32 +348,49 @@ public class CompassLayer extends AbstractLayer {
 				if (iconTexture != null && textureProgram != null) {
 					textureProgram.bind();
 					textureProgram.loadUniformMatrix("mvpMatrix", mvp);
-					GLES20.glEnable(GLES20.GL_TEXTURE_2D);
+
 					GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+					WorldWindowImpl.glCheckError("glActiveTexture");
 					iconTexture.bind();
 					textureProgram.loadUniformSampler("sTexture", 0);
+					textureProgram.loadUniformSampler("aTexture", 1);
+
+//					iconTexture.applyInternalTransform(dc, texMatrix);
+					textureProgram.loadUniformMatrix("texMatrix", texMatrix);
+
+					textureProgram.loadUniform1f("uOpacity", this.getOpacity());
 
 					GLES20.glEnable(GLES20.GL_BLEND);
+					WorldWindowImpl.glCheckError("glEnable: GL_BLEND");
 					GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+					WorldWindowImpl.glCheckError("glBlendFunc");
 
 					float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
 					int pointLocation = textureProgram.getAttribLocation("vertexPoint");
 					GLES20.glEnableVertexAttribArray(pointLocation);
+					WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 					FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 					vertexBuf.put(unitQuadVerts);
 					vertexBuf.rewind();
 					GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
+					WorldWindowImpl.glCheckError("glVertexAttribPointer");
 					float[] textureVerts = new float[] { 0, 1, 1, 1, 1, 0, 0, 0 };
 					int textureLocation = textureProgram.getAttribLocation("aTextureCoord");
 					GLES20.glEnableVertexAttribArray(textureLocation);
+					WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 					FloatBuffer textureBuf = ByteBuffer.allocateDirect(textureVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
 					textureBuf.put(textureVerts);
 					textureBuf.rewind();
 					GLES20.glVertexAttribPointer(textureLocation, 2, GLES20.GL_FLOAT, false, 0, textureBuf);
+					WorldWindowImpl.glCheckError("glVertexAttribPointer");
 					GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
+					WorldWindowImpl.glCheckError("glDrawArrays");
 					GLES20.glDisableVertexAttribArray(pointLocation);
+					WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 					GLES20.glDisableVertexAttribArray(textureLocation);
+					WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 					GLES20.glUseProgram(0);
+					WorldWindowImpl.glCheckError("glUseProgram");
 				}
 			} else {
 				// Picking - XXX This else has not been tested, it could make rendering crash! Be aware!
@@ -386,7 +416,8 @@ public class CompassLayer extends AbstractLayer {
 					// Draw the compass in the unique pick color. gl.glColor3ub((byte) color.getRed(), (byte) color.getGreen(), (byte) color.getBlue());
 					GpuProgram textureProgram = this.getGpuProgram(dc.getGpuResourceCache(), programTextureKey, VERTEX_SHADER_PATH_TEXTURE, FRAGMENT_SHADER_PATH_TEXTURE);
 					textureProgram.bind();
-
+					textureProgram.loadUniform1f("uOpacity", 1);
+					textureProgram.loadUniformMatrix("texMatrix", texMatrix);
 					modelview.multiplyAndSet(Matrix.fromScale(width, height, 1d));
 					float[] unitQuadVerts = new float[] { 0, 0, 1, 0, 1, 1, 0, 1 };
 					FloatBuffer vertexBuf = ByteBuffer.allocateDirect(unitQuadVerts.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
@@ -394,10 +425,15 @@ public class CompassLayer extends AbstractLayer {
 					vertexBuf.rewind();
 					int pointLocation = textureProgram.getAttribLocation("vertexPoint");
 					GLES20.glEnableVertexAttribArray(pointLocation);
+					WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 					GLES20.glVertexAttribPointer(pointLocation, 2, GLES20.GL_FLOAT, false, 0, vertexBuf);
+					WorldWindowImpl.glCheckError("glVertexAttribPointer");
 					GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, unitQuadVerts.length / 2);
+					WorldWindowImpl.glCheckError("glDrawArrays");
 					GLES20.glDisableVertexAttribArray(pointLocation);
+					WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 					GLES20.glUseProgram(0);
+					WorldWindowImpl.glCheckError("glUseProgram");
 					// dc.drawUnitQuad();
 				} finally {
 					// Done picking
@@ -409,8 +445,9 @@ public class CompassLayer extends AbstractLayer {
 
 			if (!dc.isPickingMode()) {
 				GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
-				GLES20.glDisable(GLES20.GL_TEXTURE_2D); // restore to default texture state
+				WorldWindowImpl.glCheckError("glBindTexture");
 				GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+				WorldWindowImpl.glCheckError("glBlendFunc");
 			}
 		}
 	}
@@ -512,7 +549,7 @@ public class CompassLayer extends AbstractLayer {
 		return basicView.getLookAtTilt(dc.getGlobe()).degrees;
 	}
 
-	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, String shaderPath, String fragmentPath) {
+	protected GpuProgram getGpuProgram(GpuResourceCache cache, Object programKey, int shaderPath, int fragmentPath) {
 
 		GpuProgram program = cache.getProgram(programKey);
 
@@ -541,8 +578,8 @@ public class CompassLayer extends AbstractLayer {
 					iconStream = new FileInputStream(iconFile);
 				}
 			}
-
-			iconTexture = GpuTexture.createTexture(dc, GpuTextureData.createTextureData(iconStream));// TextureIO.newTexture(iconStream, false, null);
+			String textureMime = ETC1Util.isETC1Supported() ? "image/pkm" : null;
+			iconTexture = GpuTexture.createTexture(dc, GpuTextureData.createTextureData(iconStream, getIconFilePath(), textureMime, true));
 			iconTexture.bind();
 			this.iconWidth = iconTexture.getWidth();
 			this.iconHeight = iconTexture.getHeight();
@@ -552,10 +589,6 @@ public class CompassLayer extends AbstractLayer {
 			Logging.error(msg);
 			throw new WWRuntimeException(msg, e);
 		}
-		// GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);// _MIPMAP_LINEAR);
-		// GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-		// GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-		// GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
 	}
 
 	@Override

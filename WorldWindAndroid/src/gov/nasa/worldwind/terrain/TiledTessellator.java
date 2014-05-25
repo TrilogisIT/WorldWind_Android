@@ -5,8 +5,10 @@ All Rights Reserved.
 package gov.nasa.worldwind.terrain;
 
 import gov.nasa.worldwind.Configuration;
+import gov.nasa.worldwind.R;
 import gov.nasa.worldwind.WWObjectImpl;
 import gov.nasa.worldwind.WorldWind;
+import gov.nasa.worldwind.WorldWindowImpl;
 import gov.nasa.worldwind.avlist.AVKey;
 import gov.nasa.worldwind.avlist.AVList;
 import gov.nasa.worldwind.cache.BasicMemoryCache;
@@ -14,17 +16,24 @@ import gov.nasa.worldwind.cache.Cacheable;
 import gov.nasa.worldwind.cache.GpuResourceCache;
 import gov.nasa.worldwind.cache.MemoryCache;
 import gov.nasa.worldwind.geom.Angle;
+import gov.nasa.worldwind.geom.Cylinder;
 import gov.nasa.worldwind.geom.Extent;
+import gov.nasa.worldwind.geom.Intersection;
+import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Line;
 import gov.nasa.worldwind.geom.Matrix;
+import gov.nasa.worldwind.geom.Plane;
 import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.geom.Sector;
+import gov.nasa.worldwind.geom.Triangle;
 import gov.nasa.worldwind.geom.Vec4;
 import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.pick.PickedObject;
 import gov.nasa.worldwind.render.Color;
 import gov.nasa.worldwind.render.DrawContext;
 import gov.nasa.worldwind.render.GpuProgram;
+import gov.nasa.worldwind.render.Renderable;
+import gov.nasa.worldwind.render.TextRenderer;
 import gov.nasa.worldwind.util.BufferUtil;
 import gov.nasa.worldwind.util.Level;
 import gov.nasa.worldwind.util.LevelSet;
@@ -37,22 +46,26 @@ import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.xml.xpath.XPath;
 import org.w3c.dom.Element;
+import android.graphics.Paint;
 import android.graphics.Point;
 import android.opengl.GLES20;
 import android.util.Pair;
 
 /**
  * Edited By: Nicola Dorigatti, Trilogis
- * 
+ *
  * @author dcollins
  * @version $Id: TiledTessellator.java 842 2012-10-09 23:46:47Z tgaskins $
  */
-public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.TileFactory {
+public class TiledTessellator extends WWObjectImpl
+		implements Tessellator, Tile.TileFactory<TiledTessellator.TerrainTile> {
+
 	protected static class TerrainTile extends Tile implements SectorGeometry {
 		protected TiledTessellator tessellator;
 		protected Extent extent;
@@ -150,6 +163,27 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 			this.tessellator.renderOutline(dc, this);
 		}
 
+		public void renderBoundingVolume(DrawContext dc)
+		{
+			if (dc == null) {
+				String msg = Logging.getMessage("nullValue.DrawContextIsNull");
+				Logging.error(msg);
+				throw new IllegalArgumentException(msg);
+			}
+
+			this.tessellator.renderBoundingVolume(dc, this);
+		}
+
+		public void renderTileID(DrawContext dc)
+		{
+			if (dc == null) {
+				String msg = Logging.getMessage("nullValue.DrawContextIsNull");
+				Logging.error(msg);
+				throw new IllegalArgumentException(msg);
+			}
+			this.tessellator.renderTileID(dc, this);
+		}
+
 		/** {@inheritDoc} */
 		public void beginRendering(DrawContext dc) {
 			if (dc == null) {
@@ -188,12 +222,21 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 			this.tessellator.pick(dc, this, pickPoint);
 		}
+
+		@Override
+		public Intersection[] intersect(Line line)
+		{
+			return this.tessellator.intersect(this, line);
+		}
+
+		@Override
+		public Intersection[] intersect(double elevation)
+		{
+			return this.tessellator.intersect(this, elevation);
+		}
 	}
 
 	protected static class TerrainTileList extends ArrayList<SectorGeometry> implements SectorGeometryList {
-		/**
-		 * 
-		 */
 		private static final long serialVersionUID = 7740545209150322934L;
 		protected Sector sector;
 		protected TiledTessellator tessellator;
@@ -272,6 +315,107 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 			this.tessellator.pick(dc, this, pickPoint);
 		}
+
+		/**
+		 * Determines if and where a ray intersects the geometry.
+		 *
+		 * @param line the <code>Line</code> for which an intersection is to be found.
+		 *
+		 * @return the <Vec4> point closest to the ray origin where an intersection has been found or null if no
+		 *         intersection was found.
+		 */
+		public Intersection[] intersect(Line line)
+		{
+			if (line == null)
+			{
+				String msg = Logging.getMessage("nullValue.LineIsNull");
+				Logging.error(msg);
+				throw new IllegalArgumentException(msg);
+			}
+
+			ArrayList<SectorGeometry> sglist = new ArrayList<SectorGeometry>(this);
+
+			Intersection[] hits;
+			ArrayList<Intersection> list = new ArrayList<Intersection>();
+			for (SectorGeometry sg : sglist)
+			{
+				if (sg.getExtent().intersects(line))
+					if ((hits = sg.intersect(line)) != null)
+						list.addAll(Arrays.asList(hits));
+			}
+
+			int numHits = list.size();
+			if (numHits == 0)
+				return null;
+
+			hits = new Intersection[numHits];
+			list.toArray(hits);
+
+			final Vec4 origin = line.getOrigin();
+			Arrays.sort(hits, new Comparator<Intersection>()
+			{
+				public int compare(Intersection i1, Intersection i2)
+				{
+					if (i1 == null && i2 == null)
+						return 0;
+					if (i2 == null)
+						return -1;
+					if (i1 == null)
+						return 1;
+
+					Vec4 v1 = i1.getIntersectionPoint();
+					Vec4 v2 = i2.getIntersectionPoint();
+					double d1 = origin.distanceTo3(v1);
+					double d2 = origin.distanceTo3(v2);
+					return Double.compare(d1, d2);
+				}
+			});
+			return hits;
+		}
+
+		/**
+		 * Determines if and where the geometry intersects the ellipsoid at a given elevation.
+		 * <p/>
+		 * The returned array of <code>Intersection</code> describes a list of individual segments - two
+		 * <code>Intersection</code> for each, corresponding to each geometry triangle that intersects the given elevation.
+		 * <p/>
+		 * Note that the provided bounding <code>Sector</code> only serves as a 'hint' to avoid processing unnecessary
+		 * geometry tiles. The returned intersection list may contain segments outside that sector.
+		 *
+		 * @param elevation the elevation for which intersections are to be found.
+		 * @param sector    the sector inside which intersections are to be found.
+		 *
+		 * @return a list of <code>Intersection</code> pairs/segments describing a contour line at the given elevation.
+		 */
+		public Intersection[] intersect(double elevation, Sector sector)
+		{
+			if (sector == null)
+			{
+				String message = Logging.getMessage("nullValue.SectorIsNull");
+				Logging.error(message);
+				throw new IllegalArgumentException(message);
+			}
+
+			ArrayList<SectorGeometry> sglist = new ArrayList<SectorGeometry>(this);
+
+			Intersection[] hits;
+			ArrayList<Intersection> list = new ArrayList<Intersection>();
+			for (SectorGeometry sg : sglist)
+			{
+				if (sector.intersects(sg.getSector()))
+					if ((hits = sg.intersect(elevation)) != null)
+						list.addAll(Arrays.asList(hits));
+			}
+
+			int numHits = list.size();
+			if (numHits == 0)
+				return null;
+
+			hits = new Intersection[numHits];
+			list.toArray(hits);
+
+			return hits;
+		}
 	}
 
 	protected static class TerrainGeometry implements Cacheable {
@@ -281,6 +425,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		protected final Object vboCacheKey = new Object();
 		protected boolean mustRegnerateVbos;
 		protected TerrainSharedGeometry sharedGeom;
+		protected double verticalExaggeration;
 
 		public TerrainGeometry() {
 		}
@@ -328,13 +473,14 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	protected static final double DEFAULT_DETAIL_HINT_ORIGIN = 1.3;
 	protected static Map<Object, TerrainSharedGeometry> sharedGeometry = new HashMap<Object, TerrainSharedGeometry>();
 	protected static Map<Object, TerrainPickGeometry> pickGeometry = new HashMap<Object, TerrainPickGeometry>();
-	protected static final String PICK_VERTEX_SHADER_PATH = "shaders/TiledTessellatorPick.vert";
-	protected static final String PICK_FRAGMENT_SHADER_PATH = "shaders/TiledTessellatorPick.frag";
+	protected static final int PICK_VERTEX_SHADER_PATH = R.raw.vertex_color_vert ;
+	protected static final int PICK_FRAGMENT_SHADER_PATH = R.raw.vertex_color_frag;
 
 	protected double detailHintOrigin = DEFAULT_DETAIL_HINT_ORIGIN;
 	protected double detailHint;
+	protected Globe globe;
 	protected LevelSet levels;
-	protected List<Tile> topLevelTiles = new ArrayList<Tile>();
+	protected List<TerrainTile> topLevelTiles = new ArrayList<TerrainTile>();
 	protected TerrainTileList currentTiles = new TerrainTileList(this);
 	protected Sector currentCoverage = new Sector();
 	// Data structures used to track when the elevation model changes.
@@ -355,6 +501,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	protected Line pickRay = new Line();
 	protected Vec4 pickedTriPoint = new Vec4();
 	protected Position pickedTriPos = new Position();
+	protected TextRenderer textRenderer;
 
 	public TiledTessellator(AVList params) {
 		if (params == null) {
@@ -407,16 +554,279 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		// Listen to the Globe's elevation model for changes in elevation model sectors. We mark these sectors as
 		// expired and regenerate geometry for tiles intersecting these sectors.
 		// noinspection StringEquality
-		if (event != null && event.getPropertyName() == AVKey.ELEVATION_MODEL && event.getNewValue() instanceof Tile) {
-			Sector tileSector = ((Tile) event.getNewValue()).getSector();
-			this.markSectorExpired(tileSector);
+			if (AVKey.ELEVATION_MODEL.equals(event.getPropertyName()) && event.getNewValue() instanceof Tile)
+			{
+				Logging.info("Marking all tile sector expired for ElevationModel change");
+				Sector tileSector = ((Tile) event.getNewValue()).getSector();
+				this.markSectorExpired(tileSector);
+			}
+			else if (AVKey.ELEVATION_MODEL.equals(event.getPropertyName()) && event.getNewValue() instanceof ElevationModel)
+			{
+				Logging.info("Marking all sectors expired for ElevationModel change");
+				for(SectorGeometry tile : currentTiles) {
+					markSectorExpired(tile.getSector());
+				}
+			}
+			else if(AVKey.VERTICAL_EXAGGERATION.equals(event.getPropertyName()))
+			{
+				Logging.info(String.format("Marking all sectors expired for VerticalExaggeration change: %.2f -> %.2f",
+						event.getOldValue(), event.getNewValue()));
+				for(SectorGeometry tile : currentTiles)
+					markSectorExpired(tile.getSector());
+			}
+	}
+
+	/**
+	 * Determines if and where a ray intersects a <code>TerrainTile</code> geometry.
+	 *
+	 * @param tile the <Code>TerrainTile</code> which geometry is to be tested for intersection.
+	 * @param line the ray for which an intersection is to be found.
+	 *
+	 * @return an array of <code>Intersection</code> sorted by increasing distance from the line origin, or null if no
+	 *         intersection was found.
+	 */
+	protected Intersection[] intersect(TerrainTile tile, Line line)
+	{
+		if (line == null)
+		{
+			String msg = Logging.getMessage("nullValue.LineIsNull");
+			Logging.error(msg);
+			throw new IllegalArgumentException(msg);
 		}
+
+		TerrainGeometry geometry = tile.getGeometry(getTerrainGeometryCache());
+
+		if (geometry==null || geometry.points==null)
+			return null;
+
+		// Compute 'vertical' plane perpendicular to the ground, that contains the ray
+		Vec4 normalV = new Vec4();
+		globe.computeSurfaceNormalAtPoint(line.getOrigin(), normalV);
+		line.getDirection().cross3(normalV);
+		Plane verticalPlane = new Plane(normalV.x, normalV.y, normalV.z, -line.getOrigin().dot3(normalV));
+		if (!tile.getExtent().intersects(verticalPlane))
+			return null;
+
+		// Compute 'horizontal' plane perpendicular to the vertical plane, that contains the ray
+		Vec4 normalH = line.getDirection().cross3(normalV);
+		Plane horizontalPlane = new Plane(normalH.x, normalH.y, normalH.z, -line.getOrigin().dot3(normalH));
+		if (!tile.getExtent().intersects(horizontalPlane))
+			return null;
+
+		Intersection[] hits;
+		ArrayList<Intersection> list = new ArrayList<Intersection>();
+
+		short[] indices = new short[geometry.sharedGeom.indices.limit()];
+		float[] coords = new float[geometry.points.limit()];
+		geometry.sharedGeom.indices.rewind();
+		geometry.points.rewind();
+		geometry.sharedGeom.indices.get(indices, 0, indices.length);
+		geometry.points.get(coords, 0, coords.length);
+		geometry.sharedGeom.indices.rewind();
+		geometry.points.rewind();
+
+		int trianglesNum = geometry.sharedGeom.indices.capacity() - 2;
+		double centerX = geometry.referenceCenter.x;
+		double centerY = geometry.referenceCenter.y;
+		double centerZ = geometry.referenceCenter.z;
+
+		// Compute maximum cell size based on tile delta lat, density and globe radius
+		double effectiveRadiusVertical = tile.extent.getEffectiveRadius(verticalPlane);
+		double effectiveRadiusHorizontal = tile.extent.getEffectiveRadius(horizontalPlane);
+
+		// Loop through all tile cells - triangle pairs
+		int startIndex = (tile.getWidth() + 2) * 2 + 6; // skip first skirt row and a couple degenerate cells
+		int endIndex = trianglesNum - startIndex; // ignore last skirt row and a couple degenerate cells
+		int k = -1;
+		for (int i = startIndex; i < endIndex; i += 2)
+		{
+			// Skip skirts and degenerate triangle cells - based on index sequence.
+			k = k == tile.getWidth() - 1 ? -4 : k + 1; // density x terrain cells interleaved with 4 skirt and degenerate cells.
+			if (k < 0)
+				continue;
+
+			// Triangle pair diagonal - v1 & v2
+			int vIndex = 3 * indices[i + 1];
+			Vec4 v1 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			vIndex = 3 * indices[i + 2];
+			Vec4 v2 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			Vec4 cellCenter = Vec4.mix3(.5, v1, v2);
+
+			// Test cell center distance to vertical plane
+			if (Math.abs(verticalPlane.distanceTo(cellCenter)) > effectiveRadiusVertical)
+				continue;
+
+			// Test cell center distance to horizontal plane
+			if (Math.abs(horizontalPlane.distanceTo(cellCenter)) > effectiveRadiusHorizontal)
+				continue;
+
+			// Prepare to test triangles - get other two vertices v0 & v3
+			Vec4 p = new Vec4();
+			vIndex = 3 * indices[i];
+			Vec4 v0 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			vIndex = 3 * indices[i + 3];
+			Vec4 v3 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			// Test triangle 1 intersection w ray
+			Triangle t = new Triangle(v0, v1, v2);
+			if (t.intersect(line, p))
+			{
+				list.add(new Intersection(p, false));
+			}
+
+			// Test triangle 2 intersection w ray
+			t = new Triangle(v1, v2, v3);
+			if (t.intersect(line, p))
+			{
+				list.add(new Intersection(p, false));
+			}
+		}
+
+		int numHits = list.size();
+		if (numHits == 0)
+			return null;
+
+		hits = new Intersection[numHits];
+		list.toArray(hits);
+
+		final Vec4 origin = line.getOrigin();
+		Arrays.sort(hits, new Comparator<Intersection>()
+		{
+			public int compare(Intersection i1, Intersection i2)
+			{
+				if (i1 == null && i2 == null)
+					return 0;
+				if (i2 == null)
+					return -1;
+				if (i1 == null)
+					return 1;
+
+				Vec4 v1 = i1.getIntersectionPoint();
+				Vec4 v2 = i2.getIntersectionPoint();
+				double d1 = origin.distanceTo3(v1);
+				double d2 = origin.distanceTo3(v2);
+				return Double.compare(d1, d2);
+			}
+		});
+
+		return hits;
+	}
+
+	protected Intersection[] intersect(TerrainTile tile, double elevation)
+	{
+		TerrainGeometry geometry = tile.getGeometry(getTerrainGeometryCache());
+
+		if (geometry==null || geometry.points==null)
+			return null;
+
+		// Check whether the tile includes the intersection elevation - assume cylinder as Extent
+		// TODO: replace this test with a generic test against Extent
+		if (tile.getExtent() instanceof Cylinder)
+		{
+			Cylinder cylinder = ((Cylinder) tile.getExtent());
+			if (!(globe.isPointAboveElevation(cylinder.getBottomCenter(), elevation)
+					^ globe.isPointAboveElevation(cylinder.getTopCenter(), elevation)))
+				return null;
+		}
+
+		Intersection[] hits;
+		ArrayList<Intersection> list = new ArrayList<Intersection>();
+
+		short[] indices = new short[geometry.sharedGeom.indices.limit()];
+		float[] coords = new float[geometry.points.limit()];
+		geometry.sharedGeom.indices.rewind();
+		geometry.points.rewind();
+		geometry.sharedGeom.indices.get(indices, 0, indices.length);
+		geometry.points.get(coords, 0, coords.length);
+		geometry.sharedGeom.indices.rewind();
+		geometry.points.rewind();
+
+		int trianglesNum = geometry.sharedGeom.indices.capacity() - 2;
+		double centerX = geometry.referenceCenter.x;
+		double centerY = geometry.referenceCenter.y;
+		double centerZ = geometry.referenceCenter.z;
+
+		// Loop through all tile cells - triangle pairs
+		int startIndex = (tile.getWidth() + 2) * 2 + 6; // skip first skirt row and a couple degenerate cells
+		int endIndex = trianglesNum - startIndex; // ignore last skirt row and a couple degenerate cells
+		int k = -1;
+		for (int i = startIndex; i < endIndex; i += 2)
+		{
+			// Skip skirts and degenerate triangle cells - based on indice sequence.
+			k = k == tile.getWidth() - 1 ? -4 : k + 1; // density x terrain cells interleaved with 4 skirt and degenerate cells.
+			if (k < 0)
+				continue;
+
+			// Get the four cell corners
+			int vIndex = 3 * indices[i];
+			Vec4 v0 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			vIndex = 3 * indices[i + 1];
+			Vec4 v1 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			vIndex = 3 * indices[i + 2];
+			Vec4 v2 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			vIndex = 3 * indices[i + 3];
+			Vec4 v3 = new Vec4(
+					coords[vIndex++] + centerX,
+					coords[vIndex++] + centerY,
+					coords[vIndex] + centerZ);
+
+			Intersection[] inter;
+			// Test triangle 1 intersection
+			if ((inter = globe.intersect(new Triangle(v0, v1, v2), elevation)) != null)
+			{
+				list.add(inter[0]);
+				list.add(inter[1]);
+			}
+
+			// Test triangle 2 intersection
+			if ((inter = globe.intersect(new Triangle(v1, v2, v3), elevation)) != null)
+			{
+				list.add(inter[0]);
+				list.add(inter[1]);
+			}
+		}
+
+		int numHits = list.size();
+		if (numHits == 0)
+			return null;
+
+		hits = new Intersection[numHits];
+		list.toArray(hits);
+
+		return hits;
 	}
 
 	protected boolean getSurfacePoint(Angle latitude, Angle longitude, Vec4 result) {
 		for (SectorGeometry tile : this.currentTiles) {
 			if (tile.getSurfacePoint(latitude, longitude, result)) // Each tile tests the location against its sector.
-			return true;
+				return true;
 		}
 
 		return false;
@@ -450,7 +860,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		return this.currentTiles;
 	}
 
-	public Tile createTile(Sector sector, Level level, int row, int column) {
+	public TerrainTile createTile(Sector sector, Level level, int row, int column) {
 		if (sector == null) {
 			String msg = Logging.getMessage("nullValue.SectorIsNull");
 			Logging.error(msg);
@@ -485,7 +895,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		this.currentTiles.clear();
 		this.currentCoverage.setDegrees(0, 0, 0, 0);
 
-		if (this.topLevelTiles.isEmpty()) this.createTopLevelTiles();
+		if (this.topLevelTiles.isEmpty()) this.createTopLevelTiles(dc);
 
 		for (int i = 0; i < this.topLevelTiles.size(); i++) {
 			Tile tile = this.topLevelTiles.get(i);
@@ -498,15 +908,24 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		this.currentTiles.setSector(this.currentCoverage.isEmpty() ? null : this.currentCoverage);
 	}
 
-	protected void createTopLevelTiles() {
+	protected void createTopLevelTiles(DrawContext dc) {
 		if (this.levels.getFirstLevel() == null) {
 			Logging.warning(Logging.getMessage("generic.FirstLevelIsNull"));
 			return;
 		}
 
+		if(globe==null) {
+			this.globe = dc.getGlobe();
+			dc.getGlobe().getElevationModel().addPropertyChangeListener(AVKey.ELEVATION_MODEL, this);
+			dc.addPropertyChangeListener(AVKey.VERTICAL_EXAGGERATION, this);
+		}
+
+		Logging.verbose("Creating top level surface tiles");
+
 		this.topLevelTiles.clear();
 		// TODO Tile.createTilesForLevel(this.levels.getFirstLevel(), this.levels.getSector(), this, this.topLevelTiles);
 		Tile.createTilesForLevel(this.levels.getFirstLevel(), this.levels.getSector(), this, this.topLevelTiles, this.levels.getTileOrigin());
+		Logging.verbose("Finished top level creation: #" + topLevelTiles.size());
 	}
 
 	protected void addTileOrDescendants(DrawContext dc, TerrainTile tile) {
@@ -591,8 +1010,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	}
 
 	protected boolean mustRegenerateGeometry(DrawContext dc, TerrainTile tile) {
-		MemoryCache cache = this.getTerrainGeometryCache();
-		return tile.getGeometry(cache) == null || this.isExpired(dc, tile);
+		return this.isExpired(dc, tile);
 	}
 
 	protected void assembleExpiredSectors() {
@@ -609,11 +1027,28 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	}
 
 	protected boolean isExpired(DrawContext dc, TerrainTile tile) {
+		TerrainGeometry geom = tile.getGeometry(getTerrainGeometryCache());
+		if(geom==null) {
+			if(WorldWindowImpl.DEBUG)
+				Logging.verbose("Generating tile geometry for first time: " + tile);
+			return true;
+		}
+		if(geom.verticalExaggeration != dc.getVerticalExaggeration()) {
+			if(WorldWindowImpl.DEBUG)
+				Logging.verbose(String.format("Tile has expired due to Vertical Exaggeration. old: %.2f  new: %.2f",
+						geom.verticalExaggeration, dc.getVerticalExaggeration()));
+			return true;
+		}
+
 		if (this.currentExpiredSectors.isEmpty()) return false;
 
 		Sector tileSector = tile.getSector();
 		for (Sector sector : this.currentExpiredSectors) {
-			if (tileSector.intersects(sector)) return true;
+			if (tileSector.intersects(sector)) {
+				if(WorldWindowImpl.DEBUG)
+					Logging.verbose("Tile has expired due to expired sector: " + sector);
+				return true;
+			}
 		}
 
 		return false;
@@ -626,14 +1061,16 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 		this.buildTileVertices(dc, tile, geom);
 		this.buildSharedGeometry(tile, geom);
-
+		geom.verticalExaggeration = dc.getVerticalExaggeration();
 		// Update the geometry's cached size.
 		tile.setGeometry(cache, geom);
+		if(WorldWindowImpl.DEBUG)
+			Logging.verbose("added tile geometry: " + cache.getNumObjects());
 	}
 
 	/**
 	 * Returns the memory cache used to cache terrain tiles, initializing the cache if it doesn't yet exist.
-	 * 
+	 *
 	 * @return the memory cache associated with terrain tiles.
 	 */
 	protected MemoryCache getTerrainTileCache() {
@@ -649,7 +1086,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 	/**
 	 * Returns the memory cache used to cache terrain geometry, initializing the cache if it doesn't yet exist.
-	 * 
+	 *
 	 * @return the memory cache associated with terrain geometry.
 	 */
 	protected MemoryCache getTerrainGeometryCache() {
@@ -658,6 +1095,19 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 			MemoryCache cache = new BasicMemoryCache((long) (0.8 * size), size);
 			cache.setName("Tessellator Geometry");
 			WorldWind.getMemoryCacheSet().put(TerrainGeometry.class.getName(), cache);
+			if(WorldWindowImpl.DEBUG) {
+			cache.addCacheListener(new MemoryCache.CacheListener() {
+				@Override
+				public void entryRemoved(Object key, Object value) {
+					Logging.verbose("TerrainGeometryCache entry removed: " + key);
+				}
+
+				@Override
+				public void removalException(Throwable exception, Object key, Object value) {
+
+				}
+			});
+			}
 		}
 
 		return WorldWind.getMemoryCacheSet().get(TerrainGeometry.class.getName());
@@ -868,16 +1318,16 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 		for (int j = 0; j < numLat; j++) {
 			if (j <= 1) // First two columns repeat the min T-coordinate to provide a column for the skirt.
-			t = minT;
+				t = minT;
 			else if (j >= numLat - 2) // Last two columns repeat the max T-coordinate to provide a column for the skirt.
-			t = maxT;
+				t = maxT;
 			else t += deltaT; // Non-boundary latitudes are separated by the cell latitude delta.
 
 			for (int i = 0; i < numLon; i++) {
 				if (i <= 1) // First two rows repeat the min S-coordinate to provide a row for the skirt.
-				s = minS;
+					s = minS;
 				else if (i >= numLon - 2) // Last two rows repeat the max S-coordinate to provide a row for the skirt.
-				s = maxS;
+					s = maxS;
 				else s += deltaS; // Non-boundary longitudes are separated by the cell longitude delta.
 
 				texCoords.put((float) s).put((float) t);
@@ -1030,17 +1480,21 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		// beginRendering is called for each tile.
 		int location = program.getAttribLocation("vertexPoint");
 		if (location >= 0) GLES20.glEnableVertexAttribArray(location);
+		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 
 		// Enable the program's vertexTexCoord attribute, if one exists. The data for this attribute is specified when
 		// beginRendering is called for each tile.
 		location = program.getAttribLocation("vertexTexCoord");
 		if (location >= 0) GLES20.glEnableVertexAttribArray(location);
+		WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 	}
 
 	protected void endRendering(DrawContext dc) {
 		// Restore the array and element array buffer bindings to 0.
 		GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+		WorldWindowImpl.glCheckError("glBindBuffer");
 		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
+		WorldWindowImpl.glCheckError("glBindBuffer");
 
 		GpuProgram program = dc.getCurrentProgram();
 		if (program == null) return; // Message logged in beginRendering(DrawContext).
@@ -1049,11 +1503,13 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		// beginRendering.
 		int location = program.getAttribLocation("vertexPoint");
 		if (location >= 0) GLES20.glDisableVertexAttribArray(location);
+		WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 
 		// Disable the program's vertexTexCoord attribute, if one exists. This restores the program state modified in
 		// beginRendering.
 		location = program.getAttribLocation("vertexTexCoord");
 		if (location >= 0) GLES20.glDisableVertexAttribArray(location);
+		WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 	}
 
 	protected void beginRendering(DrawContext dc, TerrainTile tile) {
@@ -1082,7 +1538,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 			int[] vboIds = (int[]) gpuCache.get(geom.vboCacheKey);
 			if (vboIds != null) {
 				GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
+				WorldWindowImpl.glCheckError("glBindBuffer");
 				GLES20.glVertexAttribPointer(location, 3, GLES20.GL_FLOAT, false, 0, 0);
+				WorldWindowImpl.glCheckError("glVertexAttribPointer");
 			} else {
 				String msg = Logging.getMessage("Tessellator.SurfaceGeometryVBONotInGpuCache", tile, gpuCache.getUsedCapacity());
 				Logging.warning(msg);
@@ -1096,7 +1554,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 			int[] sharedVboIds = (int[]) gpuCache.get(geom.sharedGeom.vboCacheKey);
 			if (sharedVboIds != null) {
 				GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, sharedVboIds[0]);
+				WorldWindowImpl.glCheckError("glBindBuffer");
 				GLES20.glVertexAttribPointer(location, 2, GLES20.GL_FLOAT, false, 0, 0);
+				WorldWindowImpl.glCheckError("glVertexAttribPointer");
 			} else {
 				String msg = Logging.getMessage("Tessellator.SharedGeometryVBONotInGpuCache", tile, gpuCache.getUsedCapacity());
 				Logging.warning(msg);
@@ -1130,7 +1590,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		}
 
 		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, sharedVboIds[1]);
+		WorldWindowImpl.glCheckError("glBindBuffer");
 		GLES20.glDrawElements(GLES20.GL_TRIANGLE_STRIP, geom.sharedGeom.indices.remaining(), GLES20.GL_UNSIGNED_SHORT, 0);
+		WorldWindowImpl.glCheckError("glDrawElements");
 	}
 
 	protected void renderWireframe(DrawContext dc, TerrainTile tile) {
@@ -1148,7 +1610,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		}
 
 		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, sharedVboIds[2]);
+		WorldWindowImpl.glCheckError("glBindBuffer");
 		GLES20.glDrawElements(GLES20.GL_LINES, geom.sharedGeom.wireframeIndices.remaining(), GLES20.GL_UNSIGNED_SHORT, 0);
+		WorldWindowImpl.glCheckError("glDrawElements");
 	}
 
 	protected void renderOutline(DrawContext dc, TerrainTile tile) {
@@ -1166,7 +1630,43 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		}
 
 		GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, sharedVboIds[3]);
+		WorldWindowImpl.glCheckError("glBindBuffer");
 		GLES20.glDrawElements(GLES20.GL_LINE_STRIP, geom.sharedGeom.outlineIndices.remaining(), GLES20.GL_UNSIGNED_SHORT, 0);
+		WorldWindowImpl.glCheckError("glDrawElements");
+	}
+
+	protected void renderBoundingVolume(DrawContext dc, TerrainTile tile)
+	{
+		Extent extent = tile.getExtent();
+		if (extent == null)
+			return;
+
+		if (extent instanceof Renderable)
+			((Renderable) extent).render(dc);
+	}
+
+	protected void renderTileID(DrawContext dc, TerrainTile tile)
+	{
+		if(textRenderer==null) {
+            Paint paint = new Paint();
+            paint.setColor(android.graphics.Color.RED);
+			textRenderer = new TextRenderer(dc, paint);
+		}
+
+		textRenderer.beginDrawing();
+
+		String tileLabel = Integer.toString(tile.getLevelNumber());
+		double[] elevs = dc.getGlobe().getMinAndMaxElevations(tile.getSector());
+		if (elevs != null)
+			tileLabel += ", " + (int) elevs[0] + "/" + (int) elevs[1];
+
+		LatLon ll = tile.getSector().getCentroid();
+		Vec4 pt = new Vec4();
+		dc.getView().project(dc.getGlobe().computePointFromPosition(ll.getLatitude(), ll.getLongitude(),
+				dc.getGlobe().getElevation(ll.getLatitude(), ll.getLongitude())), pt);
+		textRenderer.draw(tileLabel, (int) pt.x, (int) pt.y);
+
+        textRenderer.endDrawing();
 	}
 
 	protected void loadGeometryVbos(DrawContext dc, TerrainGeometry geom) {
@@ -1178,12 +1678,15 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		if (vboIds == null) {
 			vboIds = new int[1];
 			GLES20.glGenBuffers(1, vboIds, 0);
+			WorldWindowImpl.glCheckError("glGenBuffers");
 		}
 
 		try {
 			int sizeInBytes = 4 * geom.points.remaining();
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
+			WorldWindowImpl.glCheckError("glBindBuffer");
 			GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, sizeInBytes, geom.points, GLES20.GL_STREAM_DRAW);
+			WorldWindowImpl.glCheckError("glBufferData");
 
 			// Don't overwrite these VBOs if they're already in the cache. Doing so would cause the cache to delete
 			// the existing VBO objects. Since we're reusing the same VBO ids, this would delete the VBO ids we're
@@ -1194,6 +1697,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		} finally {
 			// Restore the array buffer binding to 0.
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+			WorldWindowImpl.glCheckError("glBindBuffer");
 		}
 	}
 
@@ -1204,34 +1708,45 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 		vboIds = new int[4];
 		GLES20.glGenBuffers(4, vboIds, 0);
+		WorldWindowImpl.glCheckError("glGenBuffers");
 
 		try {
 			long totalSizeInBytes = 0;
 			int sizeInBytes = 4 * geom.texCoords.remaining();
 			totalSizeInBytes += sizeInBytes;
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
+			WorldWindowImpl.glCheckError("glBindBuffer");
 			GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, sizeInBytes, geom.texCoords, GLES20.GL_STREAM_DRAW);
+			WorldWindowImpl.glCheckError("glBufferData");
 
 			sizeInBytes = 2 * geom.indices.remaining();
 			totalSizeInBytes += sizeInBytes;
 			GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[1]);
+			WorldWindowImpl.glCheckError("glBindBuffer");
 			GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, sizeInBytes, geom.indices, GLES20.GL_STREAM_DRAW);
+			WorldWindowImpl.glCheckError("glBufferData");
 
 			sizeInBytes = 2 * geom.wireframeIndices.remaining();
 			totalSizeInBytes += sizeInBytes;
 			GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[2]);
+			WorldWindowImpl.glCheckError("glBindBuffer");
 			GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, sizeInBytes, geom.wireframeIndices, GLES20.GL_STREAM_DRAW);
+			WorldWindowImpl.glCheckError("glBufferData");
 
 			sizeInBytes = 2 * geom.outlineIndices.remaining();
 			totalSizeInBytes += sizeInBytes;
 			GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[3]);
+			WorldWindowImpl.glCheckError("glBindBuffer");
 			GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, sizeInBytes, geom.outlineIndices, GLES20.GL_STREAM_DRAW);
+			WorldWindowImpl.glCheckError("glBufferData");
 
 			cache.put(geom.vboCacheKey, vboIds, GpuResourceCache.VBO_BUFFERS, totalSizeInBytes);
 		} finally {
 			// Restore the array and element array buffer bindings to 0.
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+			WorldWindowImpl.glCheckError("glBindBuffer");
 			GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
+			WorldWindowImpl.glCheckError("glBindBuffer");
 		}
 	}
 
@@ -1242,11 +1757,15 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 
 		program.bind();
 		dc.setCurrentProgram(program);
+		program.loadUniform1b("uUseVertexColors", true);
+		program.loadUniform1f("uOpacity", 1f);
+        program.loadUniformColor("uColor", Color.white());
 		try {
 			SectorGeometry sg = this.getPickedGeometry(dc, sgList, pickPoint);
 			if (sg != null) sg.pick(dc, pickPoint);
 		} finally {
 			GLES20.glUseProgram(0);
+			WorldWindowImpl.glCheckError("glUseProgram");
 			dc.setCurrentProgram(null);
 		}
 	}
@@ -1295,8 +1814,11 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 				// ensure that the pick colors can be used to compute an index into the SectorGeometryList.
 				if (i > 0) color = dc.getUniquePickColor();
 
-				// TODO: Cull SectorGeometry against the pick frustum.
 				SectorGeometry sg = sgList.get(i);
+
+				if(!dc.getPickFrustums().intersectsAny(sg.getExtent()))
+					continue;
+
 				sg.beginRendering(dc);
 				try {
 					// Convert the pick color from a packed 32-bit RGB color int to a RGB color with separate components
@@ -1306,6 +1828,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 					// the "vertexColor" attrib array is not enabled, this constant value is used instead. OpenGL
 					// expands this 3-component RGB color to a 4-component RGBA color, where the alpha component is 1.0.
 					GLES20.glVertexAttrib3f(location, (float) this.pickColor.r, (float) this.pickColor.g, (float) this.pickColor.b);
+					WorldWindowImpl.glCheckError("glVertexAttrib3f");
 					sg.render(dc);
 				} finally {
 					sg.endRendering(dc);
@@ -1430,7 +1953,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 				pickGeom.points.put(corners, 9, 3); // Upper-right vertex.
 
 				if (i != 0 || j != 0) // The first triangle's color is allocated before this loop.
-				color = dc.getUniquePickColor();
+					color = dc.getUniquePickColor();
 				colors[0] = colors[3] = colors[6] = (byte) Color.getColorIntRed(color);
 				colors[1] = colors[4] = colors[7] = (byte) Color.getColorIntGreen(color);
 				colors[2] = colors[5] = colors[8] = (byte) Color.getColorIntBlue(color);
@@ -1482,7 +2005,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		int pointLocation = program.getAttribLocation("vertexPoint");
 		if (pointLocation >= 0) {
 			GLES20.glEnableVertexAttribArray(pointLocation);
+			WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 			GLES20.glVertexAttribPointer(pointLocation, 3, GLES20.GL_FLOAT, false, 0, geom.points);
+			WorldWindowImpl.glCheckError("glVertexAttribPointer");
 		}
 
 		// Enable and specify the data for the program's vertexPoint attribute, if one exists. We specify a 3-element
@@ -1491,7 +2016,9 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		int colorLocation = program.getAttribLocation("vertexColor");
 		if (colorLocation >= 0) {
 			GLES20.glEnableVertexAttribArray(colorLocation);
+			WorldWindowImpl.glCheckError("glEnableVertexAttribArray");
 			GLES20.glVertexAttribPointer(colorLocation, 3, GLES20.GL_UNSIGNED_BYTE, true, 0, geom.colors);
+			WorldWindowImpl.glCheckError("glVertexAttribPointer");
 		}
 
 		// Multiply the View's modelview-projection matrix by the tile's transform matrix to correctly transform tile
@@ -1502,9 +2029,12 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		program.loadUniformMatrix("mvpMatrix", this.mvpMatrix);
 
 		GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, geom.vertexCount);
+		WorldWindowImpl.glCheckError("glDrawArrays");
 
 		if (pointLocation >= 0) GLES20.glDisableVertexAttribArray(pointLocation);
+		WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 		if (colorLocation >= 0) GLES20.glDisableVertexAttribArray(colorLocation);
+		WorldWindowImpl.glCheckError("glDisableVertexAttribArray");
 	}
 
 	protected PickedObject resolvePick(DrawContext dc, TerrainPickGeometry geom, Point pickPoint) {
@@ -1600,7 +2130,11 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		// upper-right. The cell's diagonal starts at the lower-left vertex and ends at the upper-right vertex.
 		double sf = (s < tileWidth ? s - (int) s : 1);
 		double tf = (t < tileHeight ? t - (int) t : 1);
-		this.computePointInCell(sf, tf, points[0], points[1], points[2], points[3], points[4], points[5], points[6], points[7], points[8], points[9], points[10], points[11],
+		this.computePointInCell(sf, tf,
+				points[0], points[1], points[2],
+				points[3], points[4], points[5],
+				points[6], points[7], points[8],
+				points[9], points[10], points[11],
 				result);
 
 		// Add the tile geometry's reference center to the result in order to transform it from tile local coordinates
@@ -1611,7 +2145,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	/**
 	 * Computes the model coordinate intersection of a specified line with a triangle specified by individual
 	 * coordinates.
-	 * 
+	 *
 	 * @param line
 	 *            the line to test.
 	 * @param vax
@@ -1665,7 +2199,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		// Compute dot product of N and ray direction.
 		double b = nx * dir.x + ny * dir.y + nz * dir.z;
 		if (b > -EPSILON && b < EPSILON) // ray is parallel to triangle plane
-		return false;
+			return false;
 
 		double t = -(nx * tvecx + ny * tvecy + nz * tvecz) / b;
 		line.getPointAt(t, result);
@@ -1676,7 +2210,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	/**
 	 * Computes the point in tile local coordinates of a location within a tile's cell specified by individual
 	 * coordinates.
-	 * 
+	 *
 	 * @param s
 	 *            a parameterized horizontal coordinate within the tile's 2D grid of points as a floating-point value
 	 *            in the range [0, tileWidth].
@@ -1711,7 +2245,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	 *            contains the tile local coordinates of the point in the cell after this method returns.
 	 */
 	protected void computePointInCell(double s, double t, double llx, double lly, double llz, double lrx, double lry, double lrz, double ulx, double uly, double ulz, double urx,
-			double ury, double urz, Vec4 result) {
+									  double ury, double urz, Vec4 result) {
 		if (s < t) // The point is in the lower-right triangle.
 		{
 			double oneMinusS = 1 - s;
@@ -1725,5 +2259,83 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 			result.y = uly + s * (ury - uly) + oneMinusT * (lly - uly);
 			result.z = ulz + s * (urz - ulz) + oneMinusT * (llz - ulz);
 		}
+	}
+
+	/**
+	 * Computes the point in tile local coordinates of a location within a tile's cell specified by individual
+	 * coordinates.
+	 *
+	 * @param s
+	 *            a parameterized horizontal coordinate within the tile's 2D grid of points as a floating-point value
+	 *            in the range [0, 1].
+	 * @param t
+	 *            a parameterized vertical coordinate within the tile's 2D grid of points as a floating-point value
+	 *            in the range [0, 1].
+	 * @param llx
+	 *            the X coordinate of the cell's lower left corner.
+	 * @param lly
+	 *            the Y coordinate of the cell's lower left corner.
+	 * @param llz
+	 *            the Z coordinate of the cell's lower left corner.
+	 * @param lrx
+	 *            the X coordinate of the cell's lower right corner.
+	 * @param lry
+	 *            the Y coordinate of the cell's lower right corner.
+	 * @param lrz
+	 *            the Z coordinate of the cell's lower right corner.
+	 * @param ulx
+	 *            the X coordinate of the cell's upper left corner.
+	 * @param uly
+	 *            the Y coordinate of the cell's upper left corner.
+	 * @param ulz
+	 *            the Z coordinate of the cell's upper left corner.
+	 * @param urx
+	 *            the X coordinate of the cell's upper right corner.
+	 * @param ury
+	 *            the Y coordinate of the cell's upper right corner.
+	 * @param urz
+	 *            the Z coordinate of the cell's upper right corner.
+	 * @param result
+	 *            contains the tile local coordinates of the point in the cell after this method returns.
+	 */
+	protected void computePointInCellBarycentric(double s, double t, double llx, double lly, double llz, double lrx, double lry, double lrz, double ulx, double uly, double ulz, double urx,
+									  double ury, double urz, Vec4 result) {
+		Vec4 barycentric = new Vec4();
+		if (s < t) // The point is in the lower-right triangle.
+		{
+			barycentric2D(LOWER_RIGHT, UPPER_RIGHT, LOWER_LEFT, new Vec4(s, t), barycentric);
+			result.x = lrx*barycentric.x + urx*barycentric.y + llx*barycentric.z;
+			result.y = lry*barycentric.x + ury*barycentric.y + lly*barycentric.z;
+			result.z = lrz*barycentric.x + urz*barycentric.y + llz*barycentric.z;
+		} else // The point is in the upper-left triangle, or on the diagonal between the two triangles.
+		{
+			barycentric2D(UPPER_LEFT, LOWER_LEFT, UPPER_RIGHT, new Vec4(s, t), barycentric);
+			result.x = ulx*barycentric.x + llx*barycentric.y + urx*barycentric.z;
+			result.y = uly*barycentric.x + lly*barycentric.y + ury*barycentric.z;
+			result.z = ulz*barycentric.x + llz*barycentric.y + urz*barycentric.z;
+		}
+	}
+
+	private final Vec4 LOWER_LEFT = new Vec4(0, 0);
+	private final Vec4 LOWER_RIGHT = new Vec4(1, 0);
+	private final Vec4 UPPER_RIGHT = new Vec4(1, 1);
+	private final Vec4 UPPER_LEFT = new Vec4(0, 1);
+
+	/**
+	 * Get barycentric coordinate from 2D coordinate in triangle a,b,c
+	 * @param a	First point in triangle
+	 * @param b	Second point in Triangle
+	 * @param c	Third point in triangle
+	 * @param p	point in triangle
+	 * @param result	barycentric coordinate (α, β, γ) for p
+	 */
+	public void barycentric2D(Vec4 a, Vec4 b, Vec4 c, Vec4 p, Vec4 result) {
+		double A = (b.x-a.x)*(c.y-a.y)-(c.x-a.x)*(b.y-a.y);
+		double Ab = (a.x-c.x)*(p.y-c.y)-(p.x-c.x)*(a.y-c.y);
+		double Ac = (b.x-a.x)*(p.y-a.y)-(p.x-a.x)*(b.y-a.y);
+		double beta = Ab / A;
+		double gamma = Ac / A;
+		double alpha = 1 - beta - gamma;
+		result.set(alpha, beta, gamma);
 	}
 }
