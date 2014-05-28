@@ -14,6 +14,10 @@ import android.widget.TextView;
 import gov.nasa.worldwind.*;
 import gov.nasa.worldwind.geom.*;
 import gov.nasa.worldwind.globes.Globe;
+import gov.nasa.worldwind.layers.FAOBackCompassLayer;
+import gov.nasa.worldwind.layers.FAOCompassLayer;
+import gov.nasa.worldwind.pick.PickedObject;
+import gov.nasa.worldwind.pick.PickedObjectList;
 
 /**
  * @author ccrick
@@ -72,10 +76,12 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
         {
             case MotionEvent.ACTION_DOWN:
             {
-                if (pointerCount == 1)
-                    mIsTap = true;
-
-                // display lat-lon under first finger down
+                if (pointerCount == 1){
+                	mIsTap = true;
+                    
+                    screenPoint = new Point((int)motionEvent.getX(), (int)motionEvent.getY());
+                	eventSource.getSceneController().setPickPoint(screenPoint);
+                }
 
                 break;
             }
@@ -93,6 +99,20 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
                     {
                         // handle double tap here
                         mLastTap = 0;
+                        
+                        if(null!=eventSource.getObjectsAtCurrentPosition()&&!eventSource.getObjectsAtCurrentPosition().isEmpty()){
+                        	
+    			            PickedObjectList pol =eventSource.getObjectsAtCurrentPosition();
+    						for(int i =0; i<pol.size();i++){
+    		                    PickedObject obj = pol.get(i);
+    		                    if((obj.getObject() instanceof FAOCompassLayer)||(obj.getObject() instanceof FAOBackCompassLayer)){
+    		                    	    		                    		
+    		                    	eventSource.getView().animateTo(((BasicView)eventSource.getView()).getLookAtPosition(),((BasicView)eventSource.getView()).getRange(),Angle.fromDegrees(0),((BasicView)eventSource.getView()).getTilt() ,(WorldWindowGLSurfaceView)eventSource);
+    		                    	
+    		                    	break;
+    		                    }
+    		                }
+    					}
                     }
                     // otherwise, single tap has occurred
                     else if (mLastTap < 0 || timeSinceLastTap > SINGLE_TAP_INTERVAL)
@@ -260,14 +280,42 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
 
         if (view.computePositionFromScreenPoint(globe, this.screenPoint, this.position))
         {
-            final String latText = this.position.latitude.toString();
-            final String lonText = this.position.longitude.toString();
+        	WorldWindowGLSurfaceView wwd = ((WorldWindowGLSurfaceView) this.eventSource);
+        	String latText;
+            String lonText;
+
+            if(wwd.isCoordinateInDegrees()){
+            	double lat = position.latitude.degrees;
+            	latText = getDegrees(lat);
+            	
+            	double lon =  position.longitude.degrees;
+            	lonText = getDegrees(lon);
+            	
+        	}else{
+        		Integer decimal = wwd.getCoordinateDegreesDecimalCount();
+        		if(null!=decimal&&decimal>=0&&decimal<10){
+        			int mul=1;
+        			for(int i=1;i<=decimal;i++){
+        				mul=mul*10;
+        			}
+                	double lat = (long) (position.latitude.degrees * mul) / mul;
+        			double lon = (long) (position.longitude.degrees * mul) / mul;
+        			
+        			latText = ""+lat;
+                    lonText = ""+lon;
+        		}else{
+                    latText = this.position.latitude.toString();
+                    lonText = this.position.longitude.toString();
+        		}
+        	}
+            final String latfinal = latText;
+            final String lonfinal = lonText;
 
             ((Activity) context).runOnUiThread(new Runnable()
             {
                 public void run()
                 {
-                    updateLatLonText(latText, lonText);
+                    updateLatLonText(latfinal, lonfinal);
                 }
             });
         }
@@ -443,4 +491,21 @@ public class BasicInputHandler extends WWObjectImpl implements InputHandler
         heading.setDegrees(newHeading);
         tilt.setDegrees(newTilt);
     }
+    
+    private String getDegrees(double coordinate){
+
+    	double coordinateDec = coordinate;
+    	
+    	int deg = (int)coordinateDec;
+    	if(coordinateDec<0){
+    		coordinateDec=(coordinateDec-deg)*(-60);
+    	}else{
+    		coordinateDec=(coordinateDec-deg)*60;
+    	}
+    	int min = (int)coordinateDec;
+    	coordinateDec=(coordinateDec-min)*60;
+    	int sec= (int)coordinateDec;
+        return new String(""+deg+"° "+ min+"\' "+sec+"\"");
+    }
+    
 }
