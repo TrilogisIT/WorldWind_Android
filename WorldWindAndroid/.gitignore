@@ -1,4 +1,8 @@
-#Compiled folders
-/bin
+# Generated files
+bin/
+gen/
+*.class
 
-/gen
+#Eclipse Files
+.settings/
+
