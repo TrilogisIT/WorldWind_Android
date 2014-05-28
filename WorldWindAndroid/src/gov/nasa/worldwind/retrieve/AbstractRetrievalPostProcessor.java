@@ -635,10 +635,11 @@ public abstract class AbstractRetrievalPostProcessor implements RetrievalPostPro
     {
         ByteBuffer buffer;
 
-        Bitmap image = this.transformPixels();
-        if (image != null)
-            buffer = DDSCompressor.compressImage(image);
-        else
+        // TODO
+//        Bitmap image = this.transformPixels();
+//        if (image != null)
+//            buffer = DDSCompressor.compressImage(image);
+//        else
             buffer = DDSCompressor.compressImageBuffer(this.getRetriever().getBuffer());
 
         return buffer;

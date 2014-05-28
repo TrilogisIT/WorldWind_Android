@@ -220,4 +220,33 @@ public interface View extends WWObject {
 	 * @return the position of the eye corresponding to the most recent state of this view
 	 */
 	Position getEyePosition(Globe globe);
+	
+	
+	/**
+	 * Compute an animation from the current position to the position given.
+	 * 
+	 * @param loc
+	 * 			The position where the animate arrive
+	 * @param ww
+	 * 			GLSurfaceView for create the animation
+	 */
+	void animateTo(Position loc,WorldWindowGLSurfaceView ww);
+	
+	
+	/**
+	 * Compute an animation from the current position to the position with range view, heading and tilt given.
+	 * 
+	 * @param loc
+	 * 			The position
+	 * @param finalRange
+	 * 			The distance between the view and the world
+	 * @param heading
+	 * 			The angle of view heading
+	 * @param tilt
+	 * 			The angle of view tilt
+	 * @param ww
+	 * 			GLSurfaceView for create the animation
+	 */
+	void animateTo(Position loc, double finalRange, Angle heading,Angle tilt,WorldWindowGLSurfaceView ww);
+	
 }

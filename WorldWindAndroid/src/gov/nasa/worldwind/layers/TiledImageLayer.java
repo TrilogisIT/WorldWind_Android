@@ -37,6 +37,8 @@ import gov.nasa.worldwind.util.Tile;
 import gov.nasa.worldwind.util.TileKey;
 import gov.nasa.worldwind.util.WWIO;
 import gov.nasa.worldwind.util.WWXML;
+import gov.nasa.worldwind.util.pkm.PKMGpuTextureData;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -657,7 +659,12 @@ public class TiledImageLayer extends AbstractLayer implements Tile.TileFactory, 
 	}
 
 	protected GpuTextureData createTextureData(URL textureURL) {
-		return GpuTextureData.createTextureData(textureURL);
+		GpuTextureData textureData = PKMGpuTextureData.createTextureData(textureURL);
+        if (textureData == null)
+        {
+        	GpuTextureData.createTextureData(textureURL);
+        }
+		return textureData;
 	}
 
 	/**

@@ -22,6 +22,7 @@ import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.terrain.Terrain;
 import gov.nasa.worldwind.util.BufferUtil;
 import gov.nasa.worldwind.util.Logging;
+
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,47 +31,12 @@ import java.util.List;
 
 import android.opengl.GLES20;
 
-// TODO: Measurement (getLength), Texture, lighting
 
 /**
- * Displays a line or curve between positions. The GPSMarker is drawn between input positions to achieve a specified GPSMarker
- * type, e.g., {@link AVKey#GREAT_CIRCLE}. It can also conform to the underlying terrain. A curtain may be formed by
- * extruding the GPSMarker to the ground.
- * <p/>
- * Altitudes within the GPSMarker's positions are interpreted according to the GPSMarker's altitude mode. If the altitude mode is {@link AVKey#ABSOLUTE}, the altitudes
- * are considered as height above the ellipsoid. If the altitude mode is {@link AVKey#RELATIVE_TO_GROUND}, the altitudes are added to the elevation of the
- * terrain at the position. If the altitude mode is {@link AVKey#CLAMP_TO_GROUND} the altitudes are ignored.
- * <p/>
- * Between the specified positions the GPSMarker is drawn along a curve specified by the GPSMarker's GPSMarker type, either {@link AVKey#GREAT_CIRCLE},
- * {@link AVKey#RHUMB_LINE} or {@link AVKey#LINEAR}. (See {@link #setGPSMarkerType(String)}.)
- * <p/>
- * GPSMarkers have separate attributes for normal display and highlighted display. If no attributes are specified, default attributes are used. See
- * {@link #DEFAULT_INTERIOR_COLOR}, {@link #DEFAULT_OUTLINE_COLOR}, and {@link #DEFAULT_HIGHLIGHT_COLOR}.
- * <p/>
- * When the GPSMarker type is <code>LINEAR</code> the GPSMarker conforms to terrain only if the follow-terrain property is true. Otherwise the GPSMarker control points will be
- * connected by straight line segments.
- * <p/>
- * The terrain conformance of <code>GREAT_CIRCLE</code> or <code>RHUMB_LINE</code> GPSMarkers is determined by the GPSMarker's follow-terrain and terrain-conformance
- * properties. When the follow-terrain property is true, terrain conformance adapts as the view moves relative to the GPSMarker; the terrain-conformance property
- * governs the precision of conformance, and the number of intermediate positions computed varies. See {@link #setFollowTerrain(boolean)} and
- * {@link #setTerrainConformance(double)}. If the follow-terrain property is false, the view position is not considered and the number of intermediate positions
- * between specified positions is the constant value specified by the num-subsegments property (see {@link #setNumSubsegments(int)}). The latter case may
- * produce higher performance than the former.
- * <p/>
- * The GPSMarker positions may be shown by calling {@link #setShowPositions(boolean)} with an argument of <code>true</code>. This causes dots to be drawn at each
- * originally specified GPSMarker position. Dots are not drawn at tessellated GPSMarker positions. The size of the dots may be specified via
- * {@link #setShowPositionsScale(double)}. The dots are drawn only when the GPSMarker is within a threshold distance from the eye point. The threshold may be
- * specified by calling {@link #setShowPositionsThreshold(double)}. The dots are drawn in the GPSMarker's outline material colors by default.
- * <p/>
- * The GPSMarker's line and the GPSMarker's position dots may be drawn in unique RGBA colors by configuring the GPSMarker with a {@link PositionColors} (see
- * {@link #setPositionColors(gov.nasa.worldwind.render.GPSMarker.PositionColors)}).
- * <p/>
- * GPSMarker picking includes information about which position dots are picked, in addition to the GPSMarker itself. A position dot under the cursor is returned as an
- * Integer object in the PickedObject's AVList under they key AVKey.ORDINAL. Position dots intersecting the pick rectangle are returned as a List of Integer
- * objects in the PickedObject's AVList under the key AVKey.ORDINAL_LIST.
+ * Class used to render a pyramid inverted, use for render Marker
  * 
- * @author tag
- * @version $Id: GPSMarker.java 844 2012-10-11 00:35:07Z tgaskins $
+ * @author Nicola Meneghini,Nicola Dorigatti Trilogis SRL
+ * @version 1
  */
 public class GPSMarker extends AbstractShape {
 	/** The default interior color. */
@@ -363,15 +329,13 @@ public class GPSMarker extends AbstractShape {
 
 	/**
 	 * Creates a GPSMarker with specified positions.
-	 * <p/>
-	 * Note: If fewer than two positions is specified, no GPSMarker is drawn.
 	 * 
-	 * @param positions
-	 *            the GPSMarker positions. This reference is retained by this shape; the positions are not copied. If
-	 *            any positions in the set change, {@link #setPositions(Iterable)} must be called to inform this
-	 *            shape of the change.
-	 * @throws IllegalArgumentException
-	 *             if position is null.
+	 * @param position
+	 *            the GPSMarker position. 
+	 * @param side
+	 *            side of the square base of the pyramid
+	 * @param height
+	 *            height of the pyramid
 	 */
 	public GPSMarker(Position position,double side,double height) {
 		this.side=side;
@@ -388,7 +352,7 @@ public class GPSMarker extends AbstractShape {
 	 */
 	@Override
 	protected void initialize() {
-		// this.pickSupport = new GPSMarkerPickSupport();
+		 //this.pickSupport = new PickSupport();
 	}
 
 	@Override
@@ -401,37 +365,12 @@ public class GPSMarker extends AbstractShape {
 		super.reset();
 	}
 
+
 	/**
-	 * Returns this GPSMarker's positions.
+	 * Set the position 
 	 * 
 	 * @return this GPSMarker's positions. Will be null if no positions have been specified.
 	 */
-	public Iterable<? extends Position> getPositions() {
-		return this.positions;
-	}
-
-	/**
-	 * Specifies this GPSMarker's positions, which replace this GPSMarker's current positions, if any.
-	 * <p/>
-	 * Note: If fewer than two positions is specified, this GPSMarker is not drawn.
-	 * 
-	 * @param positions
-	 *            this GPSMarker's positions.
-	 * @throws IllegalArgumentException
-	 *             if positions is null.
-	 */
-	public void setPositions(Iterable<? extends Position> positions) {
-		if (positions == null) {
-			String msg = Logging.getMessage("nullValue.PositionsListIsNull");
-			Logging.error(msg);
-			throw new IllegalArgumentException(msg);
-		}
-
-		this.positions = positions;
-		this.computePositionCount();
-		this.referencePosition = this.numPositions < 1 ? null : this.positions.iterator().next(); // use first position
-		this.reset();
-	}
 	public void setPositions(Position position) {
 		if (position == null) {
 			String msg = Logging.getMessage("nullValue.PositionsListIsNull");
@@ -456,45 +395,19 @@ public class GPSMarker extends AbstractShape {
 		this.referencePosition = this.numPositions < 1 ? null : this.positions.iterator().next(); // use first position
 		this.reset();
 	}
-
-	/**
-	 * Indicates the PositionColors that defines the RGBA color for each of this GPSMarker's positions. A return value of <code>null</code> is valid and indicates
-	 * that this GPSMarker's positions are colored according to its
-	 * ShapeAttributes.
-	 * 
-	 * @return this GPSMarker's PositionColors, or <code>null</code> if this GPSMarker is colored according to its
-	 *         ShapeAttributes.
-	 * @see #setPositionColors(gov.nasa.worldwind.render.GPSMarker.PositionColors)
-	 */
-	public PositionColors getPositionColors() {
-		return this.positionColors;
+	
+	
+	public Position getPosition(){
+		Position pos = null;
+		if(null != this.positions){
+			if(this.positions.iterator().hasNext()){
+				pos = this.positions.iterator().next();
+			}
+		}
+		return pos;
 	}
 
-	/**
-	 * Specifies the position colors used to define an RGBA color for each of this GPSMarker's positions. When
-	 * non-<code>null</code>, the specified <code>positionColors</code> is called during rendering to define a color at
-	 * each of this GPSMarker's positions specified during construction or in a call to {@link #setPositions(Iterable)}. The
-	 * returned colors are applied to this GPSMarker's line and the optional dots drawn at each position when <code>showPositions</code> is true, and override the
-	 * ShapeAttributes' outline color and outline opacity for both
-	 * normal display and highlighted display. The specified <code>positionColors</code> do not affect this GPSMarker's
-	 * filled interior or vertical drop lines displayed when this GPSMarker is extruded.
-	 * <p/>
-	 * If this GPSMarker is configured to tessellate itself by creating additional positions between the originally specified positions, an interpolated color is
-	 * assigned to each tessellated position by computing a weighted linear combination of the colors at the originally specified positions.
-	 * <p/>
-	 * Specify <code>null</code> to disable position colors and draw this GPSMarker's line and optional position dots according to its ShapeAttributes. This GPSMarker's
-	 * position colors reference is <code>null</code> by default.
-	 * 
-	 * @param positionColors
-	 *            the PositionColors that defines an RGBA color for each of this GPSMarker's positions, or <code>null</code> to color this GPSMarker's positions according
-	 *            to its ShapeAttributes.
-	 * @see #getPositionColors()
-	 * @see PositionColors
-	 */
-	public void setPositionColors(PositionColors positionColors) {
-		this.positionColors = positionColors;
-		this.reset();
-	}
+	
 
 	/**
 	 * Indicates whether to extrude this GPSMarker. Extruding the GPSMarker extends a filled interior from the GPSMarker to the
@@ -542,32 +455,7 @@ public class GPSMarker extends AbstractShape {
 		this.reset();
 	}
 
-	/**
-	 * Indicates the number of segments used between specified positions to achieve this GPSMarker's GPSMarker type. Higher values
-	 * cause the GPSMarker to conform more closely to the GPSMarker type but decrease performance.
-	 * <p/>
-	 * Note: The sub-segments number is ignored when the GPSMarker follows terrain or when the GPSMarker type is {@link AVKey#LINEAR}.
-	 * 
-	 * @return the number of sub-segments.
-	 * @see #setNumSubsegments(int)
-	 */
-	public int getNumSubsegments() {
-		return numSubsegments;
-	}
-
-	/**
-	 * Specifies the number of segments used between specified positions to achieve this GPSMarker's GPSMarker type. Higher values
-	 * cause the GPSMarker to conform more closely to the GPSMarker type but decrease performance.
-	 * <p/>
-	 * Note: The sub-segments number is ignored when the GPSMarker follows terrain or when the GPSMarker type is {@link AVKey#LINEAR}.
-	 * 
-	 * @param numSubsegments
-	 *            the number of sub-segments. The default is 10.
-	 */
-	public void setNumSubsegments(int numSubsegments) {
-		this.numSubsegments = numSubsegments;
-		this.reset();
-	}
+	
 
 	/**
 	 * Indicates the terrain conformance target when this GPSMarker follows the terrain. The value indicates the maximum
@@ -754,15 +642,7 @@ public class GPSMarker extends AbstractShape {
 
 	/** Counts the number of positions in this GPSMarker's specified positions. */
 	protected void computePositionCount() {
-		/*TODO this.numPositions = 0;
 
-		if (this.positions != null) {
-			// noinspection UnusedDeclaration
-			for (@SuppressWarnings("unused")
-			Position pos : this.positions) {
-				++this.numPositions;
-			}
-		}*/
 		this.numPositions=12;
 	}
 
@@ -800,25 +680,6 @@ public class GPSMarker extends AbstractShape {
 
 		return true;
 	}
-
-	// /**
-	// * {@inheritDoc}
-	// * <p/>
-	// * Overridden to add this GPSMarker's pickable positions to the pick candidates.
-	// */
-	// @Override
-	// protected void doDrawOrderedRenderable(DrawContext dc, PickSupport pickCandidates)
-	// {
-	// if (dc.isPickingMode())
-	// {
-	// // Add the pickable objects used to resolve picks against individual position points. This must be done
-	// // before we call super.doDrawOrderedRenderable in order to populate the pickPositionColors buffer before
-	// // outline rendering.
-	// this.addPickablePositions(dc, pickCandidates);
-	// }
-	//
-	// super.doDrawOrderedRenderable(dc, pickCandidates);
-	// }
 
 	/**
 	 * {@inheritDoc}
@@ -933,6 +794,13 @@ public class GPSMarker extends AbstractShape {
 		//this.doDrawInteriorVBO(dc, this.getCurrentGPSMarkerData());
 	}
 
+	
+	/**
+	 * Draws this GPSMarker's interior
+	 * 
+	 * @param dc
+	 *            the current draw context.
+	 */
 	protected void doDrawInteriorVBO(DrawContext dc, int[] vboIds, GPSMarkerData GPSMarkerData) {
 		int attribLocation = dc.getCurrentProgram().getAttribLocation("vertexPoint");
 		if (attribLocation < 0) {
@@ -948,22 +816,7 @@ public class GPSMarker extends AbstractShape {
 		GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
 		GLES20.glVertexAttribPointer(attribLocation, 3, GLES20.GL_FLOAT, false, 4 * stride, 0);
 		
-		//TODO Color color = new Color(54,54,134,0.8);
-		
-				/*Color color = Color.blue();
-
-				this.currentColor.set(color).premultiply();
-				dc.getCurrentProgram().loadUniformColor("color", this.currentColor);
-				
-				GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, count-5);
-				
-				GLES20.glDrawArrays(GLES20.GL_LINES, count-4, 2);
-				GLES20.glDrawArrays(GLES20.GL_LINES, count-2, 2);*/
-		//GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, GPSMarkerData.vertexCount);
-		
 		GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, GPSMarkerData.vertexCount);
-		//GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0,GPSMarkerData.vertexCount-1);
-		
 		
 	}
 
@@ -1043,24 +896,6 @@ public class GPSMarker extends AbstractShape {
 			GPSMarker.put((float) (pt.y - referencePoint.y));
 			GPSMarker.put((float) (pt.z - referencePoint.z));
 			
-			/*if(firstPos.equals(pos)){
-				GPSMarker.put((float) (first.x - referencePoint.x));
-				GPSMarker.put((float) (first.y - referencePoint.y));
-				GPSMarker.put((float) (first.z - referencePoint.z));
-				
-			}else{
-			
-				
-				Vec4 pt = globe.computePointFromPosition(pos);
-				GPSMarker.put((float) (pt.x - referencePoint.x));
-				GPSMarker.put((float) (pt.y - referencePoint.y));
-				GPSMarker.put((float) (pt.z - referencePoint.z));
-			}*/
-
-			/*Vec4 pt = terrain.getSurfacePoint(pos.latitude, pos.longitude, altitude != null ? altitude : pos.elevation);
-			GPSMarker.put((float) (pt.x - referencePoint.x));
-			GPSMarker.put((float) (pt.y - referencePoint.y));
-			GPSMarker.put((float) (pt.z - referencePoint.z));*/
 			
 			if (colorIter != null && colorIter.hasNext()) {
 				colorIter.next().toArray4f(color, 0);
@@ -1080,40 +915,7 @@ public class GPSMarker extends AbstractShape {
 
 		return GPSMarker;
 	}
-	/*protected FloatBuffer computePointsRelativeToTerrain(DrawContext dc, List<Position> positions, Double altitude, FloatBuffer GPSMarker, GPSMarkerData GPSMarkerData) {
-		boolean extrudeIt = this.isExtrude() && !(altitude != null && altitude == 0);
-		int numPoints = extrudeIt ? 2 * positions.size() : positions.size();
-		int elemsPerPoint = (GPSMarkerData.tessellatedColors != null ? 7 : 3);
-		Iterator<Color> colorIter = (GPSMarkerData.tessellatedColors != null ? GPSMarkerData.tessellatedColors.iterator() : null);
-		float[] color = (GPSMarkerData.tessellatedColors != null ? new float[4] : null);
-
-		if (GPSMarker == null || GPSMarker.capacity() < elemsPerPoint * numPoints) GPSMarker = BufferUtil.newFloatBuffer(elemsPerPoint * numPoints);
-
-		GPSMarker.clear();
-
-		Terrain terrain = dc.getVisibleTerrain();
-		Vec4 referencePoint = GPSMarkerData.getReferencePoint();
-
-		for (Position pos : positions) {
-			double height = altitude != null ? altitude : pos.elevation;
-			Vec4 pt = terrain.getSurfacePoint(pos.latitude, pos.longitude, height);
-			GPSMarker.put((float) (pt.x - referencePoint.x));
-			GPSMarker.put((float) (pt.y - referencePoint.y));
-			GPSMarker.put((float) (pt.z - referencePoint.z));
-
-			if (colorIter != null && colorIter.hasNext()) {
-				colorIter.next().toArray4f(color, 0);
-				GPSMarker.put(color);
-			}
-
-			if (extrudeIt) this.appendTerrainPoint(dc, pos, color, GPSMarker, GPSMarkerData);
-		}
-
-		GPSMarkerData.colorOffset = (GPSMarkerData.tessellatedColors != null ? 3 : 0);
-		GPSMarkerData.vertexStride = elemsPerPoint;
-
-		return GPSMarker;
-	}*/
+	
 
 	/**
 	 * Computes a model-coordinate GPSMarker from a list of positions, using the altitudes in the specified positions. Adds
@@ -1588,20 +1390,6 @@ public class GPSMarker extends AbstractShape {
 		return box;
 	}
 
-	public Extent getExtent(Globe globe, double verticalExaggeration) {
-		// See if we've cached an extent associated with the globe.
-		Extent extent = super.getExtent(globe, verticalExaggeration);
-		if (extent != null) return extent;
-
-		GPSMarkerData current = (GPSMarkerData) this.shapeDataCache.getEntry(globe);
-		if (current == null) return null;
-
-		// Use the tessellated positions if they exist because they best represent the actual shape.
-		Iterable<? extends Position> posits = current.tessellatedPositions != null ? current.tessellatedPositions : this.getPositions();
-		if (posits == null) return null;
-
-		return super.computeExtentFromPositions(globe, verticalExaggeration, posits);
-	}
 
 	/**
 	 * Computes the GPSMarker's reference position. The position returned is the center-most ordinal position in the GPSMarker's
@@ -1638,19 +1426,6 @@ public class GPSMarker extends AbstractShape {
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vboIds[0]);
 			GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, vb.limit() * 4, vb.rewind(), GLES20.GL_STATIC_DRAW);
 
-			// if (GPSMarkerData.hasExtrusionPoints && this.isDrawVerticals())
-			// {
-			// IntBuffer ib = GPSMarkerData.polePositions;
-			// GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[1]);
-			// GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, ib.limit() * 4, ib.rewind(), GLES20.GL_STATIC_DRAW);
-			// }
-
-			// if (this.isShowPositions())
-			// {
-			// IntBuffer ib = GPSMarkerData.positionPoints;
-			// GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, vboIds[2]);
-			// GLES20.glBufferData(GLES20.GL_ELEMENT_ARRAY_BUFFER, ib.limit() * 4, ib.rewind(), GLES20.GL_STATIC_DRAW);
-			// }
 		} finally {
 			GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
 			GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -1696,9 +1471,6 @@ public class GPSMarker extends AbstractShape {
 		// by exiting and doing nothing.
 		if (oldPosition == null) return;
 
-		/*List<Position> newPositions = Position.translatePositions(oldPosition, position, this.positions);
-
-		if (newPositions != null) this.setPositions(newPositions);*/
 		this.setPositions(position);
 	}
 }

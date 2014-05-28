@@ -10,21 +10,29 @@ import gov.nasa.worldwind.avlist.AVList;
 import gov.nasa.worldwind.avlist.AVListImpl;
 import gov.nasa.worldwind.cache.FileStore;
 import gov.nasa.worldwind.exception.WWRuntimeException;
+import gov.nasa.worldwind.geom.Angle;
 import gov.nasa.worldwind.geom.LatLon;
 import gov.nasa.worldwind.geom.Sector;
+import gov.nasa.worldwind.layers.AbstractLayer;
 import gov.nasa.worldwind.ogc.OGCConstants;
 import gov.nasa.worldwind.ogc.wms.WMSCapabilities;
 import gov.nasa.worldwind.ogc.wms.WMSLayerCapabilities;
 import gov.nasa.worldwind.ogc.wms.WMSLayerStyle;
+import gov.nasa.worldwind.terrain.AbstractElevationModel;
 import gov.nasa.worldwind.wms.CapabilitiesRequest;
+
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+
 import javax.xml.xpath.XPath;
+
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 /**
@@ -39,7 +47,7 @@ import org.w3c.dom.Element;
 // TODO: is not available in the Android SDK.
 public class DataConfigurationUtils {
 	protected static final String DATE_TIME_PATTERN = "dd MM yyyy HH:mm:ss z";
-
+	protected static final String DEFAULT_TEXTURE_FORMAT = "image/png";
 	/**
 	 * Convenience method to create a {@link java.util.concurrent.ScheduledExecutorService} which can be used by World
 	 * Wind components to schedule periodic resource checks. The returned ExecutorService is backed by a single daemon
@@ -952,4 +960,574 @@ public class DataConfigurationUtils {
 
 		return (sb.length() > 0) ? sb.toString() : null;
 	}
+	
+	
+	/**
+     * Returns the specified data configuration document transformed to a standard Layer or ElevationModel configuration
+     * document. This returns the original document if the document is already in a standard form, or if the document is
+     * not one of the recognized types. Installed DataDescriptor documents are transformed to standard Layer or
+     * ElevationModel configuration documents, depending on the document contents. World Wind .NET LayerSet documents
+     * are transformed to standard Layer configuration documents. This returns null if the document's root element is
+     * null.
+     *
+     * @param doc the document to transform.
+     * @return the specified document transformed to a standard data configuration document, the original document if
+     *         it's already in a standard form or is unrecognized, or null if the document's root element is null.
+     * @throws IllegalArgumentException if the document is null.
+     */
+    public static Document convertToStandardDataConfigDocument(Document doc)
+    {
+        if (doc == null)
+        {
+            String message = Logging.getMessage("nullValue.DocumentIsNull");
+            Logging.error(message);
+            throw new IllegalArgumentException(message);
+        }
+
+        Element el = doc.getDocumentElement();
+        if (el == null)
+        {
+            return null;
+        }
+
+        if (isInstalledDataDescriptorConfigDocument(el))
+        {
+            return transformInstalledDataDescriptorConfigDocument(el);
+        }
+
+        if (isWWDotNetLayerSetConfigDocument(el))
+        {
+            return transformWWDotNetLayerSetConfigDocument(el);
+        }
+
+        return doc;
+    }
+	
+    /**
+     * Returns true if a specified DOM document is a DataDescriptor configuration document, and false otherwise.
+     *
+     * @param domElement the DOM document in question.
+     * @return true if the document is a DataDescriptor configuration document; false otherwise.
+     * @throws IllegalArgumentException if document is null.
+     */
+    public static boolean isInstalledDataDescriptorConfigDocument(Element domElement)
+    {
+        if (domElement == null)
+        {
+            String message = Logging.getMessage("nullValue.DocumentIsNull");
+            Logging.error(message);
+            throw new IllegalArgumentException(message);
+        }
+
+        List<Element> els = WWXML.getElements(domElement, "/dataDescriptor", null);
+
+        return els != null && els.size() > 0;
+    }
+
+    /**
+     * Transforms a DataDescriptor configuration document to a standard layer or elevation model configuration document,
+     * depending on the contents of the {@link org.w3c.dom.Element}.
+     *
+     * @param domElement DataDescriptor document to transform.
+     * @return standard Layer or ElevationModel document, or null if the DataDescriptor cannot be transformed to a
+     *         standard document.
+     * @throws IllegalArgumentException if the document is null.
+     */
+    public static Document transformInstalledDataDescriptorConfigDocument(Element domElement)
+    {
+        if (domElement == null)
+        {
+            String message = Logging.getMessage("nullValue.DocumentIsNull");
+            Logging.error(message);
+            throw new IllegalArgumentException(message);
+        }
+
+        XPath xpath = WWXML.makeXPath();
+
+        List<Element> els = WWXML.getElements(domElement, "/dataDescriptor/property[@name=\"dataSet\"]", xpath);
+        if (els == null || els.size() == 0)
+        {
+            return null;
+        }
+
+        // Ignore all but the first dataSet element.
+        Document outDoc = WWXML.createDocumentBuilder(true).newDocument();
+        transformDataDescriptorDataSet(els.get(0), outDoc, xpath);
+
+        return outDoc;
+    }
+
+    protected static void transformDataDescriptorDataSet(Element context, Document outDoc, XPath xpath)
+    {
+        String s = WWXML.getText(context, "property[@name=\"gov.nasa.worldwind.avkey.DataType\"]", xpath);
+
+        // ElevationModel output.
+        if (s != null && s.equals("gov.nasa.worldwind.avkey.TiledElevations"))
+        {
+            Element el = WWXML.setDocumentElement(outDoc, "ElevationModel");
+            WWXML.setIntegerAttribute(el, "version", 1);
+            transformDataDescriptorCommonElements(context, el, xpath);
+            transformDataDescriptorElevationModelElements(context, el, xpath);
+        }
+        // Default to Layer output.
+        else
+        {
+            Element el = WWXML.setDocumentElement(outDoc, "Layer");
+            WWXML.setIntegerAttribute(el, "version", 1);
+            WWXML.setTextAttribute(el, "layerType", "TiledImageLayer");
+            transformDataDescriptorCommonElements(context, el, xpath);
+            transformDataDescriptorLayerElements(context, el, xpath);
+        }
+    }
+
+    protected static void transformDataDescriptorCommonElements(Element context, Element outElem, XPath xpath)
+    {
+        // Display name and datset name properties.
+        String s = WWXML.getText(context, "property[@name=\"gov.nasa.worldwind.avkey.DatasetNameKey\"]", xpath);
+        if (s != null && s.length() != 0)
+        {
+            WWXML.appendText(outElem, "DisplayName", s);
+            WWXML.appendText(outElem, "DatasetName", s);
+        }
+
+        // Service properties.
+        // DataDescriptor documents always describe an offline pyramid of tiled imagery in the file store, Therefore we
+        // define the service as "Offline".
+        Element el = WWXML.appendElementPath(outElem, "Service");
+        WWXML.setTextAttribute(el, "serviceName", "Offline");
+
+        // Image format properties.
+        s = WWXML.getText(context, "property[@name=\"gov.nasa.worldwind.avkey.FormatSuffixKey\"]", xpath);
+        if (s != null && s.length() != 0)
+        {
+            WWXML.appendText(outElem, "FormatSuffix", s);
+
+            // DataDescriptor documents contain a format suffix, but not image format type. Convert the format suffix
+            // to a mime type, then use it to populate the ImageFormat and AvailableImageFormat elements in the
+            // transformed Layer or ElevationModel configuration document.
+            String mimeType = WWIO.makeMimeTypeForSuffix(s);
+            if (mimeType != null && mimeType.length() != 0)
+            {
+                WWXML.appendText(outElem, "ImageFormat", mimeType);
+                WWXML.appendText(outElem, "AvailableImageFormats/ImageFormat", mimeType);
+            }
+        }
+
+        // Tile structure properties.
+        Integer numLevels = WWXML.getInteger(context, "property[@name=\"gov.nasa.worldwind.avkey.NumLevels\"]", xpath);
+        Integer numEmptyLevels = WWXML.getInteger(context,
+                "property[@name=\"gov.nasa.worldwind.avkey.NumEmptyLevels\"]", xpath);
+        if (numLevels != null)
+        {
+            el = WWXML.appendElementPath(outElem, "NumLevels");
+            WWXML.setIntegerAttribute(el, "count", numLevels);
+            WWXML.setIntegerAttribute(el, "numEmpty", (numEmptyLevels != null) ? numEmptyLevels : 0);
+        }
+
+        // Note the upper case K in "avKey". This was a typo in AVKey.SECTOR, and is intentionally reproduced here.
+        Sector sector = getDataDescriptorSector(context, "property[@name=\"gov.nasa.worldwind.avKey.Sector\"]", xpath);
+        if (sector != null)
+        {
+            WWXML.appendSector(outElem, "Sector", sector);
+        }
+
+        LatLon ll = getDataDescriptorLatLon(context, "property[@name=\"gov.nasa.worldwind.avkey.TileOrigin\"]", xpath);
+        if (ll != null)
+        {
+            WWXML.appendLatLon(outElem, "TileOrigin/LatLon", ll);
+        }
+
+        ll = getDataDescriptorLatLon(context, "property[@name=\"gov.nasa.worldwind.avkey.LevelZeroTileDelta\"]", xpath);
+        if (ll != null)
+        {
+            WWXML.appendLatLon(outElem, "LevelZeroTileDelta/LatLon", ll);
+        }
+
+        Integer tileWidth = WWXML.getInteger(context, "property[@name=\"gov.nasa.worldwind.avkey.TileWidthKey\"]",
+                xpath);
+        Integer tileHeight = WWXML.getInteger(context, "property[@name=\"gov.nasa.worldwind.avkey.TileHeightKey\"]",
+                xpath);
+        if (tileWidth != null && tileHeight != null)
+        {
+            el = WWXML.appendElementPath(outElem, "TileSize/Dimension");
+            WWXML.setIntegerAttribute(el, "width", tileWidth);
+            WWXML.setIntegerAttribute(el, "height", tileHeight);
+        }
+    }
+
+    protected static void transformDataDescriptorElevationModelElements(Element context, Element outElem,
+                                                                        XPath xpath)
+    {
+        // Image format properties.
+        Element el = WWXML.appendElementPath(outElem, "DataType");
+
+        String pixelType = WWXML.getText(context, "property[@name=\"gov.nasa.worldwind.avkey.PixelType\"]", xpath);
+        if (pixelType != null && pixelType.length() != 0)
+        {
+            WWXML.setTextAttribute(el, "type", WWXML.dataTypeAsText(pixelType));
+        }
+
+        String byteOrder = WWXML.getText(context, "property[@name=\"gov.nasa.worldwind.avkey.ByteOrder\"]", xpath);
+        if (byteOrder != null && byteOrder.length() != 0)
+        {
+            WWXML.setTextAttribute(el, "byteOrder", WWXML.byteOrderAsText(byteOrder));
+        }
+
+        // Data descriptor files are written with the property "gov.nasa.worldwind.avkey.MissingDataValue". But it
+        // means the value that denotes a missing data point, and not the value that replaces missing values.
+        // Translate that key here to MissingDataSignal, so it is properly understood by the World Wind API
+        // (esp. BasicElevationModel).
+        Double d = WWXML.getDouble(context, "property[@name=\"gov.nasa.worldwind.avkey.MissingDataValue\"]", xpath);
+        if (d != null)
+        {
+            el = WWXML.appendElementPath(outElem, "MissingData");
+            WWXML.setDoubleAttribute(el, "signal", d);
+        }
+
+        // DataDescriptor documents always describe an offline pyramid of tiled imagery or elevations in the file
+        // store. Therefore we can safely assume that network retrieval should be disabled.
+
+        // Optional boolean properties.
+        WWXML.appendBoolean(outElem, "NetworkRetrievalEnabled", false);
+    }
+    
+    
+    @SuppressWarnings({"UnusedDeclaration"})
+    protected static void transformDataDescriptorLayerElements(Element context, Element outElem, XPath xpath)
+    {
+        // Set the texture format to DDS. If the texture data is already in DDS format, this parameter is benign.
+        WWXML.appendText(outElem, "TextureFormat", DEFAULT_TEXTURE_FORMAT);
+
+        // DataDescriptor documents always describe an offline pyramid of tiled imagery or elevations in the file
+        // store. Therefore we can safely assume that network retrieval should be disabled. Because we know nothing
+        // about the nature of the imagery, it's best to enable mipmapping and transparent textures by default.
+        WWXML.appendBoolean(outElem, "NetworkRetrievalEnabled", false);
+        WWXML.appendBoolean(outElem, "UseMipMaps", true);
+        WWXML.appendBoolean(outElem, "UseTransparentTextures", true);
+    }
+
+    protected static LatLon getDataDescriptorLatLon(Element context, String path, XPath xpath)
+    {
+        Element el = (path == null) ? context : WWXML.getElement(context, path, xpath);
+        if (el == null)
+        {
+            return null;
+        }
+
+        Double latDegrees = WWXML.getDouble(el, "property[@name=\"latitudeDegrees\"]", xpath);
+        Double lonDegrees = WWXML.getDouble(el, "property[@name=\"longitudeDegrees\"]", xpath);
+        if (latDegrees == null || lonDegrees == null)
+        {
+            return null;
+        }
+
+        return LatLon.fromDegrees(latDegrees, lonDegrees);
+    }
+
+    protected static Sector getDataDescriptorSector(Element context, String path, XPath xpath)
+    {
+        Element el = (path == null) ? context : WWXML.getElement(context, path, xpath);
+        if (el == null)
+        {
+            return null;
+        }
+
+        Double minLatDegrees = WWXML.getDouble(el, "property[@name=\"minLatitudeDegrees\"]", xpath);
+        Double maxLatDegrees = WWXML.getDouble(el, "property[@name=\"maxLatitudeDegrees\"]", xpath);
+        Double minLonDegrees = WWXML.getDouble(el, "property[@name=\"minLongitudeDegrees\"]", xpath);
+        Double maxLonDegrees = WWXML.getDouble(el, "property[@name=\"maxLongitudeDegrees\"]", xpath);
+
+        if (minLatDegrees == null || maxLatDegrees == null || minLonDegrees == null || maxLonDegrees == null)
+        {
+            return null;
+        }
+
+        return Sector.fromDegrees(minLatDegrees, maxLatDegrees, minLonDegrees, maxLonDegrees);
+    }
+    
+    /**
+     * Returns true if a specified document is a World Wind .NET LayerSet configuration document, and false otherwise.
+     *
+     * @param domElement the document in question.
+     * @return true if the document is a LayerSet configuration document; false otherwise.
+     * @throws IllegalArgumentException if document is null.
+     */
+    public static boolean isWWDotNetLayerSetConfigDocument(Element domElement)
+    {
+        if (domElement == null)
+        {
+            String message = Logging.getMessage("nullValue.DocumentIsNull");
+            Logging.error(message);
+            throw new IllegalArgumentException(message);
+        }
+
+        XPath xpath = WWXML.makeXPath();
+        List<Element> elements = WWXML.getElements(domElement, "/LayerSet", xpath);
+
+        return elements != null && elements.size() > 0;
+    }
+    
+    
+    /**
+     * Transforms a World Wind .NET LayerSet configuration document to a standard layer configuration document.
+     *
+     * @param domElement LayerSet document to transform.
+     * @return standard Layer document, or null if the LayerSet document cannot be transformed to a standard document.
+     * @throws IllegalArgumentException if the document is null.
+     */
+    public static Document transformWWDotNetLayerSetConfigDocument(Element domElement)
+    {
+        if (domElement == null)
+        {
+            String message = Logging.getMessage("nullValue.DocumentIsNull");
+            Logging.error(message);
+            throw new IllegalArgumentException(message);
+        }
+
+        XPath xpath = WWXML.makeXPath();
+
+        List<Element> els = WWXML.getElements(domElement, "/LayerSet/QuadTileSet", xpath);
+        if (els == null || els.size() == 0)
+        {
+            return null;
+        }
+
+        // Ignore all but the first QuadTileSet element.
+        Document outDoc = WWXML.createDocumentBuilder(true).newDocument();
+        transformWWDotNetLayerSet(els.get(0), outDoc, xpath);
+
+        return outDoc;
+    }
+
+    protected static void transformWWDotNetLayerSet(Element context, Document outDoc, XPath xpath)
+    {
+        Element el = WWXML.setDocumentElement(outDoc, "Layer");
+        WWXML.setIntegerAttribute(el, "version", 1);
+        WWXML.setTextAttribute(el, "layerType", "TiledImageLayer");
+
+        transformWWDotNetQuadTileSet(context, el, xpath);
+    }
+
+    protected static void transformWWDotNetQuadTileSet(Element context, Element outElem, XPath xpath)
+    {
+        // Display name and dataset name properties.
+        String s = WWXML.getText(context, "Name", xpath);
+        if (s != null && s.length() != 0)
+        {
+            WWXML.appendText(outElem, "DisplayName", s);
+            WWXML.appendText(outElem, "DatasetName", s);
+        }
+
+        // Display properties.
+        Double d = WWXML.getDouble(context, "Opacity", xpath);
+        if (d != null)
+        {
+            WWXML.appendDouble(outElem, "Opacity", d / 255d);
+        }
+
+        // Service properties.
+        // LayerSet documents always describe an offline pyramid of tiled imagery in the file store, Therefore we define
+        // the service as "Offline".
+        Element el = WWXML.appendElementPath(outElem, "Service");
+        WWXML.setTextAttribute(el, "serviceName", "Offline");
+
+        // Image format properties.
+        s = WWXML.getText(context, "ImageAccessor/ImageFileExtension", xpath);
+        if (s != null && s.length() != 0)
+        {
+            if (!s.startsWith("."))
+            {
+                s = "." + s;
+            }
+            WWXML.appendText(outElem, "FormatSuffix", s);
+
+            // LayerSet documents contain a format suffix, but not image format type. Convert the format suffix to a
+            // mime type, then use it to populate the ImageFormat and AvailableImageFormat elements in the transformed
+            // Layer configuration document.
+            String mimeType = WWIO.makeMimeTypeForSuffix(s);
+            if (mimeType != null && mimeType.length() != 0)
+            {
+                WWXML.appendText(outElem, "ImageFormat", mimeType);
+                WWXML.appendText(outElem, "AvailableImageFormats/ImageFormat", mimeType);
+            }
+        }
+
+        // Set the texture format to DDS. If the texture data is already in DDS format, this parameter is benign.
+        WWXML.appendText(outElem, "TextureFormat", DEFAULT_TEXTURE_FORMAT);
+
+        // Tile structure properties.
+        Integer numLevels = WWXML.getInteger(context, "ImageAccessor/NumberLevels", xpath);
+        if (numLevels != null)
+        {
+            el = WWXML.appendElementPath(outElem, "NumLevels");
+            WWXML.setIntegerAttribute(el, "count", numLevels);
+            WWXML.setIntegerAttribute(el, "numEmpty", 0);
+        }
+
+        Sector sector = getWWDotNetLayerSetSector(context, "BoundingBox", xpath);
+        if (sector != null)
+        {
+            WWXML.appendSector(outElem, "Sector", sector);
+        }
+
+        WWXML.appendLatLon(outElem, "TileOrigin/LatLon", new LatLon(Angle.NEG90, Angle.NEG180));
+
+        LatLon ll = getWWDotNetLayerSetLatLon(context, "ImageAccessor/LevelZeroTileSizeDegrees", xpath);
+        if (ll != null)
+        {
+            WWXML.appendLatLon(outElem, "LevelZeroTileDelta/LatLon", ll);
+        }
+
+        Integer tileDimension = WWXML.getInteger(context, "ImageAccessor/TextureSizePixels", xpath);
+        if (tileDimension != null)
+        {
+            el = WWXML.appendElementPath(outElem, "TileSize/Dimension");
+            WWXML.setIntegerAttribute(el, "width", tileDimension);
+            WWXML.setIntegerAttribute(el, "height", tileDimension);
+        }
+
+        // LayerSet documents always describe an offline pyramid of tiled imagery in the file store. Therefore we can
+        // safely assume that network retrieval should be disabled. Because we know nothing about the nature of
+        // the imagery, it's best to enable mipmapping and transparent textures by default.
+        WWXML.appendBoolean(outElem, "NetworkRetrievalEnabled", false);
+        WWXML.appendBoolean(outElem, "UseMipMaps", true);
+        WWXML.appendBoolean(outElem, "UseTransparentTextures", true);
+    }
+    
+    
+    protected static LatLon getWWDotNetLayerSetLatLon(Element context, String path, XPath xpath)
+    {
+        Double degrees = WWXML.getDouble(context, path, xpath);
+        if (degrees == null)
+        {
+            return null;
+        }
+
+        return LatLon.fromDegrees(degrees, degrees);
+    }
+
+    protected static Sector getWWDotNetLayerSetSector(Element context, String path, XPath xpath)
+    {
+        Element el = (path == null) ? context : WWXML.getElement(context, path, xpath);
+        if (el == null)
+        {
+            return null;
+        }
+
+        Double minLatDegrees = WWXML.getDouble(el, "South/Value", xpath);
+        Double maxLatDegrees = WWXML.getDouble(el, "North/Value", xpath);
+        Double minLonDegrees = WWXML.getDouble(el, "West/Value", xpath);
+        Double maxLonDegrees = WWXML.getDouble(el, "East/Value", xpath);
+
+        if (minLatDegrees == null || maxLatDegrees == null || minLonDegrees == null || maxLonDegrees == null)
+        {
+            return null;
+        }
+
+        return Sector.fromDegrees(minLatDegrees, maxLatDegrees, minLonDegrees, maxLonDegrees);
+    }
+    
+    /**
+     * Returns the specified data configuration document's type as a string, or null if the document is not one of the
+     * recognized types. This maps data configuration documents to a type string as follows: <table> <tr><th>Document
+     * Type</th><th>Type String</th></tr> <tr><td>Layer Configuration</td><td>"Layer"</td></tr> <tr><td>Elevation Model
+     * Configuration</td><td>"Elevation Model"</td></tr> <tr><td>Installed DataDescriptor</td><td>"Layer" or
+     * "ElevationModel"</td></tr> <tr><td>World Wind .NET LayerSet</td><td>"Layer"</td></tr>
+     * <tr><td>Other</td><td>null</td></tr> </table>
+     *
+     * @param domElement the data configuration document to determine a type for.
+     * @return a String representing the data configuration document's type, or null if the document is not recognized.
+     * @throws IllegalArgumentException if the document is null.
+     */
+    public static String getDataConfigType(Element domElement)
+    {
+        if (domElement == null)
+        {
+            String message = Logging.getMessage("nullValue.DocumentIsNull");
+            Logging.error(message);
+            throw new IllegalArgumentException(message);
+        }
+
+        if (AbstractLayer.isLayerConfigDocument(domElement))
+        {
+            return "Layer";
+        }
+
+        if (AbstractElevationModel.isElevationModelConfigDocument(domElement))
+        {
+            return "ElevationModel";
+        }
+
+        if (isInstalledDataDescriptorConfigDocument(domElement))
+        {
+            String s = WWXML.getText(domElement,
+                    "property[@name=\"dataSet\"]/property[@name=\"gov.nasa.worldwind.avkey.DataType\"]",
+                    null);
+            if (s != null && s.equals("gov.nasa.worldwind.avkey.TiledElevations"))
+            {
+                return "ElevationModel";
+            }
+            else
+            {
+                return "Layer";
+            }
+        }
+
+        if (isWWDotNetLayerSetConfigDocument(domElement))
+        {
+            return "Layer";
+        }
+
+        return null;
+    }
+
+    
+
+    /**
+     * Convenience method for computing a data configuration file's cache name in a FileStore, given the file's cache
+     * path. This writes the computed cache name to the specified parameter list under the key {@link
+     * gov.nasa.worldwind.avlist.AVKey#DATA_CACHE_NAME}. If the parameter already exists, it's left unchanged.
+     * <p/>
+     * A data configuration file's cache name is its parent directory in the cache. The cache name therefore points to
+     * the directory containing both the configuration file and any cached data associated with it. Determining the
+     * cache name at run time - instead of hard wiring it in the data configuration file - enables cache data to be
+     * moved to an arbitrary location within the cache.
+     *
+     * @param dataConfigCachePath the data configuration file's cache path.
+     * @param params              the output key-value pairs which receive the DATA_CACHE_NAME parameter. A null
+     *                            reference is permitted.
+     * @return a reference to params, or a new AVList if params is null.
+     * @throws IllegalArgumentException if the data config file's cache path is null or has length zero.
+     */
+    public static AVList getDataConfigCacheName(String dataConfigCachePath, AVList params)
+    {
+        if (dataConfigCachePath == null || dataConfigCachePath.length() == 0)
+        {
+            String message = Logging.getMessage("nullValue.FilePathIsNull");
+            Logging.error(message);
+            throw new IllegalArgumentException(message);
+        }
+
+        if (params == null)
+        {
+            params = new AVListImpl();
+        }
+
+        String s = params.getStringValue(AVKey.DATA_CACHE_NAME);
+        if (s == null || s.length() == 0)
+        {
+            // Get the data configuration file's parent cache name.
+            s = WWIO.getParentFilePath(dataConfigCachePath);
+            if (s != null && s.length() > 0)
+            {
+                // Replace any windows-style path separators with the unix-style path separator, which is the convention
+                // for cache paths.
+                s = s.replaceAll("\\\\", "/");
+                params.setValue(AVKey.DATA_CACHE_NAME, s);
+            }
+        }
+
+        return params;
+    }
+	
 }

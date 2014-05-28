@@ -329,7 +329,7 @@ public class BasicLayerFactory extends BasicFactory {
 
 		if (OGCConstants.WMS_SERVICE_NAME.equals(serviceName)) {
 			layer = new WMSTiledImageLayer(domElement, params);
-		} else if ("WWTileService".equals(serviceName)) {
+		} else if ("WWTileService".equals(serviceName) || "Offline".equals(serviceName)) {
 			layer = new BasicTiledImageLayer(domElement, params);
 		} else {
 			String msg = Logging.getMessage("generic.UnrecognizedServiceName", serviceName);

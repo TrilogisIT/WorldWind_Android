@@ -307,15 +307,7 @@ public class BasicView extends WWObjectImpl implements View {
         this.lookAtPosition.set(position);
     }
 
-    /**
-     * Animate 3DView at point location with range,heading and tilt
-     * 
-     * @param location
-     * @param range
-     * @param heading
-     * @param tilt
-     * @param worldwindow
-     */
+    @Override
     public void animateTo(Position loc, double finalRange, Angle heading, Angle tilt, WorldWindowGLSurfaceView ww) {
         if (null != loc) {
 
@@ -357,12 +349,7 @@ public class BasicView extends WWObjectImpl implements View {
         }
     }
 
-    /**
-     * Animate 3DView at location
-     * 
-     * @param location
-     * @param worldwindow
-     */
+    @Override
     public void animateTo(Position loc, WorldWindowGLSurfaceView ww) {
 
         // get init position parameter

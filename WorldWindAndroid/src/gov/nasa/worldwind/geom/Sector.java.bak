@@ -7,6 +7,7 @@ package gov.nasa.worldwind.geom;
 
 import gov.nasa.worldwind.globes.Globe;
 import gov.nasa.worldwind.util.Logging;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;

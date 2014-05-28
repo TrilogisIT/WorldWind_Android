@@ -5,6 +5,8 @@
  */
 package gov.nasa.worldwind.terrain;
 
+import java.util.List;
+
 import gov.nasa.worldwind.*;
 import gov.nasa.worldwind.avlist.*;
 import gov.nasa.worldwind.cache.FileStore;
@@ -130,6 +132,31 @@ public abstract class AbstractElevationModel extends WWObjectImpl implements Ele
     //********************  Configuration  *************************//
     //**************************************************************//
 
+    /**
+     * Returns true if a specified DOM document is an ElevationModel configuration document, and false otherwise.
+     *
+     * @param domElement the DOM document in question.
+     *
+     * @return true if the document is an ElevationModel configuration document; false otherwise.
+     *
+     * @throws IllegalArgumentException if document is null.
+     */
+    public static boolean isElevationModelConfigDocument(Element domElement)
+    {
+        if (domElement == null)
+        {
+            String message = Logging.getMessage("nullValue.DocumentIsNull");
+            Logging.error(message);
+            throw new IllegalArgumentException(message);
+        }
+
+        XPath xpath = WWXML.makeXPath();
+        List<Element> elements = WWXML.getElements(domElement, "//ElevationModel", xpath);
+
+        return elements != null && elements.size() > 0;
+    }
+    
+    
     /**
      * Parses elevation model configuration parameters from the specified DOM document. This writes output as key-value
      * pairs to params. If a parameter from the XML document already exists in params, that parameter is ignored.

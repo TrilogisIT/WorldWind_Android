@@ -16,6 +16,27 @@ public class Angle
     protected static final double DEGREES_TO_RADIANS = Math.PI / 180d;
     protected static final double RADIANS_TO_DEGREES = 180d / Math.PI;
 
+    /** Represents a right angle of negative 90 degrees */
+    public static final Angle NEG90 = Angle.fromDegrees(-90);
+    
+    /** Represents an angle of negative 180 degrees */
+    public static final Angle NEG180 = Angle.fromDegrees(-180);
+    
+    /** Represents an angle of negative 360 degrees */
+    public static final Angle NEG360 = Angle.fromDegrees(-360);
+    
+    /** Represents a right angle of positive 90 degrees */
+    public static final Angle POS90 = Angle.fromDegrees(90);
+    
+    /** Represents an angle of positive 180 degrees */
+    public static final Angle POS180 = Angle.fromDegrees(180);
+    
+    /** Represents an angle of positive 360 degrees */
+    public static final Angle POS360 = Angle.fromDegrees(360);
+
+    /** Represents an angle of 0 degrees */
+    public static final Angle ZERO = Angle.fromDegrees(0);
+    
     public double degrees;
     public double radians;
 

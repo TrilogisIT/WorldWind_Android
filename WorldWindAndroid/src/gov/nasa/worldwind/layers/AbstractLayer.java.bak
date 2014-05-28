@@ -15,11 +15,14 @@ import gov.nasa.worldwind.geom.Position;
 import gov.nasa.worldwind.render.DrawContext;
 import gov.nasa.worldwind.util.Logging;
 import gov.nasa.worldwind.util.WWXML;
+
 import java.beans.PropertyChangeEvent;
 import java.util.List;
 
 import javax.xml.xpath.XPath;
+
 import org.w3c.dom.Element;
+
 import android.graphics.Point;
 
 /**
@@ -239,6 +242,8 @@ public abstract class AbstractLayer extends WWObjectImpl implements Layer {
 	public long getExpiryTime() {
 		return this.expiryTime;
 	}
+	
+	
 
 	// **************************************************************//
 	// ******************** Configuration *************************//

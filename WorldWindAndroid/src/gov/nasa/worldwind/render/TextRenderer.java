@@ -24,6 +24,7 @@ public class TextRenderer {
 	protected static final String VERTEX_SHADER_PATH = "shaders/TextRenderer.vert";
 	protected static final String FRAGMENT_SHADER_PATH = "shaders/TextRenderer.frag";
 	protected static final Object shaderKey = new Object();
+	private final boolean FAO_PANASONIC = true; 
 
 	private HashMap<String, Object> textKeys = new HashMap<String, Object>();
 	private DrawContext drawContext;
@@ -38,7 +39,22 @@ public class TextRenderer {
 	public Rect getBounds(String text) {
 		android.graphics.Rect bounds = new android.graphics.Rect();
 		paint.getTextBounds(text, 0, text.length(), bounds);
-		Rect retval = new Rect(0, 0, bounds.width(), bounds.height());
+		
+		Rect retval;
+		if(FAO_PANASONIC){
+			int quadWidth=1;
+			for(double i = (double)(bounds.width()+1);i>1;i=i/2){
+				quadWidth= quadWidth*2;
+			}
+			int quadHeight=1;
+			for(double i = (double)(bounds.height()+1);i>1;i=i/2){
+				quadHeight= quadHeight*2;
+			}
+		
+			retval = new Rect(0, 0, quadWidth, quadHeight);
+		}else{
+			retval = new Rect(0, 0, bounds.width(), bounds.height());
+		}
 		return retval;
 	}
 
@@ -110,7 +126,23 @@ public class TextRenderer {
 		Bitmap image = Bitmap.createBitmap(bounds.width() + 1, bounds.height() + 1, Bitmap.Config.ARGB_8888);
 		Canvas canvas = new Canvas(image);
 		canvas.drawText(text, 0, bounds.height(), paint);
-
+		
+		if(FAO_PANASONIC){
+		
+			int quadWidth=1;
+			for(double i = (double)(bounds.width()+1);i>1;i=i/2){
+				quadWidth= quadWidth*2;
+			}
+			int quadHeight=1;
+			for(double i = (double)(bounds.height()+1);i>1;i=i/2){
+				quadHeight= quadHeight*2;
+			}
+			/*Bitmap image = Bitmap.createBitmap(quadWidth, quadHeight, Bitmap.Config.ARGB_8888);
+			Canvas canvas = new Canvas(image);
+			canvas.drawText(text, 0, quadHeight, paint);*/
+			image = Bitmap.createScaledBitmap(image, quadWidth, quadHeight, false);
+		}
+		
 		GpuTexture texture = null;
 		GpuTextureData textureData = GpuTextureData.createTextureData(image);
 		// GpuTextureData textureData = BasicGpuTextureFactory.createTextureData(AVKey.GPU_TEXTURE_FACTORY, image, null);

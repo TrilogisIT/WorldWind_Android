@@ -1114,7 +1114,7 @@ public class BasicElevationModel extends AbstractElevationModel implements BulkR
 
 		// Set to model's limits if for some reason a limit wasn't determined
 		if (min == Double.MAX_VALUE) min = this.getMinElevation();
-		if (max == Double.MAX_VALUE) max = this.getMaxElevation();
+		if (max == -Double.MAX_VALUE) max = this.getMaxElevation();
 
 		return new double[] { min, max };
 	}

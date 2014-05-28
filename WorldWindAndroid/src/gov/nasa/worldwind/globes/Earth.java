@@ -20,6 +20,10 @@ public class Earth extends EllipsoidalGlobe
     protected static final double WGS84_POLAR_RADIUS = 6356752.3; // ellipsoid polar getRadius, in meters
     protected static final double WGS84_ES = 0.00669437999013; // eccentricity squared, semi-major axis
 
+    public static final double ELEVATION_MIN = -11000d; // Depth of Marianas trench
+    public static final double ELEVATION_MAX = 8500d; // Height of Mt. Everest.
+    
+    
     public Earth()
     {
         super(WGS84_EQUATORIAL_RADIUS, WGS84_POLAR_RADIUS, WGS84_ES, createElevationModel());

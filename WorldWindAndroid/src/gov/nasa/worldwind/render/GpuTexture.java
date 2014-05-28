@@ -59,7 +59,7 @@ public class GpuTexture implements Cacheable, Disposable {
 
     private static GpuTexture doCreateFromETCCompressedData(DrawContext dc, PKMGpuTextureData textureData) throws Exception {
         int format = ETC1.ETC1_RGB8_OES;
-        ETC1Texture compressedData = textureData.getEtcCompressedData();
+        nicastel.renderscripttexturecompressor.etc1.java.JavaETC1Util.ETC1Texture compressedData = textureData.getEtcCompressedData();
 
         int[] texture = new int[1];
         try {

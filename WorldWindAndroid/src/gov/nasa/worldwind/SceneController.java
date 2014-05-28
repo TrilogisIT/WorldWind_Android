@@ -110,9 +110,11 @@ public class SceneController extends WWObjectImpl {
 	 *            the vertical exaggeration to apply.
 	 */
 	public void setVerticalExaggeration(double verticalExaggeration) {
-		Double oldVE = this.verticalExaggeration;
-		this.verticalExaggeration = verticalExaggeration;
-		this.firePropertyChange(AVKey.VERTICAL_EXAGGERATION, oldVE, verticalExaggeration);
+		if(this.verticalExaggeration!=verticalExaggeration){
+			Double oldVE = this.verticalExaggeration;
+			this.verticalExaggeration = verticalExaggeration;
+			this.firePropertyChange(AVKey.VERTICAL_EXAGGERATION, oldVE, verticalExaggeration);
+		}
 	}
 
 	/**
@@ -398,7 +400,7 @@ public class SceneController extends WWObjectImpl {
 		return;
 
 		this.pickLayers(dc);
-		this.pickOrderedRenderables(dc);
+		//this.pickOrderedRenderables(dc);//FIXME
 	}
 
 	protected void pickLayers(DrawContext dc) {

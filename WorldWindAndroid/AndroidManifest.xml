@@ -3,13 +3,19 @@
     package="gov.nasa.worldwind"
     android:versionCode="1"
     android:versionName="1.0" >
+    
+    <!-- Specify that World Wind Android applications require SDK Platform Android 4.0.3, API 15. -->
     <uses-sdk
         android:minSdkVersion="15"
-        android:targetSdkVersion="18" />
-    <!-- Specify all of the Android features that World Wind requires: OpenGL ES 2.0. -->
-    <uses-feature android:glEsVersion="0x00020000" />
+        android:targetSdkVersion="19" />
+      <!-- Specify all of the Android features that World Wind requires: OpenGL ES 2.0. -->
+      <uses-feature android:glEsVersion="0x00020000" android:required="true" />
     <!-- Specify all of the Android permissions that World Wind requires: internet. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    
+    <supports-gl-texture android:name="GL_OES_compressed_ETC1_RGB8_texture" />
+    
     <application android:allowBackup="true" >
     </application>
+    
 </manifest>

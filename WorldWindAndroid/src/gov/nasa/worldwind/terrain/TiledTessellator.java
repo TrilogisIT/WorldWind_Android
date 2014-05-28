@@ -355,6 +355,8 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 	protected Line pickRay = new Line();
 	protected Vec4 pickedTriPoint = new Vec4();
 	protected Position pickedTriPos = new Position();
+	
+	protected Globe globe;
 
 	public TiledTessellator(AVList params) {
 		if (params == null) {
@@ -485,7 +487,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		this.currentTiles.clear();
 		this.currentCoverage.setDegrees(0, 0, 0, 0);
 
-		if (this.topLevelTiles.isEmpty()) this.createTopLevelTiles();
+		if (this.topLevelTiles.isEmpty()) this.createTopLevelTiles(dc);
 
 		for (int i = 0; i < this.topLevelTiles.size(); i++) {
 			Tile tile = this.topLevelTiles.get(i);
@@ -498,12 +500,19 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		this.currentTiles.setSector(this.currentCoverage.isEmpty() ? null : this.currentCoverage);
 	}
 
-	protected void createTopLevelTiles() {
+	protected void createTopLevelTiles(DrawContext dc) {
 		if (this.levels.getFirstLevel() == null) {
 			Logging.warning(Logging.getMessage("generic.FirstLevelIsNull"));
 			return;
 		}
 
+		if (this.globe == null)
+	      {
+	        this.globe = dc.getGlobe();
+	        dc.getGlobe().getElevationModel().addPropertyChangeListener(AVKey.ELEVATION_MODEL, this);
+	        dc.addPropertyChangeListener(AVKey.VERTICAL_EXAGGERATION, this);
+	      }
+		
 		this.topLevelTiles.clear();
 		// TODO Tile.createTilesForLevel(this.levels.getFirstLevel(), this.levels.getSector(), this, this.topLevelTiles);
 		Tile.createTilesForLevel(this.levels.getFirstLevel(), this.levels.getSector(), this, this.topLevelTiles, this.levels.getTileOrigin());
@@ -743,7 +752,7 @@ public class TiledTessellator extends WWObjectImpl implements Tessellator, Tile.
 		// Add redundant points with the row's minimum latitude. These points are used to display the tile's skirt, and
 		// have the same locations as the first row, but are assigned the minimum elevation instead of the actual
 		// elevations. buildTileRowVertices handles adding the redundant columns for the tile's skirt.
-		rowSector.setDegrees(minLat, minLat, minLon, maxLon);
+		rowSector.setDegrees(minLat, maxLat, minLon, maxLon);//TODO
 		Arrays.fill(this.tileRowElevations, minElevation);
 		this.buildTileRowVertices(dc, rowSector, numLon, this.tileRowElevations, minElevation, geom);
 

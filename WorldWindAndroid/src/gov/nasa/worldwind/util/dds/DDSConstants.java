@@ -36,6 +36,8 @@ public class DDSConstants
     public static final int D3DFMT_DXT3 = makeFourCC('D', 'X', 'T', '3');
     public static final int D3DFMT_DXT4 = makeFourCC('D', 'X', 'T', '4');
     public static final int D3DFMT_DXT5 = makeFourCC('D', 'X', 'T', '5');
+    
+    public static final int D3DFMT_ETC1 = makeFourCC('E', 'T', 'C', '1');
 
     // A DWORD (magic number) containing the four character code value 'DDS ' (0x20534444)
     public static final int MAGIC = makeFourCC('D', 'D', 'S', ' ');
